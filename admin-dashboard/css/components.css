@@ -5,6 +5,35 @@
  */
 
 /* ========================================
+   SECTION CONTENT FIX - CRITICAL
+======================================== */
+
+/* Ensure all section content is visible and has proper dimensions */
+.content-section * {
+    min-height: 1px;
+    min-width: 1px;
+    opacity: 1;
+    visibility: visible;
+}
+
+.section-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    min-height: 60px !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.header-content {
+    flex: 1 !important;
+}
+
+.header-actions {
+    flex: none !important;
+}
+
+/* ========================================
    SECTION COMPONENTS - ADDED
 ======================================== */
 
@@ -1393,91 +1422,30 @@
   margin: 8px 0;
 }
 
-/* ========================================
-   UTILITIES
-======================================== */
+/* NUCLEAR CSS FIX - Place at end of file */
+#move-management, #dance-style-management, #move-submissions {
+    display: block !important;
+    min-height: 500px !important;
+    background: white !important;
+}
 
-/* Spacing */
-.m-0 { margin: 0 !important; }
-.m-1 { margin: 8px !important; }
-.m-2 { margin: 16px !important; }
-.m-3 { margin: 24px !important; }
-.m-4 { margin: 32px !important; }
-.m-5 { margin: 40px !important; }
+#move-management *, 
+#dance-style-management *, 
+#move-submissions * {
+    display: block !important;
+    min-height: 20px !important;
+    min-width: 20px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    overflow: visible !important;
+}
 
-.p-0 { padding: 0 !important; }
-.p-1 { padding: 8px !important; }
-.p-2 { padding: 16px !important; }
-.p-3 { padding: 24px !important; }
-.p-4 { padding: 32px !important; }
-.p-5 { padding: 40px !important; }
-
-/* Display */
-.d-none { display: none !important; }
-.d-block { display: block !important; }
-.d-flex { display: flex !important; }
-.d-grid { display: grid !important; }
-
-/* Flexbox */
-.justify-center { justify-content: center !important; }
-.justify-between { justify-content: space-between !important; }
-.justify-end { justify-content: flex-end !important; }
-.align-center { align-items: center !important; }
-.align-start { align-items: flex-start !important; }
-.align-end { align-items: flex-end !important; }
-
-/* Text */
-.text-center { text-align: center !important; }
-.text-left { text-align: left !important; }
-.text-right { text-align: right !important; }
-.text-bold { font-weight: 700 !important; }
-.text-normal { font-weight: 400 !important; }
-
-/* Colors */
-.text-muted { color: var(--text-secondary) !important; }
-.text-primary-color { color: var(--primary-purple) !important; }
-.text-success-color { color: var(--success) !important; }
-.text-warning-color { color: var(--warning) !important; }
-.text-danger-color { color: var(--danger) !important; }
-
-/* Background */
-.bg-primary-color { background: var(--primary-purple) !important; }
-.bg-success-color { background: var(--success) !important; }
-.bg-warning-color { background: var(--warning) !important; }
-.bg-danger-color { background: var(--danger) !important; }
-
-/* Borders */
-.border-0 { border: none !important; }
-.border-1 { border: 1px solid #E9ECEF !important; }
-.border-primary { border-color: var(--primary-purple) !important; }
-.border-success { border-color: var(--success) !important; }
-.border-warning { border-color: var(--warning) !important; }
-.border-danger { border-color: var(--danger) !important; }
-
-/* Shadows */
-.shadow-none { box-shadow: none !important; }
-.shadow-sm { box-shadow: var(--shadow-light) !important; }
-.shadow-md { box-shadow: var(--shadow-medium) !important; }
-.shadow-lg { box-shadow: var(--shadow-heavy) !important; }
-
-/* Cursor */
-.cursor-pointer { cursor: pointer !important; }
-.cursor-not-allowed { cursor: not-allowed !important; }
-
-/* Overflow */
-.overflow-hidden { overflow: hidden !important; }
-.overflow-auto { overflow: auto !important; }
-.overflow-scroll { overflow: scroll !important; }
-
-/* Position */
-.position-relative { position: relative !important; }
-.position-absolute { position: absolute !important; }
-.position-fixed { position: fixed !important; }
-.position-sticky { position: sticky !important; }
-
-/* Z-index */
-.z-0 { z-index: 0 !important; }
-.z-10 { z-index: 10 !important; }
-.z-50 { z-index: 50 !important; }
-.z-100 { z-index: 100 !important; }
-.z-1000 { z-index: 1000 !important; }
+#move-management .section-header,
+#dance-style-management .section-header,
+#move-submissions .section-header {
+    display: flex !important;
+    min-height: 80px !important;
+    padding: 20px !important;
+    background: #f0f0f0 !important;
+    border: 1px solid #ccc !important;
+}
