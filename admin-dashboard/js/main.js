@@ -53,6 +53,9 @@ class DancifyAdmin {
                 this.components.api = new window.DancifyAPI();
                 await this.components.api.init();
                 this.connectionStatus = 'connected';
+                
+                // Make API client globally available for other components
+                window.apiClient = this.components.api;
             } else {
                 throw new Error('DancifyAPI class not available');
             }
