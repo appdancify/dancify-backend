@@ -1,6 +1,5 @@
 <!-- 💃 Dancify Admin Dashboard - Move Management Section -->
 <!-- Create and manage dance moves with video support -->
-
 <section id="move-management" class="content-section">
     <!-- Section Header -->
     <div class="section-header">
@@ -18,37 +17,38 @@
     <!-- Search and Filters -->
     <div class="filters-section">
         <div class="search-bar">
-            <input type="text" id="moveSearchInput" placeholder="🔍 Search moves..." class="form-control">
+            <input type="text" id="moveSearch" placeholder="🔍 Search moves..." class="form-control">
         </div>
         
         <div class="filter-controls">
-            <select id="danceStyleFilter" class="form-control form-select">
+            <select id="danceStyleFilter" class="form-control">
                 <option value="">All Dance Styles</option>
-                <option value="ballet">🩰 Ballet</option>
-                <option value="hip-hop">🎤 Hip-Hop</option>
-                <option value="salsa">💃 Salsa</option>
-                <option value="contemporary">🎭 Contemporary</option>
-                <option value="jazz">🎺 Jazz</option>
-                <option value="breaking">🤸 Breaking</option>
-                <option value="ballroom">💑 Ballroom</option>
-                <option value="latin">🌶️ Latin</option>
-                <option value="house">🏠 House</option>
+                <option value="ballet">Ballet</option>
+                <option value="hip_hop">Hip Hop</option>
+                <option value="salsa">Salsa</option>
+                <option value="contemporary">Contemporary</option>
+                <option value="house">House</option>
+                <option value="jazz">Jazz</option>
+                <option value="ballroom">Ballroom</option>
+                <option value="latin">Latin</option>
+                <option value="breakdancing">Breakdancing</option>
             </select>
             
-            <select id="difficultyFilter" class="form-control form-select">
+            <select id="difficultyFilter" class="form-control">
                 <option value="">All Difficulties</option>
-                <option value="beginner">🟢 Beginner</option>
-                <option value="intermediate">🟡 Intermediate</option>
-                <option value="advanced">🟠 Advanced</option>
-                <option value="expert">🔴 Expert</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="expert">Expert</option>
             </select>
             
-            <select id="sectionFilter" class="form-control form-select">
+            <select id="sectionFilter" class="form-control">
                 <option value="">All Sections</option>
                 <option value="Basic Positions">Basic Positions</option>
-                <option value="Basic Movements">Basic Movements</option>
-                <option value="Foundation Moves">Foundation Moves</option>
-                <option value="Groove Techniques">Groove Techniques</option>
+                <option value="Footwork">Footwork</option>
+                <option value="Arm Movements">Arm Movements</option>
+                <option value="Body Movements">Body Movements</option>
+                <option value="Advanced Techniques">Advanced Techniques</option>
                 <option value="Turns">Turns</option>
                 <option value="Jumps">Jumps</option>
                 <option value="Combinations">Combinations</option>
@@ -72,19 +72,19 @@
     <div class="stats-summary">
         <div class="stat-item">
             <span class="stat-label">Total Moves</span>
-            <span class="stat-value" id="totalMovesCount">-</span>
+            <span class="stat-value" id="totalMovesCount">0</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Beginner</span>
-            <span class="stat-value" id="beginnerMovesCount">-</span>
+            <span class="stat-value" id="beginnerMovesCount">0</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Intermediate</span>
-            <span class="stat-value" id="intermediateMovesCount">-</span>
+            <span class="stat-value" id="intermediateMovesCount">0</span>
         </div>
         <div class="stat-item">
             <span class="stat-label">Advanced+</span>
-            <span class="stat-value" id="advancedMovesCount">-</span>
+            <span class="stat-value" id="advancedMovesCount">0</span>
         </div>
     </div>
 
@@ -504,29 +504,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-medium);
     min-width: 300px;
-    animation: slideIn 0.3s ease;
-}
-
-.message-success {
-    border-color: #28a745;
-    background: #f8fff9;
-}
-
-.message-error {
-    border-color: #dc3545;
-    background: #fff8f8;
-}
-
-.message-warning {
-    border-color: #ffc107;
-    background: #fffdf7;
-}
-
-.message-info {
-    border-color: #17a2b8;
-    background: #f7feff;
 }
 
 .message-icon {
@@ -543,106 +522,71 @@
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
-    color: var(--text-secondary);
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
 }
 
 .message-close:hover {
-    color: var(--text-primary);
+    opacity: 1;
 }
 
-/* Video Modal Styles */
-.video-modal .modal {
-    max-width: 90vw;
-    max-height: 90vh;
+.message-success {
+    border-left: 4px solid var(--success);
 }
 
-.video-container {
-    position: relative;
-    width: 100%;
-    height: 0;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+.message-error {
+    border-left: 4px solid var(--danger);
 }
 
-.video-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+.message-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.message-info {
+    border-left: 4px solid var(--info);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .section-header {
-        flex-direction: column;
-        gap: 15px;
-        align-items: stretch;
-    }
-    
     .filters-section {
         flex-direction: column;
         align-items: stretch;
     }
     
     .filter-controls {
-        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .stats-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
     }
     
     .moves-grid {
         grid-template-columns: 1fr;
     }
     
-    .stats-summary {
-        grid-template-columns: 1fr;
-    }
-    
     .bulk-actions {
         flex-direction: column;
         gap: 15px;
-        align-items: stretch;
-    }
-    
-    .message-container {
-        left: 20px;
-        right: 20px;
-    }
-    
-    .message {
-        min-width: unset;
+        text-align: center;
     }
 }
 
 @media (max-width: 480px) {
-    .filter-controls select {
-        min-width: unset;
+    .stats-summary {
+        grid-template-columns: 1fr;
     }
     
-    .stat-item {
+    .header-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    .section-header {
         flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
         text-align: center;
-        gap: 5px;
-    }
-    
-    .move-stats {
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-start;
-    }
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
     }
 }
 </style>
