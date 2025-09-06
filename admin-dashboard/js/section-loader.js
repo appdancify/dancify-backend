@@ -406,19 +406,31 @@ class DancifySectionLoader {
         console.log(`ℹ️ No specific initialization found for section: ${sectionName}`);
     }
 
-    // ✨ Activate section (show/hide)
+    // ✨ Activate section (show/hide) - COMPLETELY FIXED
     activateSection(sectionName) {
+        console.log(`✨ Activating section: ${sectionName}`);
+        
         // Hide all sections
         const allSections = document.querySelectorAll('.content-section');
+        console.log(`✨ Found ${allSections.length} total sections`);
+        
         allSections.forEach(section => {
             section.classList.remove('active');
+            section.style.display = 'none'; // FIXED: Force hide
         });
         
         // Show target section
         const targetSection = document.getElementById(sectionName);
         if (targetSection) {
             targetSection.classList.add('active');
+            targetSection.style.display = 'block'; // FIXED: Force show
             this.activeSection = sectionName;
+            
+            console.log(`✨ Section ${sectionName} activated successfully`);
+            console.log(`✨ Section classes: ${targetSection.className}`);
+            console.log(`✨ Section display: ${getComputedStyle(targetSection).display}`);
+        } else {
+            console.error(`❌ Section ${sectionName} not found for activation`);
         }
     }
 
