@@ -28,8 +28,8 @@ class DancifyAdmin {
             // Set up global event listeners
             this.setupGlobalEventListeners();
             
-            // Load initial section
-            await this.loadSection('dashboard');
+            // FIXED: Load dashboard section content by default
+            await this.loadDefaultSection();
             
             // Start connection monitoring
             this.startConnectionMonitoring();
@@ -60,126 +60,121 @@ class DancifyAdmin {
             // Initialize navigation system
             if (window.DancifyNavigation) {
                 this.components.navigation = new window.DancifyNavigation();
-                await this.components.navigation.init();
+                this.components.navigation.init();
+                
+                // Make navigation globally available
+                window.navigationManager = this.components.navigation;
             } else {
-                console.warn('⚠️ DancifyNavigation not available');
+                throw new Error('DancifyNavigation class not available');
             }
             
             // Initialize section loader
             if (window.DancifySectionLoader) {
                 this.components.sectionLoader = new window.DancifySectionLoader();
-                await this.components.sectionLoader.init();
+                this.components.sectionLoader.init();
+                
+                // Make section loader globally available
+                window.sectionLoader = this.components.sectionLoader;
             } else {
-                console.warn('⚠️ DancifySectionLoader not available');
+                throw new Error('DancifySectionLoader class not available');
             }
             
-            // Initialize dashboard (will be loaded when section is activated)
+            // Initialize dashboard
             if (window.DancifyDashboard) {
                 this.components.dashboard = new window.DancifyDashboard();
+                // Dashboard will be initialized when section loads
+            } else {
+                console.warn('⚠️ DancifyDashboard class not available');
             }
             
             console.log('✅ Core components loaded');
             
         } catch (error) {
-            console.error('❌ Failed to initialize modules:', error);
+            console.error('❌ Module initialization failed:', error);
             throw error;
         }
     }
 
-    // 🎯 Set up global event listeners
+    // 📄 Load default section (dashboard)
+    async loadDefaultSection() {
+        try {
+            console.log('📊 Loading default dashboard section...');
+            
+            // Load dashboard section via section loader
+            if (this.components.sectionLoader) {
+                await this.components.sectionLoader.loadSection('dashboard');
+            } else {
+                // Fallback: direct dashboard load
+                await this.loadSection('dashboard');
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load default section:', error);
+            this.showErrorMessage('Failed to load dashboard: ' + error.message);
+        }
+    }
+
+    // 🔗 Set up global event listeners
     setupGlobalEventListeners() {
-        // Handle section navigation
-        document.addEventListener('click', (event) => {
-            this.handleGlobalClick(event);
+        console.log('🔧 Setting up global event listeners...');
+        
+        // Handle navigation clicks
+        document.addEventListener('click', (e) => {
+            const sectionLink = e.target.closest('[data-section]');
+            if (sectionLink) {
+                e.preventDefault();
+                const section = sectionLink.dataset.section;
+                this.loadSection(section);
+            }
+            
+            // Handle action buttons
+            const actionButton = e.target.closest('[data-action]');
+            if (actionButton) {
+                e.preventDefault();
+                const action = actionButton.dataset.action;
+                this.handleAction(action, actionButton);
+            }
         });
         
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', (event) => {
-            this.handleKeyboardShortcuts(event);
-        });
-        
-        // Handle API authentication events
-        window.addEventListener('auth:unauthorized', () => {
-            this.handleUnauthorized();
+        // Handle hash changes for direct navigation
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.slice(1);
+            if (hash && hash !== this.currentSection) {
+                this.loadSection(hash);
+            }
         });
         
         // Handle connection status changes
         window.addEventListener('online', () => {
-            this.handleConnectionChange(true);
+            this.connectionStatus = 'connected';
+            this.showSuccessMessage('Connection restored');
+            this.refreshCurrentSection();
         });
         
         window.addEventListener('offline', () => {
-            this.handleConnectionChange(false);
-        });
-        
-        // Handle before page unload
-        window.addEventListener('beforeunload', () => {
-            this.cleanup();
+            this.connectionStatus = 'disconnected';
+            this.showWarningMessage('Connection lost - working offline');
         });
         
         console.log('✅ Global event listeners setup completed');
     }
 
-    // 🖱️ Handle global click events
-    handleGlobalClick(event) {
-        const target = event.target.closest('[data-section]');
-        
-        if (target) {
-            event.preventDefault();
-            const section = target.getAttribute('data-section');
-            this.loadSection(section);
-            return;
-        }
-        
-        // Handle other clickable elements
-        const actionTarget = event.target.closest('[data-action]');
-        if (actionTarget) {
-            event.preventDefault();
-            const action = actionTarget.getAttribute('data-action');
-            this.handleAction(action, actionTarget);
-        }
-    }
-
-    // ⌨️ Handle keyboard shortcuts
-    handleKeyboardShortcuts(event) {
-        // Ctrl/Cmd + R: Refresh current section
-        if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
-            event.preventDefault();
-            this.refreshCurrentSection();
-            return;
-        }
-        
-        // Escape: Close modals
-        if (event.key === 'Escape') {
-            this.closeAllModals();
-            return;
-        }
-        
-        // Ctrl/Cmd + /: Show help
-        if ((event.ctrlKey || event.metaKey) && event.key === '/') {
-            event.preventDefault();
-            this.showHelp();
-            return;
-        }
-    }
-
-    // 📄 Load a section
+    // 📄 Load a specific section
     async loadSection(sectionName) {
-        if (!sectionName || this.currentSection === sectionName) {
-            return;
-        }
-        
         try {
             console.log(`📂 Loading section: ${sectionName}`);
             
-            // Update navigation state
-            if (this.components.navigation) {
-                this.components.navigation.setActiveSection(sectionName);
-            }
-            
-            // Load section content
+            // Use section loader if available
             if (this.components.sectionLoader) {
                 await this.components.sectionLoader.loadSection(sectionName);
+            } else {
+                // Fallback: manual section loading
+                await this.manualLoadSection(sectionName);
+            }
+            
+            // Update navigation
+            if (this.components.navigation) {
+                this.components.navigation.setActiveSection(sectionName);
             }
             
             // Initialize section-specific functionality
@@ -198,6 +193,42 @@ class DancifyAdmin {
             console.error(`❌ Failed to load section ${sectionName}:`, error);
             this.showErrorMessage(`Failed to load ${sectionName}: ${error.message}`);
         }
+    }
+
+    // 📄 Manual section loading (fallback)
+    async manualLoadSection(sectionName) {
+        const mainContent = document.getElementById('mainContent');
+        const contentContainer = mainContent?.querySelector('.content-container');
+        
+        if (!contentContainer) {
+            throw new Error('Content container not found');
+        }
+        
+        // Hide all sections
+        const allSections = contentContainer.querySelectorAll('.content-section');
+        allSections.forEach(section => {
+            section.classList.remove('active');
+            section.style.display = 'none';
+        });
+        
+        // Show target section
+        let targetSection = document.getElementById(sectionName);
+        if (!targetSection) {
+            // Create section if it doesn't exist
+            targetSection = document.createElement('section');
+            targetSection.id = sectionName;
+            targetSection.className = 'content-section';
+            targetSection.innerHTML = `
+                <div class="section-placeholder">
+                    <h2>📊 ${sectionName.replace('-', ' ').toUpperCase()}</h2>
+                    <p>Loading ${sectionName} interface...</p>
+                </div>
+            `;
+            contentContainer.appendChild(targetSection);
+        }
+        
+        targetSection.classList.add('active');
+        targetSection.style.display = 'block';
     }
 
     // 🔧 Initialize section-specific functionality
@@ -219,9 +250,13 @@ class DancifyAdmin {
                 
             case 'move-management':
                 // Initialize move management functionality
-                if (window.MoveManager) {
-                    const moveManager = new window.MoveManager(this.components.api);
-                    await moveManager.init();
+                if (window.MoveManager && this.components.api) {
+                    if (!window.moveManager) {
+                        window.moveManager = new window.MoveManager(this.components.api);
+                    }
+                    if (typeof window.moveManager.init === 'function') {
+                        await window.moveManager.init();
+                    }
                 }
                 break;
                 
@@ -296,225 +331,161 @@ class DancifyAdmin {
         }
     }
 
-    // 🚪 Handle logout
-    handleLogout() {
-        if (this.components.api) {
-            this.components.api.clearAuthTokens();
-        }
-        
-        // Clear any cached data
-        localStorage.removeItem('dancify_cache');
-        
-        // Redirect to login or show login form
-        window.location.href = '/login';
-    }
-
     // 📱 Toggle sidebar
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
-        const mainContent = document.querySelector('.main-content');
-        
-        if (sidebar && mainContent) {
+        if (sidebar) {
             sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('sidebar-collapsed');
         }
     }
 
-    // ❓ Show help
-    showHelp() {
-        const helpModal = document.createElement('div');
-        helpModal.className = 'modal-overlay';
-        helpModal.innerHTML = `
-            <div class="modal">
-                <div class="modal-header">
-                    <h2>💃 Dancify Admin Help</h2>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
-                </div>
-                <div class="modal-body">
-                    <h3>Keyboard Shortcuts</h3>
-                    <ul>
-                        <li><kbd>Ctrl/Cmd + R</kbd> - Refresh current section</li>
-                        <li><kbd>Esc</kbd> - Close modals</li>
-                        <li><kbd>Ctrl/Cmd + /</kbd> - Show this help</li>
-                    </ul>
-                    
-                    <h3>Navigation</h3>
-                    <p>Use the sidebar to navigate between different sections of the admin dashboard.</p>
-                    
-                    <h3>Need Help?</h3>
-                    <p>Contact support at <a href="mailto:support@dancify.com">support@dancify.com</a></p>
-                </div>
-            </div>
-        `;
+    // 🚪 Handle logout
+    handleLogout() {
+        if (this.components.api && this.components.api.logout) {
+            this.components.api.logout();
+        }
         
-        document.body.appendChild(helpModal);
+        // Clear local data
+        this.clearLocalData();
+        
+        // Redirect to login
+        window.location.href = '/login';
     }
 
-    // 🔐 Handle unauthorized access
-    handleUnauthorized() {
-        console.warn('🔐 Unauthorized access detected');
-        
-        this.showErrorMessage('Your session has expired. Please log in again.');
-        
-        // Clear auth tokens
-        if (this.components.api) {
-            this.components.api.clearAuthTokens();
+    // 🧹 Clear local data
+    clearLocalData() {
+        // Clear any cached data
+        if (this.components.sectionLoader) {
+            this.components.sectionLoader.clearCache();
         }
         
-        // Redirect to login after a short delay
-        setTimeout(() => {
-            window.location.href = '/login';
-        }, 2000);
-    }
-
-    // 🌐 Handle connection changes
-    handleConnectionChange(isOnline) {
-        this.connectionStatus = isOnline ? 'connected' : 'disconnected';
-        
-        const statusIndicator = document.getElementById('connectionStatus');
-        if (statusIndicator) {
-            statusIndicator.className = `connection-status ${this.connectionStatus}`;
-            statusIndicator.textContent = isOnline ? '🟢 Connected' : '🔴 Offline';
-        }
-        
-        if (isOnline) {
-            this.showSuccessMessage('Connection restored');
-            // Refresh current section to get latest data
-            this.refreshCurrentSection();
-        } else {
-            this.showErrorMessage('Connection lost - working offline');
-        }
+        // Stop auto-refresh
+        this.stopConnectionMonitoring();
     }
 
     // 📡 Start connection monitoring
     startConnectionMonitoring() {
+        console.log('📡 Starting connection monitoring...');
+        
         // Check connection every 30 seconds
-        setInterval(async () => {
-            if (this.components.api) {
-                try {
-                    await this.components.api.ping();
-                    if (this.connectionStatus !== 'connected') {
-                        this.handleConnectionChange(true);
-                    }
-                } catch (error) {
-                    if (this.connectionStatus !== 'disconnected') {
-                        this.handleConnectionChange(false);
+        this.connectionInterval = setInterval(async () => {
+            try {
+                if (this.components.api && this.components.api.checkHealth) {
+                    const isConnected = await this.components.api.checkHealth();
+                    
+                    if (isConnected && this.connectionStatus === 'disconnected') {
+                        this.connectionStatus = 'connected';
+                        this.showSuccessMessage('Connection restored');
+                    } else if (!isConnected && this.connectionStatus === 'connected') {
+                        this.connectionStatus = 'disconnected';
+                        this.showWarningMessage('Connection lost');
                     }
                 }
+            } catch (error) {
+                console.warn('Connection check failed:', error);
             }
         }, 30000);
     }
 
-    // ❌ Close all modals
-    closeAllModals() {
-        const modals = document.querySelectorAll('.modal-overlay');
-        modals.forEach(modal => modal.remove());
+    // 📡 Stop connection monitoring
+    stopConnectionMonitoring() {
+        if (this.connectionInterval) {
+            clearInterval(this.connectionInterval);
+            this.connectionInterval = null;
+        }
     }
 
-    // ✅ Show success message
+    // 🔔 Show messages
     showSuccessMessage(message) {
         this.showMessage(message, 'success');
     }
 
-    // ❌ Show error message
     showErrorMessage(message) {
         this.showMessage(message, 'error');
     }
 
-    // 🚨 Show critical error
-    showCriticalError(message) {
-        const errorContainer = document.createElement('div');
-        errorContainer.className = 'critical-error';
-        errorContainer.innerHTML = `
-            <div class="error-content">
-                <h2>💥 Critical Error</h2>
-                <p>${message}</p>
-                <button onclick="window.location.reload()">🔄 Reload Page</button>
-            </div>
-        `;
-        
-        document.body.appendChild(errorContainer);
+    showWarningMessage(message) {
+        this.showMessage(message, 'warning');
     }
 
-    // 💬 Show message
+    showCriticalError(message) {
+        // Show critical error overlay
+        const errorOverlay = document.createElement('div');
+        errorOverlay.className = 'critical-error-overlay';
+        errorOverlay.innerHTML = `
+            <div class="error-content">
+                <h2>❌ Critical Error</h2>
+                <p>${message}</p>
+                <button onclick="window.location.reload()">🔄 Reload Application</button>
+            </div>
+        `;
+        document.body.appendChild(errorOverlay);
+    }
+
     showMessage(message, type = 'info') {
-        const messageContainer = document.getElementById('messageContainer') || document.body;
+        // Create or find message container
+        let messageContainer = document.getElementById('messageContainer');
+        if (!messageContainer) {
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'messageContainer';
+            messageContainer.className = 'message-container';
+            document.body.appendChild(messageContainer);
+        }
         
-        const messageEl = document.createElement('div');
-        messageEl.className = `message message-${type}`;
-        
-        const iconMap = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        
-        messageEl.innerHTML = `
-            <span class="message-icon">${iconMap[type] || iconMap.info}</span>
+        // Create message element
+        const messageElement = document.createElement('div');
+        messageElement.className = `message message-${type}`;
+        messageElement.innerHTML = `
             <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">✕</button>
+            <button class="message-close" onclick="this.parentElement.remove()">×</button>
         `;
         
-        messageContainer.appendChild(messageEl);
+        messageContainer.appendChild(messageElement);
         
         // Auto-remove after 5 seconds
         setTimeout(() => {
-            if (messageEl.parentNode) {
-                messageEl.parentNode.removeChild(messageEl);
+            if (messageElement.parentElement) {
+                messageElement.remove();
             }
         }, 5000);
     }
-
-    // 🧹 Cleanup before page unload
-    cleanup() {
-        console.log('🧹 Cleaning up Dancify Admin...');
-        
-        // Cleanup dashboard
-        if (this.components.dashboard && this.components.dashboard.destroy) {
-            this.components.dashboard.destroy();
-        }
-        
-        // Clear any intervals or timeouts
-        // (handled by individual components)
-        
-        console.log('✅ Cleanup completed');
-    }
-
-    // 📊 Get application status
-    getStatus() {
-        return {
-            initialized: this.isInitialized,
-            currentSection: this.currentSection,
-            connectionStatus: this.connectionStatus,
-            components: Object.keys(this.components).reduce((status, key) => {
-                status[key] = this.components[key] ? 'loaded' : 'not loaded';
-                return status;
-            }, {})
-        };
-    }
 }
 
-// Create global admin instance
-window.DancifyAdmin = DancifyAdmin;
+// 🚀 Initialize application when DOM is ready
+let dancifyAdmin = null;
 
-// Initialize the application when DOM is ready
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('💃 Starting Dancify Admin...');
     
     try {
-        window.dancifyAdmin = new DancifyAdmin();
-        await window.dancifyAdmin.init();
+        // Create and initialize main application
+        dancifyAdmin = new DancifyAdmin();
+        await dancifyAdmin.init();
         
-        // Handle URL hash on load
-        const hash = window.location.hash.substring(1);
-        if (hash && hash !== 'dashboard') {
-            await window.dancifyAdmin.loadSection(hash);
-        }
+        // Make globally available for debugging
+        window.dancifyAdmin = dancifyAdmin;
         
         console.log('🎉 Dancify Admin started successfully');
         
     } catch (error) {
         console.error('💥 Failed to start Dancify Admin:', error);
+        
+        // Show error to user
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'startup-error';
+        errorMessage.innerHTML = `
+            <h2>❌ Startup Error</h2>
+            <p>Failed to initialize Dancify Admin: ${error.message}</p>
+            <button onclick="window.location.reload()">🔄 Retry</button>
+        `;
+        
+        document.body.appendChild(errorMessage);
+    }
+});
+
+// Handle unload
+window.addEventListener('beforeunload', () => {
+    if (dancifyAdmin) {
+        dancifyAdmin.stopConnectionMonitoring();
     }
 });
