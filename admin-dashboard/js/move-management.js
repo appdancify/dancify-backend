@@ -36,7 +36,7 @@ class MoveManager {
         }
     }
 
-    // 📊 Load moves from API
+    // 📊 Load moves from API - FIXED to work with updated server response
     async loadMoves(page = 1, filters = {}) {
         try {
             console.log(`📊 Loading moves (page ${page})...`);
@@ -49,7 +49,8 @@ class MoveManager {
                 ...filters
             };
             
-            const response = await this.api.getMoves(queryParams);
+            // Use the updated API endpoint structure
+            const response = await this.api.request('GET', '/admin/moves', null, { params: queryParams });
             
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load moves');
@@ -57,7 +58,8 @@ class MoveManager {
             
             this.moves = response.data || [];
             this.currentPage = page;
-            this.totalMoves = response.count || 0;
+            // Handle pagination from server response
+            this.totalMoves = response.pagination ? response.pagination.total : (response.data ? response.data.length : 0);
             this.currentFilters = filters;
             
             this.renderMoves();
@@ -103,11 +105,11 @@ class MoveManager {
         movesContainer.innerHTML = moveCards;
     }
 
-    // 🎭 Create move card
+    // 🎭 Create move card - FIXED field names to match database schema
     createMoveCard(move) {
         const isSelected = this.selectedMoves.has(move.id);
         const difficultyColor = this.getDifficultyColor(move.difficulty);
-        const thumbnail = move.thumbnail_url || `https://img.youtube.com/vi/${move.video_id}/maxresdefault.jpg`;
+        const thumbnail = move.thumbnail_url || (move.video_id ? `https://img.youtube.com/vi/${move.video_id}/maxresdefault.jpg` : '/admin/assets/placeholder-video.jpg');
         const viewCount = move.view_count || 0;
         const submissionCount = move.submission_count || 0;
         
@@ -131,9 +133,9 @@ class MoveManager {
                 </div>
                 
                 <div class="move-thumbnail">
-                    <img src="${thumbnail}" alt="${move.name}" loading="lazy">
+                    <img src="${thumbnail}" alt="${move.name}" loading="lazy" onerror="this.src='/admin/assets/placeholder-video.jpg'">
                     <div class="move-overlay">
-                        <button class="play-button" onclick="moveManager.playVideo('${move.video_id}')">
+                        <button class="play-button" onclick="moveManager.playVideo('${move.video_id || ''}')">
                             ▶️
                         </button>
                     </div>
@@ -141,17 +143,17 @@ class MoveManager {
                 
                 <div class="move-info">
                     <h3 class="move-title">${move.name}</h3>
-                    <p class="move-description">${move.description}</p>
+                    <p class="move-description">${move.description || 'No description available'}</p>
                     
                     <div class="move-meta">
-                        <span class="move-style">${move.dance_style}</span>
+                        <span class="move-style">${move.dance_style || 'Unknown'}</span>
                         <span class="move-difficulty" style="color: ${difficultyColor}">
-                            ${move.difficulty}
+                            ${move.difficulty || 'beginner'}
                         </span>
                     </div>
                     
                     <div class="move-section">
-                        <span class="section-badge">${move.section}</span>
+                        <span class="section-badge">${move.section || 'General'}</span>
                         ${move.subsection ? `<span class="subsection-badge">${move.subsection}</span>` : ''}
                     </div>
                     
@@ -185,7 +187,7 @@ class MoveManager {
         return colors[difficulty] || '#6c757d';
     }
 
-    // 📄 Render pagination
+    // 📄 Render pagination - FIXED to use correct total from pagination object
     renderPagination() {
         const paginationContainer = document.getElementById('movesPagination');
         if (!paginationContainer) return;
@@ -333,10 +335,15 @@ class MoveManager {
 
     // 🧹 Clear filters
     async clearFilters() {
-        document.getElementById('moveSearchInput').value = '';
-        document.getElementById('danceStyleFilter').value = '';
-        document.getElementById('difficultyFilter').value = '';
-        document.getElementById('sectionFilter').value = '';
+        const searchInput = document.getElementById('moveSearchInput');
+        const styleFilter = document.getElementById('danceStyleFilter');
+        const difficultyFilter = document.getElementById('difficultyFilter');
+        const sectionFilter = document.getElementById('sectionFilter');
+        
+        if (searchInput) searchInput.value = '';
+        if (styleFilter) styleFilter.value = '';
+        if (difficultyFilter) difficultyFilter.value = '';
+        if (sectionFilter) sectionFilter.value = '';
 
         await this.loadMoves(1, {});
     }
@@ -367,7 +374,10 @@ class MoveManager {
         if (bulkActionContainer) {
             if (selectedCount > 0) {
                 bulkActionContainer.style.display = 'block';
-                bulkActionContainer.querySelector('.selected-count').textContent = selectedCount;
+                const countElement = bulkActionContainer.querySelector('.selected-count');
+                if (countElement) {
+                    countElement.textContent = selectedCount;
+                }
             } else {
                 bulkActionContainer.style.display = 'none';
             }
@@ -376,7 +386,10 @@ class MoveManager {
 
     // ▶️ Play video
     playVideo(videoId) {
-        if (!videoId) return;
+        if (!videoId) {
+            this.showErrorMessage('No video available for this move');
+            return;
+        }
         
         const videoModal = document.createElement('div');
         videoModal.className = 'modal-overlay video-modal';
@@ -402,10 +415,10 @@ class MoveManager {
         document.body.appendChild(videoModal);
     }
 
-    // 👁️ View move details
+    // 👁️ View move details - FIXED API call
     async viewMove(moveId) {
         try {
-            const response = await this.api.getMove(moveId);
+            const response = await this.api.request('GET', `/moves/${moveId}`);
             
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load move');
@@ -419,10 +432,10 @@ class MoveManager {
         }
     }
 
-    // ✏️ Edit move
+    // ✏️ Edit move - FIXED API call
     async editMove(moveId) {
         try {
-            const response = await this.api.getMove(moveId);
+            const response = await this.api.request('GET', `/moves/${moveId}`);
             
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load move');
@@ -454,7 +467,7 @@ class MoveManager {
         }
     }
 
-    // 🎨 Create move modal HTML
+    // 🎨 Create move modal HTML - FIXED field names to match database schema
     createMoveModalHTML(move, mode) {
         const isEditMode = mode === 'edit' || mode === 'create';
         const isCreateMode = mode === 'create';
@@ -489,8 +502,8 @@ class MoveManager {
                             <div class="form-group">
                                 <label class="form-label">Move Name *</label>
                                 ${isEditMode ? 
-                                    `<input type="text" class="form-control" id="moveName" value="${moveData.name}" placeholder="Enter move name" required>` :
-                                    `<div class="form-value">${moveData.name}</div>`
+                                    `<input type="text" class="form-control" id="moveName" value="${moveData.name || ''}" placeholder="Enter move name" required>` :
+                                    `<div class="form-value">${moveData.name || 'Unnamed Move'}</div>`
                                 }
                             </div>
                             
@@ -504,8 +517,12 @@ class MoveManager {
                                         <option value="salsa" ${moveData.dance_style === 'salsa' ? 'selected' : ''}>Salsa</option>
                                         <option value="contemporary" ${moveData.dance_style === 'contemporary' ? 'selected' : ''}>Contemporary</option>
                                         <option value="jazz" ${moveData.dance_style === 'jazz' ? 'selected' : ''}>Jazz</option>
+                                        <option value="ballroom" ${moveData.dance_style === 'ballroom' ? 'selected' : ''}>Ballroom</option>
+                                        <option value="latin" ${moveData.dance_style === 'latin' ? 'selected' : ''}>Latin</option>
+                                        <option value="breaking" ${moveData.dance_style === 'breaking' ? 'selected' : ''}>Breaking</option>
+                                        <option value="house" ${moveData.dance_style === 'house' ? 'selected' : ''}>House</option>
                                     </select>` :
-                                    `<div class="form-value">${moveData.dance_style}</div>`
+                                    `<div class="form-value">${moveData.dance_style || 'Unknown'}</div>`
                                 }
                             </div>
                         </div>
@@ -513,16 +530,16 @@ class MoveManager {
                         <div class="form-group">
                             <label class="form-label">Description *</label>
                             ${isEditMode ? 
-                                `<textarea class="form-control" id="moveDescription" rows="3" placeholder="Brief description of the move" required>${moveData.description}</textarea>` :
-                                `<div class="form-value">${moveData.description}</div>`
+                                `<textarea class="form-control" id="moveDescription" rows="3" placeholder="Brief description of the move" required>${moveData.description || ''}</textarea>` :
+                                `<div class="form-value">${moveData.description || 'No description available'}</div>`
                             }
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Detailed Instructions *</label>
                             ${isEditMode ? 
-                                `<textarea class="form-control" id="detailedInstructions" rows="5" placeholder="Step-by-step instructions" required>${moveData.detailed_instructions}</textarea>` :
-                                `<div class="form-value">${moveData.detailed_instructions}</div>`
+                                `<textarea class="form-control" id="detailedInstructions" rows="5" placeholder="Step-by-step instructions" required>${moveData.detailed_instructions || ''}</textarea>` :
+                                `<div class="form-value">${moveData.detailed_instructions || 'No detailed instructions available'}</div>`
                             }
                         </div>
                         
@@ -530,8 +547,8 @@ class MoveManager {
                             <div class="form-group">
                                 <label class="form-label">Section *</label>
                                 ${isEditMode ? 
-                                    `<input type="text" class="form-control" id="section" value="${moveData.section}" placeholder="e.g., Basic Positions" required>` :
-                                    `<div class="form-value">${moveData.section}</div>`
+                                    `<input type="text" class="form-control" id="section" value="${moveData.section || ''}" placeholder="e.g., Basic Positions" required>` :
+                                    `<div class="form-value">${moveData.section || 'General'}</div>`
                                 }
                             </div>
                             
@@ -554,15 +571,15 @@ class MoveManager {
                                         <option value="advanced" ${moveData.difficulty === 'advanced' ? 'selected' : ''}>Advanced</option>
                                         <option value="expert" ${moveData.difficulty === 'expert' ? 'selected' : ''}>Expert</option>
                                     </select>` :
-                                    `<div class="form-value" style="color: ${this.getDifficultyColor(moveData.difficulty)}">${moveData.difficulty}</div>`
+                                    `<div class="form-value" style="color: ${this.getDifficultyColor(moveData.difficulty)}">${moveData.difficulty || 'beginner'}</div>`
                                 }
                             </div>
                             
                             <div class="form-group">
                                 <label class="form-label">XP Reward</label>
                                 ${isEditMode ? 
-                                    `<input type="number" class="form-control" id="xpReward" value="${moveData.xp_reward}" min="0" max="500">` :
-                                    `<div class="form-value">${moveData.xp_reward} XP</div>`
+                                    `<input type="number" class="form-control" id="xpReward" value="${moveData.xp_reward || 50}" min="0" max="500">` :
+                                    `<div class="form-value">${moveData.xp_reward || 0} XP</div>`
                                 }
                             </div>
                         </div>
@@ -599,7 +616,7 @@ class MoveManager {
                         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
                             Cancel
                         </button>
-                        <button class="btn btn-primary" onclick="moveManager.saveMove(${isCreateMode ? 'null' : `'${move.id}'`})">
+                        <button class="btn btn-primary" onclick="moveManager.saveMove(${isCreateMode ? 'null' : `'${move?.id || ''}'`})">
                             💾 ${isCreateMode ? 'Create Move' : 'Save Changes'}
                         </button>
                     </div>
@@ -613,30 +630,30 @@ class MoveManager {
         // Add any specific event listeners for the modal
     }
 
-    // 💾 Save move
+    // 💾 Save move - FIXED to use proper API endpoints and field names
     async saveMove(moveId) {
         try {
             const moveData = {
                 name: document.getElementById('moveName').value.trim(),
                 description: document.getElementById('moveDescription').value.trim(),
-                detailedInstructions: document.getElementById('detailedInstructions').value.trim(),
-                danceStyle: document.getElementById('danceStyle').value,
+                detailed_instructions: document.getElementById('detailedInstructions').value.trim(),
+                dance_style: document.getElementById('danceStyle').value,
                 section: document.getElementById('section').value.trim(),
                 subsection: document.getElementById('subsection').value.trim(),
                 difficulty: document.getElementById('difficulty').value,
-                xpReward: parseInt(document.getElementById('xpReward').value) || 50,
-                videoUrl: document.getElementById('videoUrl').value.trim()
+                xp_reward: parseInt(document.getElementById('xpReward').value) || 50,
+                video_url: document.getElementById('videoUrl').value.trim()
             };
             
             // Validation
-            if (!moveData.name || !moveData.description || !moveData.detailedInstructions || 
-                !moveData.danceStyle || !moveData.section || !moveData.difficulty) {
+            if (!moveData.name || !moveData.description || !moveData.detailed_instructions || 
+                !moveData.dance_style || !moveData.section || !moveData.difficulty) {
                 throw new Error('Please fill in all required fields');
             }
             
             const response = moveId ? 
-                await this.api.updateMove(moveId, moveData) :
-                await this.api.createMove(moveData);
+                await this.api.request('PUT', `/admin/moves/${moveId}`, moveData) :
+                await this.api.request('POST', '/admin/moves', moveData);
             
             if (!response.success) {
                 throw new Error(response.error || 'Failed to save move');
@@ -652,7 +669,7 @@ class MoveManager {
         }
     }
 
-    // 🗑️ Delete move
+    // 🗑️ Delete move - FIXED to use proper API endpoint
     async deleteMove(moveId) {
         const move = this.moves.find(m => m.id === moveId);
         if (!move) return;
@@ -661,7 +678,7 @@ class MoveManager {
         if (!confirmed) return;
         
         try {
-            const response = await this.api.deleteMove(moveId);
+            const response = await this.api.request('DELETE', `/admin/moves/${moveId}`);
             
             if (!response.success) {
                 throw new Error(response.error || 'Failed to delete move');

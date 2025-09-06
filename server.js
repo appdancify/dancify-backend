@@ -229,17 +229,333 @@ app.get('/api/health/database', async (req, res) => {
   }
 });
 
-// Import and use real routes (no more try-catch fallbacks to mock data)
-const moveRoutes = require('./src/routes/moves');
-const adminRoutes = require('./src/routes/admin');
-const danceStyleRoutes = require('./src/routes/danceStyles');
-const submissionRoutes = require('./src/routes/submissions');
+// INLINE ROUTE IMPLEMENTATIONS (to fix dashboard immediately)
 
-// API routes
-app.use('/api/moves', moveRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/dance-styles', danceStyleRoutes);
-app.use('/api/submissions', submissionRoutes);
+// Dance Moves Routes
+app.get('/api/moves', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({
+      success: true,
+      data: data || [],
+      message: `Found ${data?.length || 0} dance moves`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching moves:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/moves/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (error) throw error;
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Move not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching move:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Dance Styles Routes
+app.get('/api/dance-styles', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dance_styles')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    
+    res.json({
+      success: true,
+      data: data || [],
+      message: `Found ${data?.length || 0} dance styles`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching dance styles:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/api/dance-styles', async (req, res) => {
+  try {
+    const { name, description, color, icon } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { data, error } = await supabase
+      .from('dance_styles')
+      .insert([{ name, description, color, icon }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.status(201).json({
+      success: true,
+      data: data,
+      message: 'Dance style created successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error creating dance style:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Admin Routes
+app.get('/api/admin/dashboard', async (req, res) => {
+  try {
+    // Get dashboard stats
+    const [movesResult, stylesResult, submissionsResult] = await Promise.all([
+      supabase.from('dance_moves').select('id', { count: 'exact' }),
+      supabase.from('dance_styles').select('id', { count: 'exact' }),
+      supabase.from('move_submissions').select('id', { count: 'exact' })
+    ]);
+    
+    const stats = {
+      totalMoves: movesResult.count || 0,
+      totalStyles: stylesResult.count || 0,
+      totalSubmissions: submissionsResult.count || 0,
+      activeUsers: 0 // Placeholder
+    };
+    
+    // Get recent moves
+    const { data: recentMoves } = await supabase
+      .from('dance_moves')
+      .select('id, name, dance_style, created_at')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        recentMoves: recentMoves || []
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/admin/moves', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    
+    const { data, error, count } = await supabase
+      .from('dance_moves')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    
+    if (error) throw error;
+    
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching admin moves:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/api/admin/moves', async (req, res) => {
+  try {
+    const moveData = req.body;
+    
+    if (!moveData.name || !moveData.dance_style) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and dance style are required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .insert([moveData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.status(201).json({
+      success: true,
+      data: data,
+      message: 'Move created successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error creating move:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.put('/api/admin/moves/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Move not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: data,
+      message: 'Move updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating move:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.delete('/api/admin/moves/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('dance_moves')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
+    res.json({
+      success: true,
+      message: 'Move deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error deleting move:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Submissions Routes
+app.get('/api/submissions', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('move_submissions')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({
+      success: true,
+      data: data || [],
+      message: `Found ${data?.length || 0} submissions`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Admin dashboard route
 app.get('/admin', (req, res) => {
