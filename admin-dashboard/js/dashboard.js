@@ -1,86 +1,64 @@
-// 💃 Dancify Admin Dashboard - Dashboard Analytics
-// Handles dashboard statistics, charts, and real-time data display
-// Beautiful visualizations for dance move analytics and user engagement
+// 💃 Dancify Admin Dashboard - Dashboard Module
+// Main dashboard with statistics, charts, and activity feed
+// Real-time data integration with backend API
 
 class DancifyDashboard {
     constructor() {
         this.api = null;
         this.charts = {};
         this.refreshInterval = null;
+        this.refreshRate = 5 * 60 * 1000; // 5 minutes
         this.isLoading = false;
         this.lastUpdate = null;
-        this.initializationAttempts = 0;
-        this.maxInitAttempts = 3;
         
-        // Chart configuration
-        this.chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(138, 43, 226, 0.1)'
-                    }
-                },
-                x: {
-                    grid: {
-                        color: 'rgba(138, 43, 226, 0.1)'
-                    }
-                }
-            }
-        };
+        console.log('📊 Dancify Dashboard module loaded');
     }
 
     // 🚀 Initialize dashboard
     async init() {
         try {
-            console.log('📊 Initializing Dancify Dashboard...');
+            console.log('📊 Initializing dashboard...');
             
-            // Wait for API client to be available
-            await this.waitForAPIClient();
+            // Wait for API client to be ready
+            this.api = await this.waitForAPI();
             
+            // Load initial data
             await this.loadDashboardData();
+            
+            // Set up auto-refresh
             this.setupAutoRefresh();
+            
+            // Set up event listeners
             this.setupEventListeners();
             
             console.log('✅ Dashboard initialized successfully');
             
         } catch (error) {
-            console.error('❌ Failed to initialize dashboard:', error);
-            this.showErrorState();
+            console.error('❌ Dashboard initialization failed:', error);
+            this.showErrorMessage('Failed to initialize dashboard: ' + error.message);
         }
     }
 
     // ⏳ Wait for API client to be available
-    async waitForAPIClient() {
-        const maxWait = 10000; // 10 seconds
-        const checkInterval = 100; // 100ms
-        let elapsed = 0;
-        
+    async waitForAPI() {
         return new Promise((resolve, reject) => {
+            const maxWait = 10000; // 10 seconds
+            const checkInterval = 100; // 100ms
+            let elapsed = 0;
+            
             const checkAPI = () => {
-                // Try multiple ways to get the API client
-                this.api = window.dancifyAdmin?.modules?.api || 
-                          window.DancifyAPI ? new window.DancifyAPI() : null;
+                const api = window.DancifyAPI ? new window.DancifyAPI() : null;
                 
-                if (this.api) {
+                if (api) {
                     console.log('✅ API client found and connected');
-                    resolve(this.api);
+                    resolve(api);
                     return;
                 }
                 
                 elapsed += checkInterval;
                 if (elapsed >= maxWait) {
-                    console.warn('⚠️ API client not found, using mock data mode');
-                    this.api = this.createMockAPI();
-                    resolve(this.api);
+                    console.error('❌ API client not available after timeout');
+                    reject(new Error('API client not available'));
                     return;
                 }
                 
@@ -89,44 +67,6 @@ class DancifyDashboard {
             
             checkAPI();
         });
-    }
-
-    // 🎭 Create mock API for fallback
-    createMockAPI() {
-        return {
-            getDashboardStats: () => Promise.resolve({
-                success: true,
-                data: {
-                    users: { total: 1250, change: 45 },
-                    moves: { total: 180, pending: 12 },
-                    submissions: { total: 890, pending: 23 },
-                    danceStyles: { total: 8, active: 8 },
-                    instructors: { total: 34, pending: 5 }
-                }
-            }),
-            getDashboardCharts: () => Promise.resolve({
-                success: true,
-                data: {
-                    engagement: {
-                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                        activeUsers: [120, 135, 98, 156, 178, 203, 145],
-                        submissions: [23, 34, 18, 45, 56, 67, 34]
-                    },
-                    danceStyles: {
-                        labels: ['Ballet', 'Hip-Hop', 'Salsa', 'Contemporary', 'Jazz'],
-                        values: [250, 420, 180, 150, 100]
-                    }
-                }
-            }),
-            getRecentActivity: () => Promise.resolve({
-                success: true,
-                data: [
-                    { type: 'move_created', message: 'New move "Pirouette Basic" created', timestamp: new Date(Date.now() - 5 * 60000) },
-                    { type: 'user_registered', message: 'New user registration', timestamp: new Date(Date.now() - 12 * 60000) },
-                    { type: 'move_submitted', message: 'Move submission pending review', timestamp: new Date(Date.now() - 23 * 60000) }
-                ]
-            })
-        };
     }
 
     // 📊 Load all dashboard data
@@ -153,7 +93,7 @@ class DancifyDashboard {
             
         } catch (error) {
             console.error('❌ Failed to load dashboard data:', error);
-            this.showErrorMessage('Failed to load dashboard data');
+            this.showErrorMessage('Failed to load dashboard data: ' + error.message);
         } finally {
             this.isLoading = false;
         }
@@ -163,40 +103,35 @@ class DancifyDashboard {
     async loadStats() {
         try {
             if (!this.api || typeof this.api.getDashboardStats !== 'function') {
-                console.warn('⚠️ API client not available for stats, using mock data');
-                return this.createMockAPI().getDashboardStats().then(r => r.data);
+                throw new Error('API client not available for stats');
             }
             
             const response = await this.api.getDashboardStats();
             return response.success ? response.data : null;
         } catch (error) {
             console.error('❌ Failed to load stats:', error);
-            // Return mock data as fallback
-            return this.createMockAPI().getDashboardStats().then(r => r.data);
+            throw error;
         }
     }
 
     // 📊 Update statistics display
     updateStats(data) {
         const stats = {
-            totalUsers: data.users?.total || 0,
-            usersChange: data.users?.change || 0,
-            totalMoves: data.moves?.total || 0,
-            movesChange: data.moves?.pending || 0,
-            totalSubmissions: data.submissions?.total || 0,
-            submissionsChange: data.submissions?.pending || 0,
-            totalDanceStyles: data.danceStyles?.total || 0,
-            stylesChange: data.danceStyles?.active || 0,
-            totalInstructors: data.instructors?.total || 0,
-            instructorsChange: data.instructors?.pending || 0
+            totalUsers: data.stats?.totalUsers || 0,
+            usersChange: data.stats?.newUsersThisMonth || 0,
+            totalMoves: data.stats?.totalMoves || 0,
+            movesChange: data.stats?.newMovesThisMonth || 0,
+            totalSubmissions: data.stats?.totalSubmissions || 0,
+            submissionsChange: data.stats?.pendingSubmissions || 0,
+            totalDanceStyles: data.stats?.totalDanceStyles || 0,
+            stylesChange: data.stats?.totalDanceStyles || 0
         };
 
-        // Update stat cards
-        this.updateStatCard('totalUsers', stats.totalUsers, this.formatChange(stats.usersChange, 'today'));
-        this.updateStatCard('totalMoves', stats.totalMoves, this.formatChange(stats.movesChange, 'pending'));
+        // Update stat cards with animation
+        this.updateStatCard('totalUsers', stats.totalUsers, this.formatChange(stats.usersChange, 'new this month'));
+        this.updateStatCard('totalMoves', stats.totalMoves, this.formatChange(stats.movesChange, 'new this month'));
         this.updateStatCard('totalSubmissions', stats.totalSubmissions, this.formatChange(stats.submissionsChange, 'pending'));
         this.updateStatCard('totalDanceStyles', stats.totalDanceStyles, this.formatChange(stats.stylesChange, 'active'));
-        this.updateStatCard('totalInstructors', stats.totalInstructors, this.formatChange(stats.instructorsChange, 'pending'));
     }
 
     // 🎯 Update individual stat card
@@ -213,6 +148,13 @@ class DancifyDashboard {
             changeElement.textContent = change;
             changeElement.className = 'change ' + (change.includes('+') ? 'positive' : '');
         }
+    }
+
+    // 📝 Format change text
+    formatChange(value, label) {
+        if (value === 0) return `${value} ${label}`;
+        const prefix = value > 0 ? '+' : '';
+        return `${prefix}${value} ${label}`;
     }
 
     // 🎨 Animate value changes
@@ -242,35 +184,37 @@ class DancifyDashboard {
     async loadCharts() {
         try {
             if (!this.api || typeof this.api.getDashboardCharts !== 'function') {
-                console.warn('⚠️ API client not available for charts, using mock data');
-                return this.createMockAPI().getDashboardCharts().then(r => r.data);
+                throw new Error('API client not available for charts');
             }
             
             const response = await this.api.getDashboardCharts();
             return response.success ? response.data : null;
         } catch (error) {
             console.error('❌ Failed to load charts:', error);
-            // Return mock data as fallback
-            return this.createMockAPI().getDashboardCharts().then(r => r.data);
+            throw error;
         }
     }
 
     // 📈 Update chart displays
     updateCharts(data) {
-        if (data.engagement) {
-            this.updateEngagementChart(data.engagement);
+        if (data.userGrowth) {
+            this.updateUserGrowthChart(data.userGrowth);
         }
         
-        if (data.danceStyles) {
-            this.updateDanceStylesChart(data.danceStyles);
+        if (data.popularMoves) {
+            this.updatePopularMovesChart(data.popularMoves);
+        }
+        
+        if (data.stylePopularity) {
+            this.updateStylePopularityChart(data.stylePopularity);
         }
     }
 
-    // 📈 Update user engagement chart
-    updateEngagementChart(data) {
-        const ctx = document.getElementById('engagementChart');
+    // 📈 Update user growth chart
+    updateUserGrowthChart(data) {
+        const ctx = document.getElementById('userGrowthChart');
         if (!ctx) {
-            console.warn('⚠️ Engagement chart canvas not found');
+            console.warn('⚠️ User growth chart canvas not found');
             return;
         }
         
@@ -282,75 +226,21 @@ class DancifyDashboard {
         }
         
         // Destroy existing chart
-        if (this.charts.engagement) {
-            this.charts.engagement.destroy();
+        if (this.charts.userGrowth) {
+            this.charts.userGrowth.destroy();
         }
         
-        this.charts.engagement = new Chart(ctx, {
+        this.charts.userGrowth = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.labels || [],
+                labels: data.map(item => item.month) || [],
                 datasets: [{
-                    label: 'Active Users',
-                    data: data.activeUsers || [],
+                    label: 'New Users',
+                    data: data.map(item => item.users) || [],
                     borderColor: '#8A2BE2',
                     backgroundColor: 'rgba(138, 43, 226, 0.1)',
                     tension: 0.4,
                     fill: true
-                }, {
-                    label: 'Move Submissions',
-                    data: data.submissions || [],
-                    borderColor: '#FF69B4',
-                    backgroundColor: 'rgba(255, 105, 180, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                ...this.chartOptions,
-                plugins: {
-                    ...this.chartOptions.plugins,
-                    title: {
-                        display: true,
-                        text: 'User Engagement Over Time'
-                    }
-                }
-            }
-        });
-    }
-
-    // 🎭 Update dance styles popularity chart
-    updateDanceStylesChart(data) {
-        const ctx = document.getElementById('danceStylesChart');
-        if (!ctx) {
-            console.warn('⚠️ Dance styles chart canvas not found');
-            return;
-        }
-        
-        // Check if Chart.js is available
-        if (typeof Chart === 'undefined') {
-            console.warn('⚠️ Chart.js not loaded, skipping chart creation');
-            ctx.parentElement.innerHTML = '<p>🎭 Chart.js loading...</p>';
-            return;
-        }
-        
-        // Destroy existing chart
-        if (this.charts.danceStyles) {
-            this.charts.danceStyles.destroy();
-        }
-        
-        // Generate beautiful gradient colors for each dance style
-        const colors = this.generateChartColors(data.labels?.length || 0);
-        
-        this.charts.danceStyles = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: data.labels || [],
-                datasets: [{
-                    data: data.values || [],
-                    backgroundColor: colors.backgrounds,
-                    borderColor: colors.borders,
-                    borderWidth: 2
                 }]
             },
             options: {
@@ -358,147 +248,220 @@ class DancifyDashboard {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: true,
-                        position: 'right'
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
                     },
-                    title: {
-                        display: true,
-                        text: 'Popular Dance Styles'
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
                     }
                 }
             }
         });
     }
 
-    // 🎨 Generate beautiful colors for charts
-    generateChartColors(count) {
-        const baseColors = [
-            '#8A2BE2', '#FF69B4', '#9370DB', '#FFB6C1', 
-            '#BA55D3', '#FF1493', '#DA70D6', '#FF6347',
-            '#DDA0DD', '#F0E68C'
-        ];
+    // 📊 Update popular moves chart
+    updatePopularMovesChart(data) {
+        const ctx = document.getElementById('popularMovesChart');
+        if (!ctx) return;
         
-        const backgrounds = [];
-        const borders = [];
-        
-        for (let i = 0; i < count; i++) {
-            const color = baseColors[i % baseColors.length];
-            backgrounds.push(color + '80'); // Add transparency
-            borders.push(color);
+        if (typeof Chart === 'undefined') {
+            ctx.parentElement.innerHTML = '<p>📊 Chart.js loading...</p>';
+            return;
         }
         
-        return { backgrounds, borders };
+        if (this.charts.popularMoves) {
+            this.charts.popularMoves.destroy();
+        }
+        
+        this.charts.popularMoves = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.name) || [],
+                datasets: [{
+                    label: 'Views',
+                    data: data.map(item => item.view_count) || [],
+                    backgroundColor: [
+                        '#FF6B9D', '#C44569', '#F8B500', 
+                        '#6C5CE7', '#74B9FF', '#00B894',
+                        '#FDCB6E', '#E17055', '#81ECEC', '#A29BFE'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
     }
 
-    // 📰 Load and update recent activity
+    // 🎭 Update style popularity chart
+    updateStylePopularityChart(data) {
+        const ctx = document.getElementById('stylePopularityChart');
+        if (!ctx) return;
+        
+        if (typeof Chart === 'undefined') {
+            ctx.parentElement.innerHTML = '<p>📊 Chart.js loading...</p>';
+            return;
+        }
+        
+        if (this.charts.stylePopularity) {
+            this.charts.stylePopularity.destroy();
+        }
+        
+        this.charts.stylePopularity = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(item => item.name) || [],
+                datasets: [{
+                    data: data.map(item => item.move_count || 0) || [],
+                    backgroundColor: [
+                        '#FF6B9D', '#C44569', '#F8B500', 
+                        '#6C5CE7', '#74B9FF', '#00B894',
+                        '#FDCB6E', '#E17055'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // 📢 Load recent activity
     async loadRecentActivity() {
         try {
             if (!this.api || typeof this.api.getRecentActivity !== 'function') {
-                console.warn('⚠️ API client not available for activity, using mock data');
-                return this.createMockAPI().getRecentActivity().then(r => r.data);
+                throw new Error('API client not available for activity');
             }
             
             const response = await this.api.getRecentActivity();
-            return response.success ? response.data : null;
+            return response.success ? response.data.recentActivity : null;
         } catch (error) {
             console.error('❌ Failed to load activity:', error);
-            // Return mock data as fallback
-            return this.createMockAPI().getRecentActivity().then(r => r.data);
+            throw error;
         }
     }
 
-    // 🔄 Update recent activity display
+    // 📢 Update recent activity display
     updateRecentActivity(activities) {
-        const container = document.getElementById('activityList');
+        const container = document.getElementById('recentActivityList');
         if (!container) {
-            console.warn('⚠️ Activity list container not found');
+            console.warn('⚠️ Recent activity container not found');
             return;
         }
         
         if (!activities || activities.length === 0) {
-            container.innerHTML = `
-                <div class="activity-item">
-                    <span class="activity-icon">📝</span>
-                    <span class="activity-text">No recent activity</span>
-                    <span class="activity-time">-</span>
-                </div>
-            `;
+            container.innerHTML = '<div class="activity-item">📭 No recent activity</div>';
             return;
         }
         
-        container.innerHTML = activities.map(activity => `
-            <div class="activity-item">
-                <span class="activity-icon">${this.getActivityIcon(activity.type)}</span>
-                <span class="activity-text">${activity.message}</span>
-                <span class="activity-time">${this.formatTime(activity.timestamp)}</span>
-            </div>
-        `).join('');
+        const activityHTML = activities.map(activity => {
+            const timeAgo = this.formatTimeAgo(new Date(activity.created_at));
+            const activityIcon = this.getActivityIcon(activity.activity_type);
+            
+            return `
+                <div class="activity-item">
+                    <div class="activity-icon">${activityIcon}</div>
+                    <div class="activity-content">
+                        <div class="activity-description">${activity.description}</div>
+                        <div class="activity-time">${timeAgo}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = activityHTML;
     }
 
-    // 🎯 Get appropriate icon for activity type
+    // 🎭 Get activity type icon
     getActivityIcon(type) {
         const icons = {
-            'user_registered': '👤',
             'move_created': '🕺',
+            'user_registered': '👤',
             'move_submitted': '📹',
-            'style_created': '🎭',
-            'instructor_applied': '🎓',
-            'feedback_received': '💬',
-            'post_created': '📱',
             'move_approved': '✅',
             'move_rejected': '❌',
-            'default': '📝'
+            'user_verified': '🎖️',
+            'system': '⚙️'
         };
-        return icons[type] || icons.default;
+        return icons[type] || '📋';
     }
 
-    // ⏰ Format time for activity display
-    formatTime(timestamp) {
+    // ⏰ Format time ago
+    formatTimeAgo(date) {
         const now = new Date();
-        const time = new Date(timestamp);
-        const diff = now - time;
+        const diffInSeconds = Math.floor((now - date) / 1000);
         
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
         
-        if (minutes < 1) return 'Just now';
-        if (minutes < 60) return `${minutes}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        if (days < 7) return `${days}d ago`;
-        
-        return time.toLocaleDateString();
+        return date.toLocaleDateString();
     }
 
-    // 📊 Format change indicators
-    formatChange(value, suffix = '') {
-        if (value === 0) return `0 ${suffix}`;
-        const sign = value > 0 ? '+' : '';
-        return `${sign}${value} ${suffix}`;
-    }
-
-    // 🔄 Setup auto-refresh
+    // 🔄 Set up auto-refresh
     setupAutoRefresh() {
-        // Refresh every 5 minutes
-        this.refreshInterval = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                this.refresh();
-            }
-        }, 5 * 60 * 1000);
-    }
-
-    // 🎯 Setup event listeners
-    setupEventListeners() {
-        // Handle manual refresh
-        const refreshButton = document.querySelector('[data-action="refresh-dashboard"]');
-        if (refreshButton) {
-            refreshButton.addEventListener('click', () => this.refresh());
+        // Clear existing interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
         }
         
-        // Handle chart interactions
-        document.addEventListener('click', (event) => {
-            if (event.target.closest('.chart-container')) {
-                // Handle chart clicks (future: drill-down functionality)
+        // Set up new interval
+        this.refreshInterval = setInterval(() => {
+            console.log('🔄 Auto-refreshing dashboard data...');
+            this.loadDashboardData();
+        }, this.refreshRate);
+        
+        console.log(`🔄 Auto-refresh enabled (${this.refreshRate / 1000}s interval)`);
+    }
+
+    // 🎯 Set up event listeners
+    setupEventListeners() {
+        // Refresh button
+        const refreshBtn = document.getElementById('dashboardRefreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.refresh();
+            });
+        }
+        
+        // Handle page visibility change to pause/resume refresh
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('⏸️ Page hidden, pausing auto-refresh');
+                if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                    this.refreshInterval = null;
+                }
+            } else {
+                console.log('▶️ Page visible, resuming auto-refresh');
+                this.setupAutoRefresh();
             }
         });
     }
@@ -506,100 +469,70 @@ class DancifyDashboard {
     // 🔄 Manual refresh
     async refresh() {
         console.log('🔄 Refreshing dashboard...');
-        await this.loadDashboardData();
-        this.showNotification('Dashboard refreshed', 'success');
+        try {
+            await this.loadDashboardData();
+            this.showSuccessMessage('Dashboard refreshed successfully');
+        } catch (error) {
+            this.showErrorMessage('Failed to refresh dashboard: ' + error.message);
+        }
     }
 
-    // 🎨 UI State Management
+    // 🔄 Show loading state
     showLoadingState() {
-        const statCards = document.querySelectorAll('.stat-card');
-        statCards.forEach(card => {
-            card.classList.add('loading');
+        const loadingElements = document.querySelectorAll('.loading-placeholder');
+        loadingElements.forEach(element => {
+            element.style.display = 'block';
         });
         
-        const charts = document.querySelectorAll('.chart-container');
-        charts.forEach(chart => {
-            chart.classList.add('loading');
+        const contentElements = document.querySelectorAll('.dashboard-content');
+        contentElements.forEach(element => {
+            element.style.opacity = '0.5';
         });
     }
 
+    // ✅ Hide loading state
     hideLoadingState() {
-        const loadingElements = document.querySelectorAll('.loading');
+        const loadingElements = document.querySelectorAll('.loading-placeholder');
         loadingElements.forEach(element => {
-            element.classList.remove('loading');
+            element.style.display = 'none';
+        });
+        
+        const contentElements = document.querySelectorAll('.dashboard-content');
+        contentElements.forEach(element => {
+            element.style.opacity = '1';
         });
     }
 
-    showErrorState() {
-        const container = document.getElementById('dashboard');
-        if (container) {
-            container.innerHTML = `
-                <div class="error-state">
-                    <div class="error-icon">⚠️</div>
-                    <h3>Dashboard Loading</h3>
-                    <p>Loading dashboard with mock data...</p>
-                    <button class="btn btn-primary" onclick="window.dancifyAdmin.modules.dashboard.init()">
-                        🔄 Retry
-                    </button>
-                </div>
-            `;
-        }
+    // ✅ Show success message
+    showSuccessMessage(message) {
+        this.showMessage(message, 'success');
     }
 
+    // ❌ Show error message
     showErrorMessage(message) {
-        this.showNotification(message, 'error');
+        this.showMessage(message, 'error');
     }
 
-    showNotification(message, type = 'info') {
-        if (window.dancifyAdmin) {
-            window.dancifyAdmin.showNotification(message, type);
-        } else {
-            console.log(`📢 ${type.toUpperCase()}: ${message}`);
-        }
-    }
-
-    // 📊 Export dashboard data
-    async exportDashboardData(format = 'csv') {
-        try {
-            if (!this.api || typeof this.api.exportData !== 'function') {
-                this.showNotification('Export feature not available yet', 'warning');
-                return;
+    // 💬 Show message
+    showMessage(message, type = 'info') {
+        const messageContainer = document.getElementById('messageContainer') || document.body;
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = `message message-${type}`;
+        messageEl.textContent = message;
+        
+        messageContainer.appendChild(messageEl);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (messageEl.parentNode) {
+                messageEl.parentNode.removeChild(messageEl);
             }
-            
-            const response = await this.api.exportData('dashboard', format);
-            if (response.success) {
-                // Create download link
-                const blob = new Blob([response.data], { 
-                    type: format === 'csv' ? 'text/csv' : 'application/json' 
-                });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `dancify-dashboard-${new Date().toISOString().split('T')[0]}.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                this.showNotification('Dashboard data exported successfully', 'success');
-            }
-        } catch (error) {
-            console.error('❌ Failed to export dashboard data:', error);
-            this.showNotification('Failed to export dashboard data', 'error');
-        }
-    }
-
-    // 📱 Responsive chart handling
-    handleResize() {
-        Object.values(this.charts).forEach(chart => {
-            if (chart && typeof chart.resize === 'function') {
-                chart.resize();
-            }
-        });
+        }, 5000);
     }
 
     // 🧹 Cleanup
-    cleanup() {
+    destroy() {
         // Clear refresh interval
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
@@ -612,61 +545,17 @@ class DancifyDashboard {
                 chart.destroy();
             }
         });
+        
         this.charts = {};
         
-        console.log('🧹 Dashboard cleanup completed');
+        console.log('🧹 Dashboard cleaned up');
     }
 }
 
-// 🎯 Dashboard utilities
-const DashboardUtils = {
-    // Format numbers with appropriate suffixes
-    formatNumber(num) {
-        if (num >= 1000000) {
-            return (num / 1000000).toFixed(1) + 'M';
-        }
-        if (num >= 1000) {
-            return (num / 1000).toFixed(1) + 'K';
-        }
-        return num.toString();
-    },
-    
-    // Calculate percentage change
-    calculatePercentageChange(current, previous) {
-        if (previous === 0) return 0;
-        return ((current - previous) / previous) * 100;
-    },
-    
-    // Generate mock data for development
-    generateMockData() {
-        return {
-            stats: {
-                users: { total: 1250, change: 45 },
-                moves: { total: 180, pending: 12 },
-                submissions: { total: 890, pending: 23 },
-                danceStyles: { total: 8, active: 8 },
-                instructors: { total: 34, pending: 5 }
-            },
-            engagement: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                activeUsers: [120, 135, 98, 156, 178, 203, 145],
-                submissions: [23, 34, 18, 45, 56, 67, 34]
-            },
-            danceStyles: {
-                labels: ['Ballet', 'Hip-Hop', 'Salsa', 'Contemporary', 'Jazz'],
-                values: [250, 420, 180, 150, 100]
-            },
-            activity: [
-                { type: 'move_created', message: 'New move "Pirouette Basic" created', timestamp: new Date(Date.now() - 5 * 60000) },
-                { type: 'user_registered', message: 'New user registration', timestamp: new Date(Date.now() - 12 * 60000) },
-                { type: 'move_submitted', message: 'Move submission pending review', timestamp: new Date(Date.now() - 23 * 60000) }
-            ]
-        };
-    }
-};
-
-// 🌐 Export for global use
+// Create global dashboard instance
 window.DancifyDashboard = DancifyDashboard;
-window.DashboardUtils = DashboardUtils;
 
-console.log('📊 Dancify Dashboard module loaded');
+// Initialize dashboard when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📊 Dancify Dashboard module loaded');
+});

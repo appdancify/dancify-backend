@@ -4,7 +4,7 @@
 
 class DancifyAPI {
     constructor() {
-        // API Configuration - FIXED: Auto-detect the correct backend URL
+        // API Configuration - Auto-detect the correct backend URL
         this.baseURL = this.detectBackendURL();
         this.timeout = 30000; // 30 seconds
         this.retryAttempts = 3;
@@ -51,83 +51,67 @@ class DancifyAPI {
             // Load stored auth tokens
             this.loadAuthTokens();
             
-            // Test connection with fallback
-            try {
-                await this.ping();
-                console.log('✅ API client initialized successfully');
-            } catch (error) {
-                console.warn('⚠️ Primary API connection failed, trying fallback...');
-                
-                // Try fallback URLs
-                const fallbackURLs = [
-                    window.location.origin + '/api',
-                    'https://dancify-backend.onrender.com/api',
-                    'http://localhost:3001/api'
-                ];
-                
-                for (const url of fallbackURLs) {
-                    if (url !== this.baseURL) {
-                        try {
-                            this.baseURL = url;
-                            await this.ping();
-                            console.log(`✅ API client connected to fallback: ${url}`);
-                            return;
-                        } catch (e) {
-                            console.warn(`❌ Fallback failed: ${url}`);
-                        }
-                    }
-                }
-                
-                // If all fail, continue in offline mode
-                console.warn('⚠️ All API connections failed, running in offline mode');
-                this.offlineMode = true;
-            }
+            // Test connection
+            await this.ping();
+            console.log('✅ API client initialized successfully');
             
         } catch (error) {
-            console.warn('⚠️ API connection failed during init:', error.message);
-            this.offlineMode = true;
+            console.error('❌ API client initialization failed:', error);
+            throw new Error('Failed to initialize API client: ' + error.message);
         }
     }
 
-    // 🏓 Ping endpoint to test connection
+    // 🏓 Test connection to backend
     async ping() {
         try {
             const response = await this.request('GET', '/health');
-            return response.status === 'ok';
+            console.log('✅ Backend connection successful');
+            return response;
         } catch (error) {
-            throw new Error('API connection failed');
+            console.error('❌ Backend connection failed:', error);
+            throw error;
         }
     }
 
     // 🔐 Authentication methods
     loadAuthTokens() {
-        this.authToken = localStorage.getItem('dancify_auth_token');
-        this.refreshToken = localStorage.getItem('dancify_refresh_token');
+        try {
+            this.authToken = localStorage.getItem('dancify_auth_token');
+            this.refreshToken = localStorage.getItem('dancify_refresh_token');
+        } catch (error) {
+            console.warn('⚠️ Could not load auth tokens from localStorage');
+        }
     }
 
     saveAuthTokens(authToken, refreshToken) {
-        this.authToken = authToken;
-        this.refreshToken = refreshToken;
-        localStorage.setItem('dancify_auth_token', authToken);
-        if (refreshToken) {
-            localStorage.setItem('dancify_refresh_token', refreshToken);
+        try {
+            this.authToken = authToken;
+            this.refreshToken = refreshToken;
+            
+            if (authToken) {
+                localStorage.setItem('dancify_auth_token', authToken);
+            }
+            if (refreshToken) {
+                localStorage.setItem('dancify_refresh_token', refreshToken);
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not save auth tokens to localStorage');
         }
     }
 
     clearAuthTokens() {
         this.authToken = null;
         this.refreshToken = null;
-        localStorage.removeItem('dancify_auth_token');
-        localStorage.removeItem('dancify_refresh_token');
+        try {
+            localStorage.removeItem('dancify_auth_token');
+            localStorage.removeItem('dancify_refresh_token');
+        } catch (error) {
+            console.warn('⚠️ Could not clear auth tokens from localStorage');
+        }
     }
 
     // 🌐 Core HTTP request method
     async request(method, endpoint, data = null, options = {}) {
-        // If in offline mode, return mock data
-        if (this.offlineMode) {
-            return this.getMockData(method, endpoint);
-        }
-        
         const url = `${this.baseURL}${endpoint}`;
         const cacheKey = `${method}:${endpoint}`;
         
@@ -167,20 +151,15 @@ class DancifyAPI {
             
         } catch (error) {
             console.error(`❌ API request failed: ${method} ${endpoint}`, error);
-            
-            // Return mock data as fallback
-            if (method === 'GET') {
-                console.log(`📋 Falling back to mock data for ${endpoint}`);
-                return this.getMockData(method, endpoint);
-            }
-            
-            throw this.handleError(error, endpoint);
+            throw error;
         }
     }
 
     // 🔄 Fetch with retry logic
     async fetchWithRetry(url, config, attempt = 1) {
         try {
+            console.log(`🌐 ${config.method} ${url} (attempt ${attempt})`);
+            
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), config.timeout);
             
@@ -193,44 +172,44 @@ class DancifyAPI {
             return response;
             
         } catch (error) {
+            console.error(`❌ Fetch attempt ${attempt} failed:`, error.message);
+            
             if (attempt < this.retryAttempts && this.shouldRetry(error)) {
-                console.warn(`🔄 Retrying request (${attempt}/${this.retryAttempts}): ${url}`);
-                await this.delay(this.retryDelay * attempt);
+                console.log(`🔄 Retrying in ${this.retryDelay}ms...`);
+                await this.delay(this.retryDelay);
                 return this.fetchWithRetry(url, config, attempt + 1);
             }
-            throw error;
+            
+            throw this.createNetworkError(error);
         }
     }
 
-    // 📤 Handle API response
+    // 📦 Handle HTTP response
     async handleResponse(response) {
+        let result;
+        
+        try {
+            const textContent = await response.text();
+            result = textContent ? JSON.parse(textContent) : {};
+        } catch (error) {
+            throw new APIError('Invalid JSON response', response.status);
+        }
+        
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new APIError(
-                errorData.message || `HTTP ${response.status}`,
-                response.status,
-                errorData
-            );
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return await response.json();
-        }
-        
-        return { success: true, data: await response.text() };
-    }
-
-    // 💥 Error handling
-    handleError(error, endpoint) {
-        if (error instanceof APIError) {
-            // Handle specific API errors
-            if (error.status === 401) {
+            const errorMessage = result.error || result.message || `HTTP ${response.status}`;
+            
+            if (response.status === 401) {
                 this.handleUnauthorized();
             }
-            return error;
+            
+            throw new APIError(errorMessage, response.status, result);
         }
         
+        return result;
+    }
+
+    // ⚠️ Create network error
+    createNetworkError(error) {
         if (error.name === 'AbortError') {
             return new APIError('Request timeout', 408);
         }
@@ -242,10 +221,11 @@ class DancifyAPI {
         return new APIError(error.message || 'Network error', 500);
     }
 
+    // 🔐 Handle unauthorized access
     handleUnauthorized() {
         console.warn('🔐 Unauthorized - clearing auth tokens');
         this.clearAuthTokens();
-        // Redirect to login or show auth modal
+        // Dispatch event for components to handle
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
 
@@ -292,68 +272,17 @@ class DancifyAPI {
         this.cache.clear();
     }
 
-    // 🎭 Mock data for offline/development mode
-    getMockData(method, endpoint) {
-        const mockData = {
-            '/health': {
-                success: true,
-                status: 'ok',
-                timestamp: new Date().toISOString(),
-                service: 'Dancify Backend API (Mock)',
-                version: '1.0.0'
-            },
-            '/admin/dashboard': {
-                success: true,
-                data: {
-                    users: { total: 1250, change: 45 },
-                    moves: { total: 180, pending: 12 },
-                    submissions: { total: 890, pending: 23 },
-                    danceStyles: { total: 8, active: 8 },
-                    instructors: { total: 34, pending: 5 }
-                }
-            },
-            '/admin/dashboard/charts': {
-                success: true,
-                data: {
-                    engagement: {
-                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                        activeUsers: [120, 135, 98, 156, 178, 203, 145],
-                        submissions: [23, 34, 18, 45, 56, 67, 34]
-                    },
-                    danceStyles: {
-                        labels: ['Ballet', 'Hip-Hop', 'Salsa', 'Contemporary', 'Jazz'],
-                        values: [250, 420, 180, 150, 100]
-                    }
-                }
-            },
-            '/admin/dashboard/activity': {
-                success: true,
-                data: [
-                    { type: 'move_created', message: 'New move "Pirouette Basic" created', timestamp: new Date(Date.now() - 5 * 60000) },
-                    { type: 'user_registered', message: 'New user registration', timestamp: new Date(Date.now() - 12 * 60000) },
-                    { type: 'move_submitted', message: 'Move submission pending review', timestamp: new Date(Date.now() - 23 * 60000) }
-                ]
-            }
-        };
-        
-        return mockData[endpoint] || { 
-            success: true, 
-            data: [], 
-            message: `Mock data for ${endpoint}` 
-        };
-    }
-
     // 📊 Dashboard API methods
     async getDashboardStats() {
         return this.request('GET', '/admin/dashboard');
     }
 
     async getDashboardCharts() {
-        return this.request('GET', '/admin/dashboard/charts');
+        return this.request('GET', '/admin/analytics');
     }
 
     async getRecentActivity() {
-        return this.request('GET', '/admin/dashboard/activity');
+        return this.request('GET', '/admin/dashboard');
     }
 
     // 👥 User management API methods
@@ -373,6 +302,10 @@ class DancifyAPI {
 
     async deleteUser(userId) {
         return this.request('DELETE', `/admin/users/${userId}`);
+    }
+
+    async createUser(userData) {
+        return this.request('POST', '/admin/users', userData);
     }
 
     // 🕺 Dance move API methods
@@ -399,8 +332,10 @@ class DancifyAPI {
     }
 
     // 🎭 Dance style API methods
-    async getDanceStyles() {
-        return this.request('GET', '/admin/dance-styles');
+    async getDanceStyles(filters = {}) {
+        const queryParams = new URLSearchParams(filters).toString();
+        const endpoint = queryParams ? `/admin/dance-styles?${queryParams}` : '/admin/dance-styles';
+        return this.request('GET', endpoint);
     }
 
     async getDanceStyle(styleId) {
@@ -419,8 +354,7 @@ class DancifyAPI {
         return this.request('DELETE', `/admin/dance-styles/${styleId}`);
     }
 
-    // 📂 Categories and sections API methods
-    async getCategories(danceStyle) {
+    async getCategories(danceStyle = null) {
         const endpoint = danceStyle ? 
             `/admin/categories?dance_style=${encodeURIComponent(danceStyle)}` : 
             '/admin/categories';
@@ -494,15 +428,21 @@ class DancifyAPI {
     // 💬 Feedback API methods
     async getFeedback(filters = {}) {
         const queryParams = new URLSearchParams(filters).toString();
-        const endpoint = queryParams ? `/admin/feedback?${queryParams}` : '/admin/feedback';
+        const endpoint = queryParams ? 
+            `/admin/feedback?${queryParams}` : 
+            '/admin/feedback';
         return this.request('GET', endpoint);
     }
 
-    async markFeedbackAsRead(feedbackId) {
-        return this.request('POST', `/admin/feedback/${feedbackId}/mark-read`);
+    async updateFeedback(feedbackId, feedbackData) {
+        return this.request('PUT', `/admin/feedback/${feedbackId}`, feedbackData);
     }
 
-    // 📱 Social posts API methods
+    async deleteFeedback(feedbackId) {
+        return this.request('DELETE', `/admin/feedback/${feedbackId}`);
+    }
+
+    // 📱 Social posts API methods  
     async getSocialPosts(filters = {}) {
         const queryParams = new URLSearchParams(filters).toString();
         const endpoint = queryParams ? 
@@ -511,44 +451,22 @@ class DancifyAPI {
         return this.request('GET', endpoint);
     }
 
-    async moderateSocialPost(postId, action, reason = '') {
-        return this.request('POST', `/admin/social-posts/${postId}/moderate`, { action, reason });
+    async createSocialPost(postData) {
+        return this.request('POST', '/admin/social-posts', postData);
     }
 
-    // 📈 Analytics and reports API methods
-    async getAnalytics(period = '7d') {
-        return this.request('GET', `/admin/analytics?period=${period}`);
+    async updateSocialPost(postId, postData) {
+        return this.request('PUT', `/admin/social-posts/${postId}`, postData);
     }
 
-    async getReports(type, filters = {}) {
-        const queryParams = new URLSearchParams({ type, ...filters }).toString();
-        return this.request('GET', `/admin/reports?${queryParams}`);
-    }
-
-    async exportData(type, format = 'csv') {
-        const endpoint = `/admin/export/${type}?format=${format}`;
-        return this.request('GET', endpoint);
-    }
-
-    // ⚙️ Settings API methods
-    async getSettings() {
-        return this.request('GET', '/admin/settings');
-    }
-
-    async updateSettings(settings) {
-        return this.request('PUT', '/admin/settings', settings);
-    }
-
-    // 🧹 Cleanup method
-    cleanup() {
-        this.clearCache();
-        console.log('🧹 API client cleanup completed');
+    async deleteSocialPost(postId) {
+        return this.request('DELETE', `/admin/social-posts/${postId}`);
     }
 }
 
-// 💥 Custom API Error class
+// Custom API Error class
 class APIError extends Error {
-    constructor(message, status = 500, details = {}) {
+    constructor(message, status, details = null) {
         super(message);
         this.name = 'APIError';
         this.status = status;
@@ -556,56 +474,10 @@ class APIError extends Error {
     }
 }
 
-// 🔧 Utility functions
-const APIUtils = {
-    // Format file size for uploads
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
-    
-    // Validate video URL
-    isValidVideoURL(url) {
-        const videoPatterns = [
-            /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+$/,
-            /^https?:\/\/(www\.)?vimeo\.com\/.+$/,
-            /^https?:\/\/.+\.(mp4|webm|ogg)$/
-        ];
-        return videoPatterns.some(pattern => pattern.test(url));
-    },
-    
-    // Extract YouTube video ID
-    extractYouTubeID(url) {
-        const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const match = url.match(regex);
-        return match ? match[1] : null;
-    },
-    
-    // Generate thumbnail URL for YouTube videos
-    getYouTubeThumbnail(videoId, quality = 'hqdefault') {
-        return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
-    },
-    
-    // Debounce function for search inputs
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-};
-
-// 🌐 Export for global use
+// Initialize global API client
 window.DancifyAPI = DancifyAPI;
-window.APIError = APIError;
-window.APIUtils = APIUtils;
 
-console.log('🔗 Dancify API client loaded');
+// Auto-initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔗 Dancify API client loaded');
+});

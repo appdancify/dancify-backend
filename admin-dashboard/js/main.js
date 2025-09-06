@@ -1,569 +1,520 @@
-// 💃 Dancify Admin Dashboard - Main JavaScript
-// Application initialization and core functionality
-// Manages app lifecycle, error handling, and global state
+// 💃 Dancify Admin Dashboard - Main Application Controller
+// Central coordination of all dashboard components and real API integration
 
 class DancifyAdmin {
     constructor() {
-        this.isInitialized = false;
-        this.modules = {};
-        this.currentSection = 'dashboard';
-        this.loadingStates = new Map();
-        this.globalState = {
-            user: null,
-            permissions: [],
-            settings: {},
-            syncStatus: 'synced'
+        this.components = {
+            api: null,
+            navigation: null,
+            dashboard: null,
+            sectionLoader: null
         };
+        
+        this.currentSection = 'dashboard';
+        this.isInitialized = false;
+        this.connectionStatus = 'disconnected';
+        
+        console.log('💃 Dancify Admin initializing...');
     }
 
     // 🚀 Initialize the application
     async init() {
         try {
-            console.log('💃 Dancify Admin initializing...');
+            console.log('🔧 Starting Dancify Admin initialization...');
             
-            // Wait for DOM to be ready
-            if (document.readyState === 'loading') {
-                await new Promise(resolve => {
-                    document.addEventListener('DOMContentLoaded', resolve);
-                });
-            }
-
-            // Show loading screen
-            this.showLoadingScreen();
-
-            // Initialize core modules in sequence
+            // Initialize core components
             await this.initializeModules();
             
-            // Setup global event listeners
-            this.setupEventListeners();
+            // Set up global event listeners
+            this.setupGlobalEventListeners();
             
             // Load initial section
-            await this.loadInitialSection();
+            await this.loadSection('dashboard');
             
-            // Setup auto-refresh and background tasks
-            this.setupBackgroundTasks();
-            
-            // Hide loading screen and show app
-            this.hideLoadingScreen();
+            // Start connection monitoring
+            this.startConnectionMonitoring();
             
             this.isInitialized = true;
             console.log('✅ Dancify Admin initialized successfully');
             
         } catch (error) {
-            console.error('💥 Failed to initialize Dancify Admin:', error);
-            this.showError('Failed to initialize application: ' + error.message);
+            console.error('❌ Dancify Admin initialization failed:', error);
+            this.showCriticalError('Application failed to initialize: ' + error.message);
         }
     }
 
-    // 🔧 Initialize all modules
+    // 🔧 Initialize core modules
     async initializeModules() {
-        console.log('🔧 Loading core components...');
-        
         try {
-            // Initialize API client first
+            console.log('🔧 Loading core components...');
+            
+            // Initialize API client first (required by other components)
             if (window.DancifyAPI) {
-                this.modules.api = new window.DancifyAPI();
-                await this.modules.api.init();
+                this.components.api = new window.DancifyAPI();
+                await this.components.api.init();
+                this.connectionStatus = 'connected';
+            } else {
+                throw new Error('DancifyAPI class not available');
             }
             
-            // Initialize navigation
+            // Initialize navigation system
             if (window.DancifyNavigation) {
-                this.modules.navigation = new window.DancifyNavigation();
-                this.modules.navigation.init();
+                this.components.navigation = new window.DancifyNavigation();
+                await this.components.navigation.init();
+            } else {
+                console.warn('⚠️ DancifyNavigation not available');
             }
             
             // Initialize section loader
             if (window.DancifySectionLoader) {
-                this.modules.sectionLoader = new window.DancifySectionLoader();
-                this.modules.sectionLoader.init();
+                this.components.sectionLoader = new window.DancifySectionLoader();
+                await this.components.sectionLoader.init();
+            } else {
+                console.warn('⚠️ DancifySectionLoader not available');
             }
             
-            // Initialize dashboard
+            // Initialize dashboard (will be loaded when section is activated)
             if (window.DancifyDashboard) {
-                this.modules.dashboard = new window.DancifyDashboard();
-            }
-            
-            // Initialize move management
-            if (window.DancifyMoves) {
-                this.modules.moves = new window.DancifyMoves();
-            }
-            
-            // Initialize dance styles management
-            if (window.DancifyStyles) {
-                this.modules.styles = new window.DancifyStyles();
-            }
-            
-            // Initialize move submissions
-            if (window.DancifySubmissions) {
-                this.modules.submissions = new window.DancifySubmissions();
+                this.components.dashboard = new window.DancifyDashboard();
             }
             
             console.log('✅ Core components loaded');
             
         } catch (error) {
-            console.error('❌ Failed to load components:', error);
+            console.error('❌ Failed to initialize modules:', error);
             throw error;
         }
     }
 
-    // 📱 Setup global event listeners
-    setupEventListeners() {
-        // Global error handling
-        window.addEventListener('error', this.handleGlobalError.bind(this));
-        window.addEventListener('unhandledrejection', this.handleUnhandledRejection.bind(this));
+    // 🎯 Set up global event listeners
+    setupGlobalEventListeners() {
+        // Handle section navigation
+        document.addEventListener('click', (event) => {
+            this.handleGlobalClick(event);
+        });
         
-        // Navigation events
-        document.addEventListener('click', this.handleGlobalClick.bind(this));
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            this.handleKeyboardShortcuts(event);
+        });
         
-        // Keyboard shortcuts
-        document.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
+        // Handle API authentication events
+        window.addEventListener('auth:unauthorized', () => {
+            this.handleUnauthorized();
+        });
         
-        // Window events
-        window.addEventListener('resize', this.handleWindowResize.bind(this));
-        window.addEventListener('online', this.handleOnline.bind(this));
-        window.addEventListener('offline', this.handleOffline.bind(this));
+        // Handle connection status changes
+        window.addEventListener('online', () => {
+            this.handleConnectionChange(true);
+        });
         
-        // Visibility change for background sync
-        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        window.addEventListener('offline', () => {
+            this.handleConnectionChange(false);
+        });
+        
+        // Handle before page unload
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+        });
         
         console.log('✅ Global event listeners setup completed');
     }
 
-    // 🎯 Load initial section
-    async loadInitialSection() {
-        try {
-            // Check URL hash for deep linking
-            const hash = window.location.hash.slice(1);
-            const targetSection = hash || this.currentSection;
-            
-            if (this.modules.sectionLoader) {
-                await this.modules.sectionLoader.loadSection(targetSection);
-            }
-            
-            if (this.modules.navigation) {
-                this.modules.navigation.setActiveSection(targetSection);
-            }
-            
-            this.currentSection = targetSection;
-            this.updatePageTitle(targetSection);
-            
-        } catch (error) {
-            console.error('❌ Failed to load initial section:', error);
-            // Fallback to dashboard
-            await this.loadSection('dashboard');
-        }
-    }
-
-    // 📄 Load a specific section
-    async loadSection(sectionName) {
-        try {
-            this.setLoadingState(sectionName, true);
-            
-            if (this.modules.sectionLoader) {
-                await this.modules.sectionLoader.loadSection(sectionName);
-            }
-            
-            if (this.modules.navigation) {
-                this.modules.navigation.setActiveSection(sectionName);
-            }
-            
-            this.currentSection = sectionName;
-            this.updatePageTitle(sectionName);
-            
-            // Update URL hash
-            window.location.hash = sectionName;
-            
-            this.setLoadingState(sectionName, false);
-            
-        } catch (error) {
-            console.error(`❌ Failed to load section ${sectionName}:`, error);
-            this.setLoadingState(sectionName, false);
-            this.showError(`Failed to load ${sectionName} section`);
-        }
-    }
-
-    // 🔄 Setup background tasks
-    setupBackgroundTasks() {
-        // Auto-refresh dashboard data every 5 minutes
-        setInterval(() => {
-            if (this.currentSection === 'dashboard' && document.visibilityState === 'visible') {
-                this.refreshCurrentSection();
-            }
-        }, 5 * 60 * 1000);
-        
-        // Sync status check every minute
-        setInterval(() => {
-            this.checkSyncStatus();
-        }, 60 * 1000);
-        
-        // Cleanup inactive connections every 30 minutes
-        setInterval(() => {
-            this.cleanupConnections();
-        }, 30 * 60 * 1000);
-    }
-
-    // 📊 Refresh current section
-    async refreshCurrentSection() {
-        try {
-            if (this.currentSection === 'dashboard' && this.modules.dashboard) {
-                await this.modules.dashboard.refresh();
-            } else if (this.currentSection === 'move-management' && this.modules.moves) {
-                await this.modules.moves.refresh();
-            } else if (this.currentSection === 'dance-style-management' && this.modules.styles) {
-                await this.modules.styles.refresh();
-            } else if (this.currentSection === 'move-submissions' && this.modules.submissions) {
-                await this.modules.submissions.refresh();
-            }
-        } catch (error) {
-            console.error('❌ Failed to refresh section:', error);
-        }
-    }
-
-    // 🔗 Handle global clicks (for navigation and modals)
+    // 🖱️ Handle global click events
     handleGlobalClick(event) {
         const target = event.target.closest('[data-section]');
+        
         if (target) {
             event.preventDefault();
-            const sectionName = target.dataset.section;
-            this.loadSection(sectionName);
+            const section = target.getAttribute('data-section');
+            this.loadSection(section);
             return;
         }
         
-        // Handle modal closes
-        if (event.target.classList.contains('modal-overlay')) {
-            this.closeAllModals();
-        }
-        
-        // Handle dropdown toggles
-        const dropdown = event.target.closest('.user-avatar');
-        if (dropdown) {
-            this.toggleUserDropdown();
-        } else {
-            this.closeUserDropdown();
+        // Handle other clickable elements
+        const actionTarget = event.target.closest('[data-action]');
+        if (actionTarget) {
+            event.preventDefault();
+            const action = actionTarget.getAttribute('data-action');
+            this.handleAction(action, actionTarget);
         }
     }
 
     // ⌨️ Handle keyboard shortcuts
     handleKeyboardShortcuts(event) {
-        // Ctrl/Cmd + K for global search
-        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        // Ctrl/Cmd + R: Refresh current section
+        if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
             event.preventDefault();
-            this.openGlobalSearch();
+            this.refreshCurrentSection();
+            return;
         }
         
-        // Escape to close modals
+        // Escape: Close modals
         if (event.key === 'Escape') {
             this.closeAllModals();
-            this.closeUserDropdown();
+            return;
         }
         
-        // Alt + numbers for quick navigation
-        if (event.altKey && /^[1-9]$/.test(event.key)) {
+        // Ctrl/Cmd + /: Show help
+        if ((event.ctrlKey || event.metaKey) && event.key === '/') {
             event.preventDefault();
-            const sections = ['dashboard', 'users', 'move-management', 'dance-style-management', 'move-submissions'];
-            const index = parseInt(event.key) - 1;
-            if (sections[index]) {
-                this.loadSection(sections[index]);
-            }
+            this.showHelp();
+            return;
         }
     }
 
-    // 📱 Handle window resize
-    handleWindowResize() {
-        // Adjust layout for mobile
-        if (window.innerWidth <= 768) {
-            this.enableMobileMode();
-        } else {
-            this.disableMobileMode();
-        }
-    }
-
-    // 🌐 Handle online/offline status
-    handleOnline() {
-        this.updateSyncStatus('synced');
-        this.showNotification('Connection restored', 'success');
-        this.refreshCurrentSection();
-    }
-
-    handleOffline() {
-        this.updateSyncStatus('offline');
-        this.showNotification('Connection lost - working offline', 'warning');
-    }
-
-    // 👁️ Handle visibility change
-    handleVisibilityChange() {
-        if (document.visibilityState === 'visible') {
-            // Refresh data when tab becomes visible
-            setTimeout(() => {
-                this.refreshCurrentSection();
-            }, 1000);
-        }
-    }
-
-    // 🎯 Loading state management
-    setLoadingState(identifier, isLoading) {
-        if (isLoading) {
-            this.loadingStates.set(identifier, true);
-        } else {
-            this.loadingStates.delete(identifier);
+    // 📄 Load a section
+    async loadSection(sectionName) {
+        if (!sectionName || this.currentSection === sectionName) {
+            return;
         }
         
-        // Update global loading indicator
-        const hasLoading = this.loadingStates.size > 0;
-        this.updateSyncStatus(hasLoading ? 'syncing' : 'synced');
-    }
-
-    // 🔄 Sync status management
-    updateSyncStatus(status) {
-        this.globalState.syncStatus = status;
-        const syncElement = document.getElementById('syncStatus');
-        if (syncElement) {
-            const iconElement = syncElement.querySelector('.sync-icon');
-            const textElement = syncElement.querySelector('.sync-text');
+        try {
+            console.log(`📂 Loading section: ${sectionName}`);
             
-            switch (status) {
-                case 'syncing':
-                    iconElement.textContent = '🔄';
-                    textElement.textContent = 'Syncing...';
-                    iconElement.style.animation = 'spin 1s linear infinite';
-                    break;
-                case 'offline':
-                    iconElement.textContent = '⚠️';
-                    textElement.textContent = 'Offline';
-                    iconElement.style.animation = 'none';
-                    break;
-                default:
-                    iconElement.textContent = '✅';
-                    textElement.textContent = 'Synced';
-                    iconElement.style.animation = 'none';
+            // Update navigation state
+            if (this.components.navigation) {
+                this.components.navigation.setActiveSection(sectionName);
             }
+            
+            // Load section content
+            if (this.components.sectionLoader) {
+                await this.components.sectionLoader.loadSection(sectionName);
+            }
+            
+            // Initialize section-specific functionality
+            await this.initializeSectionFunctionality(sectionName);
+            
+            this.currentSection = sectionName;
+            
+            // Update URL hash
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, null, `#${sectionName}`);
+            }
+            
+            console.log(`✅ Section loaded: ${sectionName}`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to load section ${sectionName}:`, error);
+            this.showErrorMessage(`Failed to load ${sectionName}: ${error.message}`);
         }
     }
 
-    checkSyncStatus() {
-        if (this.modules.api) {
-            this.modules.api.ping().then(() => {
-                if (this.globalState.syncStatus === 'offline') {
-                    this.handleOnline();
+    // 🔧 Initialize section-specific functionality
+    async initializeSectionFunctionality(sectionName) {
+        switch (sectionName) {
+            case 'dashboard':
+                if (this.components.dashboard && !this.components.dashboard.isInitialized) {
+                    await this.components.dashboard.init();
                 }
-            }).catch(() => {
-                if (this.globalState.syncStatus !== 'offline') {
-                    this.handleOffline();
+                break;
+                
+            case 'users':
+                // Initialize user management functionality
+                if (window.UserManager) {
+                    const userManager = new window.UserManager(this.components.api);
+                    await userManager.init();
                 }
-            });
+                break;
+                
+            case 'move-management':
+                // Initialize move management functionality
+                if (window.MoveManager) {
+                    const moveManager = new window.MoveManager(this.components.api);
+                    await moveManager.init();
+                }
+                break;
+                
+            case 'dance-style-management':
+                // Initialize dance style management functionality
+                if (window.DanceStyleManager) {
+                    const styleManager = new window.DanceStyleManager(this.components.api);
+                    await styleManager.init();
+                }
+                break;
+                
+            case 'move-submissions':
+                // Initialize submission management functionality
+                if (window.SubmissionManager) {
+                    const submissionManager = new window.SubmissionManager(this.components.api);
+                    await submissionManager.init();
+                }
+                break;
+                
+            default:
+                console.log(`ℹ️ No specific initialization for section: ${sectionName}`);
         }
     }
 
-    // 📱 Mobile mode management
-    enableMobileMode() {
-        document.body.classList.add('mobile-mode');
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) {
-            sidebar.classList.remove('open');
+    // 🎯 Handle various actions
+    handleAction(action, element) {
+        switch (action) {
+            case 'refresh':
+                this.refreshCurrentSection();
+                break;
+                
+            case 'logout':
+                this.handleLogout();
+                break;
+                
+            case 'toggle-sidebar':
+                this.toggleSidebar();
+                break;
+                
+            case 'show-settings':
+                this.loadSection('settings');
+                break;
+                
+            default:
+                console.warn(`⚠️ Unknown action: ${action}`);
         }
     }
 
-    disableMobileMode() {
-        document.body.classList.remove('mobile-mode');
-    }
-
-    // 🎨 UI Helper methods
-    showLoadingScreen() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (loadingScreen) {
-            loadingScreen.style.display = 'flex';
-        }
-    }
-
-    hideLoadingScreen() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        const mainContainer = document.getElementById('mainContainer');
+    // 🔄 Refresh current section
+    async refreshCurrentSection() {
+        console.log(`🔄 Refreshing section: ${this.currentSection}`);
         
-        setTimeout(() => {
-            if (loadingScreen) loadingScreen.style.display = 'none';
-            if (mainContainer) mainContainer.style.display = 'flex';
-        }, 1000);
+        try {
+            // Refresh based on current section
+            switch (this.currentSection) {
+                case 'dashboard':
+                    if (this.components.dashboard && this.components.dashboard.refresh) {
+                        await this.components.dashboard.refresh();
+                    }
+                    break;
+                    
+                default:
+                    // Reload the section
+                    await this.loadSection(this.currentSection);
+            }
+            
+            this.showSuccessMessage('Section refreshed successfully');
+            
+        } catch (error) {
+            console.error('❌ Failed to refresh section:', error);
+            this.showErrorMessage('Failed to refresh section: ' + error.message);
+        }
     }
 
-    updatePageTitle(sectionName) {
-        const pageTitle = document.getElementById('pageTitle');
-        if (pageTitle) {
-            const titles = {
-                'dashboard': 'Dashboard',
-                'users': 'User Management',
-                'move-management': 'Move Management',
-                'dance-style-management': 'Dance Styles',
-                'move-submissions': 'Move Submissions',
-                'choreography': 'Choreography',
-                'instructor-applications': 'Instructor Applications',
-                'feedback': 'Feedback',
-                'social-posts': 'Social Posts',
-                'reports': 'Reports',
-                'analytics': 'Analytics',
-                'settings': 'Settings'
-            };
-            pageTitle.textContent = titles[sectionName] || sectionName;
+    // 🚪 Handle logout
+    handleLogout() {
+        if (this.components.api) {
+            this.components.api.clearAuthTokens();
         }
         
-        // Update document title
-        document.title = `💃 Dancify Admin - ${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)}`;
+        // Clear any cached data
+        localStorage.removeItem('dancify_cache');
+        
+        // Redirect to login or show login form
+        window.location.href = '/login';
     }
 
-    toggleUserDropdown() {
-        const dropdown = document.getElementById('userDropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('show');
+    // 📱 Toggle sidebar
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        
+        if (sidebar && mainContent) {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('sidebar-collapsed');
         }
     }
 
-    closeUserDropdown() {
-        const dropdown = document.getElementById('userDropdown');
-        if (dropdown) {
-            dropdown.classList.remove('show');
-        }
-    }
-
-    closeAllModals() {
-        const modals = document.querySelectorAll('.modal-overlay');
-        modals.forEach(modal => {
-            modal.classList.remove('show');
-        });
-    }
-
-    openGlobalSearch() {
-        // TODO: Implement global search modal
-        this.showNotification('Global search coming soon!', 'info');
-    }
-
-    // 🔧 Utility methods
-    showNotification(message, type = 'info', duration = 3000) {
-        const notification = document.createElement('div');
-        notification.className = `toast toast-${type} show`;
-        notification.innerHTML = `
-            <span class="toast-icon">${this.getNotificationIcon(type)}</span>
-            <span class="toast-message">${message}</span>
+    // ❓ Show help
+    showHelp() {
+        const helpModal = document.createElement('div');
+        helpModal.className = 'modal-overlay';
+        helpModal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>💃 Dancify Admin Help</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <h3>Keyboard Shortcuts</h3>
+                    <ul>
+                        <li><kbd>Ctrl/Cmd + R</kbd> - Refresh current section</li>
+                        <li><kbd>Esc</kbd> - Close modals</li>
+                        <li><kbd>Ctrl/Cmd + /</kbd> - Show this help</li>
+                    </ul>
+                    
+                    <h3>Navigation</h3>
+                    <p>Use the sidebar to navigate between different sections of the admin dashboard.</p>
+                    
+                    <h3>Need Help?</h3>
+                    <p>Contact support at <a href="mailto:support@dancify.com">support@dancify.com</a></p>
+                </div>
+            </div>
         `;
         
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, duration);
+        document.body.appendChild(helpModal);
     }
 
-    getNotificationIcon(type) {
-        const icons = {
+    // 🔐 Handle unauthorized access
+    handleUnauthorized() {
+        console.warn('🔐 Unauthorized access detected');
+        
+        this.showErrorMessage('Your session has expired. Please log in again.');
+        
+        // Clear auth tokens
+        if (this.components.api) {
+            this.components.api.clearAuthTokens();
+        }
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+    }
+
+    // 🌐 Handle connection changes
+    handleConnectionChange(isOnline) {
+        this.connectionStatus = isOnline ? 'connected' : 'disconnected';
+        
+        const statusIndicator = document.getElementById('connectionStatus');
+        if (statusIndicator) {
+            statusIndicator.className = `connection-status ${this.connectionStatus}`;
+            statusIndicator.textContent = isOnline ? '🟢 Connected' : '🔴 Offline';
+        }
+        
+        if (isOnline) {
+            this.showSuccessMessage('Connection restored');
+            // Refresh current section to get latest data
+            this.refreshCurrentSection();
+        } else {
+            this.showErrorMessage('Connection lost - working offline');
+        }
+    }
+
+    // 📡 Start connection monitoring
+    startConnectionMonitoring() {
+        // Check connection every 30 seconds
+        setInterval(async () => {
+            if (this.components.api) {
+                try {
+                    await this.components.api.ping();
+                    if (this.connectionStatus !== 'connected') {
+                        this.handleConnectionChange(true);
+                    }
+                } catch (error) {
+                    if (this.connectionStatus !== 'disconnected') {
+                        this.handleConnectionChange(false);
+                    }
+                }
+            }
+        }, 30000);
+    }
+
+    // ❌ Close all modals
+    closeAllModals() {
+        const modals = document.querySelectorAll('.modal-overlay');
+        modals.forEach(modal => modal.remove());
+    }
+
+    // ✅ Show success message
+    showSuccessMessage(message) {
+        this.showMessage(message, 'success');
+    }
+
+    // ❌ Show error message
+    showErrorMessage(message) {
+        this.showMessage(message, 'error');
+    }
+
+    // 🚨 Show critical error
+    showCriticalError(message) {
+        const errorContainer = document.createElement('div');
+        errorContainer.className = 'critical-error';
+        errorContainer.innerHTML = `
+            <div class="error-content">
+                <h2>💥 Critical Error</h2>
+                <p>${message}</p>
+                <button onclick="window.location.reload()">🔄 Reload Page</button>
+            </div>
+        `;
+        
+        document.body.appendChild(errorContainer);
+    }
+
+    // 💬 Show message
+    showMessage(message, type = 'info') {
+        const messageContainer = document.getElementById('messageContainer') || document.body;
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = `message message-${type}`;
+        
+        const iconMap = {
             success: '✅',
             error: '❌',
             warning: '⚠️',
             info: 'ℹ️'
         };
-        return icons[type] || icons.info;
-    }
-
-    showError(message) {
-        console.error('Application Error:', message);
-        this.showNotification(message, 'error', 5000);
-    }
-
-    // 🧹 Cleanup methods
-    cleanupConnections() {
-        // Close idle connections, clear caches, etc.
-        if (this.modules.api) {
-            this.modules.api.cleanup();
-        }
-    }
-
-    // 💥 Error handlers
-    handleGlobalError(event) {
-        console.error('Global error caught:', event.error);
-        this.showError('An unexpected error occurred. Please refresh the page.');
-    }
-
-    handleUnhandledRejection(event) {
-        console.error('Unhandled promise rejection:', event.reason);
-        this.showError('A network error occurred. Please check your connection.');
-    }
-
-    // 🧹 Cleanup on app close
-    cleanup() {
-        // Remove event listeners
-        window.removeEventListener('error', this.handleGlobalError);
-        window.removeEventListener('unhandledrejection', this.handleUnhandledRejection);
         
-        // Cleanup modules
-        Object.values(this.modules).forEach(module => {
-            if (module && typeof module.cleanup === 'function') {
-                module.cleanup();
+        messageEl.innerHTML = `
+            <span class="message-icon">${iconMap[type] || iconMap.info}</span>
+            <span class="message-text">${message}</span>
+            <button class="message-close" onclick="this.parentElement.remove()">✕</button>
+        `;
+        
+        messageContainer.appendChild(messageEl);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (messageEl.parentNode) {
+                messageEl.parentNode.removeChild(messageEl);
             }
-        });
+        }, 5000);
+    }
+
+    // 🧹 Cleanup before page unload
+    cleanup() {
+        console.log('🧹 Cleaning up Dancify Admin...');
         
-        console.log('🧹 Application cleanup completed');
+        // Cleanup dashboard
+        if (this.components.dashboard && this.components.dashboard.destroy) {
+            this.components.dashboard.destroy();
+        }
+        
+        // Clear any intervals or timeouts
+        // (handled by individual components)
+        
+        console.log('✅ Cleanup completed');
+    }
+
+    // 📊 Get application status
+    getStatus() {
+        return {
+            initialized: this.isInitialized,
+            currentSection: this.currentSection,
+            connectionStatus: this.connectionStatus,
+            components: Object.keys(this.components).reduce((status, key) => {
+                status[key] = this.components[key] ? 'loaded' : 'not loaded';
+                return status;
+            }, {})
+        };
     }
 }
 
-// 🚀 Global app instance and initialization
-window.dancifyAdmin = null;
+// Create global admin instance
+window.DancifyAdmin = DancifyAdmin;
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', async function() {
+// Initialize the application when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('💃 Starting Dancify Admin...');
+    
     try {
-        console.log('💃 Starting Dancify Admin...');
-        
-        // Create global app instance
         window.dancifyAdmin = new DancifyAdmin();
-        
-        // Initialize the application
         await window.dancifyAdmin.init();
+        
+        // Handle URL hash on load
+        const hash = window.location.hash.substring(1);
+        if (hash && hash !== 'dashboard') {
+            await window.dancifyAdmin.loadSection(hash);
+        }
         
         console.log('🎉 Dancify Admin started successfully');
         
     } catch (error) {
         console.error('💥 Failed to start Dancify Admin:', error);
-        
-        // Show fallback error message
-        document.body.innerHTML = `
-            <div style="
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100vh;
-                background: linear-gradient(135deg, #8A2BE2, #FF69B4);
-                color: white;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                text-align: center;
-                padding: 20px;
-            ">
-                <div>
-                    <h1>⚠️ Application Error</h1>
-                    <p>Failed to start Dancify Admin Dashboard.</p>
-                    <p style="font-size: 0.9em; opacity: 0.8;">Please refresh the page or contact support if the problem persists.</p>
-                    <button onclick="window.location.reload()" style="
-                        margin-top: 20px;
-                        padding: 12px 24px;
-                        background: white;
-                        color: #8A2BE2;
-                        border: none;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        font-weight: 600;
-                    ">Refresh Page</button>
-                </div>
-            </div>
-        `;
     }
 });
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
-    if (window.dancifyAdmin) {
-        window.dancifyAdmin.cleanup();
-    }
-});
-
-console.log('📱 Dancify Admin main script loaded');
