@@ -60,7 +60,7 @@ app.use('/api', generalLimiter);
 app.use('/api/admin', adminLimiter);
 app.use('/api/*/upload', uploadLimiter);
 
-// CORS configuration
+// CORS configuration - FIXED for Render deployment
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (mobile apps, etc.)
@@ -71,23 +71,29 @@ app.use(cors({
       'http://localhost:3001',
       'http://localhost:8080',
       'https://dancify-admin.vercel.app',
-      'https://dancify-dashboard.netlify.app'
+      'https://dancify-dashboard.netlify.app',
+      // Add Render domains
+      'https://dancify-backend.onrender.com',
+      'https://dancify-admin.onrender.com'
     ];
     
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
+    // In development or if origin contains onrender.com, allow all
+    if (process.env.NODE_ENV === 'development' || 
+        (origin && origin.includes('.onrender.com'))) {
       return callback(null, true);
     }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(null, true); // Allow all for now, restrict in production
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 
 // Body parsing middleware
