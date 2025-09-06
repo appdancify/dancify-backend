@@ -263,14 +263,13 @@ class DancifySectionLoader {
                 
                 document.head.appendChild(script);
             });
-            
         } catch (error) {
             console.error(`❌ Script loading error for ${jsFile}:`, error);
             throw error;
         }
     }
 
-    // 🔧 Initialize section-specific functionality
+    // 🔧 Initialize section-specific functionality - FIXED
     async initializeSectionFunctionality(sectionName) {
         try {
             // Track initialization attempts
@@ -291,20 +290,51 @@ class DancifySectionLoader {
                     break;
                     
                 case 'move-management':
-                    if (window.moveManager && typeof window.moveManager.init === 'function') {
-                        await window.moveManager.init();
+                    // FIXED: Create MoveManager instance if it doesn't exist
+                    if (window.MoveManager && window.apiClient) {
+                        if (!window.moveManager) {
+                            console.log('🕺 Creating MoveManager instance...');
+                            window.moveManager = new window.MoveManager(window.apiClient);
+                        }
+                        if (typeof window.moveManager.init === 'function') {
+                            console.log('🕺 Initializing MoveManager...');
+                            await window.moveManager.init();
+                            console.log('✅ MoveManager initialized successfully');
+                        }
+                    } else {
+                        console.error('❌ MoveManager class or apiClient not available');
+                        console.log('Available classes:', Object.keys(window).filter(key => key.includes('Manager')));
+                        console.log('apiClient available:', !!window.apiClient);
                     }
                     break;
                     
                 case 'dance-style-management':
-                    if (window.styleManager && typeof window.styleManager.init === 'function') {
-                        await window.styleManager.init();
+                    // FIXED: Create StyleManager instance if it doesn't exist
+                    if (window.DanceStyleManager && window.apiClient) {
+                        if (!window.styleManager) {
+                            console.log('🎭 Creating StyleManager instance...');
+                            window.styleManager = new window.DanceStyleManager(window.apiClient);
+                        }
+                        if (typeof window.styleManager.init === 'function') {
+                            await window.styleManager.init();
+                        }
+                    } else {
+                        console.log('ℹ️ DanceStyleManager not available yet');
                     }
                     break;
                     
                 case 'move-submissions':
-                    if (window.submissionManager && typeof window.submissionManager.init === 'function') {
-                        await window.submissionManager.init();
+                    // FIXED: Create SubmissionManager instance if it doesn't exist
+                    if (window.SubmissionManager && window.apiClient) {
+                        if (!window.submissionManager) {
+                            console.log('📹 Creating SubmissionManager instance...');
+                            window.submissionManager = new window.SubmissionManager(window.apiClient);
+                        }
+                        if (typeof window.submissionManager.init === 'function') {
+                            await window.submissionManager.init();
+                        }
+                    } else {
+                        console.log('ℹ️ SubmissionManager not available yet');
                     }
                     break;
                     
@@ -386,42 +416,37 @@ class DancifySectionLoader {
             targetSection.classList.add('active');
             this.activeSection = sectionName;
         }
-        
-        // Update navigation
-        this.updateNavigation(sectionName);
     }
 
-    // 🧭 Update navigation state
-    updateNavigation(sectionName) {
-        // Update sidebar navigation
-        const navItems = document.querySelectorAll('.nav-item');
+    // 🔄 Update page state
+    updatePageState(sectionName, config) {
+        // Update page title
+        document.title = `${config.title} - Dancify Admin`;
+        
+        // Update URL hash
+        if (window.location.hash !== `#${sectionName}`) {
+            window.history.pushState(null, null, `#${sectionName}`);
+        }
+        
+        // Update navigation active state
+        this.updateNavigationState(sectionName);
+    }
+
+    // 🧭 Update navigation active state
+    updateNavigationState(sectionName) {
+        const navItems = document.querySelectorAll('[data-section]');
         navItems.forEach(item => {
-            const isActive = item.dataset.section === sectionName;
-            item.classList.toggle('active', isActive);
+            if (item.dataset.section === sectionName) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
         });
     }
 
-    // 📊 Update page state
-    updatePageState(sectionName, config) {
-        // Update page title
-        const pageTitle = document.getElementById('pageTitle');
-        if (pageTitle) {
-            pageTitle.textContent = config.title;
-        }
-        
-        // Update document title
-        document.title = `💃 Dancify Admin - ${config.title}`;
-        
-        // Update URL hash without triggering navigation
-        if (window.location.hash !== `#${sectionName}`) {
-            history.replaceState(null, null, `#${sectionName}`);
-        }
-    }
-
-    // 🔒 Check authentication
+    // 🔐 Check authentication (placeholder)
     checkAuthentication() {
-        // For now, always return true
-        // In production, check actual auth state
+        // TODO: Implement actual authentication check
         return true;
     }
 
@@ -431,18 +456,23 @@ class DancifySectionLoader {
         return Array.from(scripts).some(script => script.src.includes(jsFile));
     }
 
-    // 🆘 Create fallback section
+    // 🔧 Create fallback section
     createFallbackSection(sectionName) {
         const config = this.sectionConfig[sectionName];
         const fallbackHTML = `
-            <div class="section-fallback">
-                <div class="fallback-content">
-                    <div class="fallback-icon">${config.icon}</div>
-                    <h2>${config.title}</h2>
-                    <p>This section is currently unavailable.</p>
-                    <button class="btn btn-primary" onclick="sectionLoader.loadSection('${sectionName}')">
-                        🔄 Retry Loading
-                    </button>
+            <div class="section-error">
+                <div class="error-content">
+                    <div class="error-icon">⚠️</div>
+                    <h2>Failed to Load ${config.title}</h2>
+                    <p class="error-message">Unable to load section content</p>
+                    <div class="error-actions">
+                        <button class="btn btn-primary" onclick="sectionLoader.loadSection('${sectionName}')">
+                            🔄 Retry
+                        </button>
+                        <button class="btn btn-secondary" onclick="sectionLoader.loadSection('dashboard')">
+                            🏠 Go to Dashboard
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -452,7 +482,7 @@ class DancifySectionLoader {
 
     // ❌ Show section error
     showSectionError(sectionName, errorMessage) {
-        const config = this.sectionConfig[sectionName] || { title: sectionName, icon: '⚠️' };
+        const config = this.sectionConfig[sectionName];
         const errorHTML = `
             <div class="section-error">
                 <div class="error-content">
