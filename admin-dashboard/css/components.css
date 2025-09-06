@@ -1422,6 +1422,114 @@
   margin: 8px 0;
 }
 
+/* ========================================
+   MOVE MANAGEMENT EMPTY STATE FIX
+======================================== */
+
+.no-data {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 40px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-large);
+    border: 2px dashed #E9ECEF;
+    margin: 20px 0;
+}
+
+.no-data-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.no-data-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.6;
+}
+
+.no-data-text {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.no-data-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.moves-container {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-large);
+    padding: 25px;
+    box-shadow: var(--shadow-light);
+}
+
+.moves-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    min-height: 200px;
+}
+
+.loading-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 40px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(138, 43, 226, 0.1);
+    border-top: 4px solid var(--primary-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+.stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-item {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: var(--radius-medium);
+    border-left: 4px solid var(--primary-purple);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-light);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    color: var(--primary-purple);
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
 /* NUCLEAR CSS FIX - Place at end of file */
 #move-management, #dance-style-management, #move-submissions {
     display: block !important;
