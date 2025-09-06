@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https://dancify-media.s3.amazonaws.com; connect-src 'self' https://dancify-backend-production.up.railway.app; font-src 'self' data:;">
-    <title>💃 Dancify Admin Dashboard</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https://dancify-media.s3.amazonaws.com; connect-src 'self' https://dancify-backend.onrender.com; font-src 'self' data:;">
+    <title>Dancify Admin Dashboard</title>
     
     <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -19,7 +19,7 @@
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <h2>💃 Loading Dancify Admin</h2>
+            <h2>Loading Dancify Admin</h2>
             <p>Initializing dashboard components...</p>
         </div>
     </div>
@@ -29,7 +29,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h1>💃 Dancify Admin</h1>
+                <h1>Dancify Admin</h1>
             </div>
             
             <div class="nav-section">
@@ -103,103 +103,16 @@
 
         <!-- Main Content Area -->
         <main class="main-content" id="mainContent">
-            <!-- Header -->
-            <header class="header">
-                <div class="header-left">
-                    <button class="sidebar-toggle" id="sidebarToggle">
-                        <span class="hamburger-line"></span>
-                        <span class="hamburger-line"></span>
-                        <span class="hamburger-line"></span>
-                    </button>
-                    <h2 class="page-title" id="pageTitle">Dashboard</h2>
-                </div>
-                
-                <div class="header-right">
-                    <div class="sync-status" id="syncStatus">
-                        <span class="sync-icon">🔄</span>
-                        <span class="sync-text">Synced</span>
-                    </div>
-                    
-                    <div class="user-menu">
-                        <button class="user-avatar" id="userAvatar">
-                            <span>👤</span>
-                        </button>
-                        <div class="user-dropdown" id="userDropdown">
-                            <a href="#" class="dropdown-item">Profile</a>
-                            <a href="#" class="dropdown-item">Settings</a>
-                            <hr class="dropdown-divider">
-                            <a href="#" class="dropdown-item logout">Logout</a>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Dynamic Content Container -->
-            <div class="content-container" id="contentContainer">
+            <div class="content-container">
                 <!-- Dashboard Section (Default) -->
                 <section id="dashboard" class="content-section active">
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <h3>Total Users</h3>
-                            <div class="value" id="totalUsers">0</div>
-                            <div class="change" id="usersChange">+0 today</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Dance Moves</h3>
-                            <div class="value" id="totalMoves">0</div>
-                            <div class="change" id="movesChange">0 pending</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Move Submissions</h3>
-                            <div class="value" id="totalSubmissions">0</div>
-                            <div class="change" id="submissionsChange">0 pending</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Dance Styles</h3>
-                            <div class="value" id="totalDanceStyles">0</div>
-                            <div class="change" id="stylesChange">0 active</div>
-                        </div>
-                        <div class="stat-card">
-                            <h3>Instructor Applications</h3>
-                            <div class="value" id="totalInstructors">0</div>
-                            <div class="change" id="instructorsChange">0 pending</div>
-                        </div>
-                    </div>
-
-                    <div class="charts-grid">
-                        <div class="chart-container">
-                            <h3>User Engagement Over Time</h3>
-                            <canvas id="engagementChart"></canvas>
-                        </div>
-                        <div class="chart-container">
-                            <h3>Popular Dance Styles</h3>
-                            <canvas id="danceStylesChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="recent-activity">
-                        <h3>Recent Activity</h3>
-                        <div class="activity-list" id="activityList">
-                            <div class="activity-item">
-                                <span class="activity-icon">🕺</span>
-                                <span class="activity-text">New move "Pirouette Basic" created</span>
-                                <span class="activity-time">5 minutes ago</span>
-                            </div>
-                            <div class="activity-item">
-                                <span class="activity-icon">👤</span>
-                                <span class="activity-text">New user registration</span>
-                                <span class="activity-time">12 minutes ago</span>
-                            </div>
-                            <div class="activity-item">
-                                <span class="activity-icon">📹</span>
-                                <span class="activity-text">Move submission pending review</span>
-                                <span class="activity-time">23 minutes ago</span>
-                            </div>
-                        </div>
+                    <div class="section-placeholder">
+                        <h2>📊 Dashboard</h2>
+                        <p>Loading dashboard data...</p>
                     </div>
                 </section>
 
-                <!-- Other sections will be loaded dynamically -->
+                <!-- Users Section -->
                 <section id="users" class="content-section">
                     <div class="section-placeholder">
                         <h2>👥 User Management</h2>
@@ -207,6 +120,7 @@
                     </div>
                 </section>
 
+                <!-- Move Management Section -->
                 <section id="move-management" class="content-section">
                     <div class="section-placeholder">
                         <h2>🕺 Move Management</h2>
@@ -214,6 +128,7 @@
                     </div>
                 </section>
 
+                <!-- Dance Style Management Section -->
                 <section id="dance-style-management" class="content-section">
                     <div class="section-placeholder">
                         <h2>🎭 Dance Style Management</h2>
@@ -221,6 +136,7 @@
                     </div>
                 </section>
 
+                <!-- Move Submissions Section -->
                 <section id="move-submissions" class="content-section">
                     <div class="section-placeholder">
                         <h2>📹 Move Submissions</h2>
@@ -228,6 +144,7 @@
                     </div>
                 </section>
 
+                <!-- Choreography Section -->
                 <section id="choreography" class="content-section">
                     <div class="section-placeholder">
                         <h2>🎵 Choreography Management</h2>
@@ -235,6 +152,7 @@
                     </div>
                 </section>
 
+                <!-- Instructor Applications Section -->
                 <section id="instructor-applications" class="content-section">
                     <div class="section-placeholder">
                         <h2>🎓 Instructor Applications</h2>
@@ -242,6 +160,7 @@
                     </div>
                 </section>
 
+                <!-- Feedback Section -->
                 <section id="feedback" class="content-section">
                     <div class="section-placeholder">
                         <h2>💬 User Feedback</h2>
@@ -249,6 +168,7 @@
                     </div>
                 </section>
 
+                <!-- Social Posts Section -->
                 <section id="social-posts" class="content-section">
                     <div class="section-placeholder">
                         <h2>📱 Social Posts</h2>
@@ -256,6 +176,7 @@
                     </div>
                 </section>
 
+                <!-- Reports Section -->
                 <section id="reports" class="content-section">
                     <div class="section-placeholder">
                         <h2>📈 Reports</h2>
@@ -263,6 +184,7 @@
                     </div>
                 </section>
 
+                <!-- Analytics Section -->
                 <section id="analytics" class="content-section">
                     <div class="section-placeholder">
                         <h2>📊 Analytics</h2>
@@ -270,6 +192,7 @@
                     </div>
                 </section>
 
+                <!-- Settings Section -->
                 <section id="settings" class="content-section">
                     <div class="section-placeholder">
                         <h2>⚙️ Settings</h2>
@@ -283,23 +206,28 @@
     <!-- Modals Container -->
     <div id="modalsContainer"></div>
 
-    <!-- JavaScript Files -->
+    <!-- Core JavaScript Files -->
     <script src="js/api-client.js"></script>
     <script src="js/navigation.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/section-loader.js"></script>
+    
+    <!-- Management Scripts -->
+    <script src="js/move-management.js"></script>
+    
+    <!-- Main Application Script -->
     <script src="js/main.js"></script>
 
     <script>
         // Initialize the application when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('💃 Dancify Admin Dashboard starting...');
+            console.log('Dancify Admin Dashboard starting...');
             
             // Hide loading screen after initialization
             setTimeout(function() {
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('mainContainer').style.display = 'flex';
-                console.log('✅ Dancify Admin Dashboard loaded');
+                console.log('Dancify Admin Dashboard loaded');
             }, 1500);
         });
     </script>
