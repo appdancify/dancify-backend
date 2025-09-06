@@ -219,7 +219,7 @@ class DancifySectionLoader {
         }
     }
 
-    // 💉 Inject section HTML into DOM
+    // 💉 Inject section HTML into DOM - FIXED
     injectSectionHTML(sectionName, html) {
         let sectionElement = document.getElementById(sectionName);
         
@@ -229,13 +229,17 @@ class DancifySectionLoader {
             sectionElement.id = sectionName;
             sectionElement.className = 'content-section';
             
-            const contentContainer = document.getElementById('contentContainer');
+            // FIXED: Use correct container selector
+            const contentContainer = document.querySelector('.content-container');
             if (contentContainer) {
                 contentContainer.appendChild(sectionElement);
+            } else {
+                console.error('❌ Content container not found');
+                return;
             }
         }
         
-        // Set content
+        // Set content - FIXED: Replace placeholder content
         sectionElement.innerHTML = html;
         
         console.log(`📄 HTML injected for section: ${sectionName}`);
@@ -502,12 +506,11 @@ class DancifySectionLoader {
         `;
         
         this.injectSectionHTML(sectionName, errorHTML);
-        this.activateSection(sectionName);
     }
 
-    // 🎯 Setup event listeners
+    // 🔗 Setup event listeners
     setupEventListeners() {
-        // Handle browser back/forward navigation
+        // Listen for hash changes
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.slice(1);
             if (hash && this.sectionConfig[hash]) {
@@ -515,46 +518,22 @@ class DancifySectionLoader {
             }
         });
         
-        // Handle navigation clicks (delegated)
-        document.addEventListener('click', (event) => {
-            const navItem = event.target.closest('[data-section]');
-            if (navItem) {
-                event.preventDefault();
-                const sectionName = navItem.dataset.section;
+        // Listen for section navigation clicks
+        document.addEventListener('click', (e) => {
+            const sectionLink = e.target.closest('[data-section]');
+            if (sectionLink) {
+                e.preventDefault();
+                const sectionName = sectionLink.dataset.section;
                 this.loadSection(sectionName);
             }
         });
     }
 
-    // 🧹 Cleanup section resources
-    cleanupSection(sectionName) {
-        try {
-            // Call section-specific cleanup if available
-            switch (sectionName) {
-                case 'move-management':
-                    if (window.moveManager && typeof window.moveManager.cleanup === 'function') {
-                        window.moveManager.cleanup();
-                    }
-                    break;
-                    
-                case 'dance-style-management':
-                    if (window.styleManager && typeof window.styleManager.cleanup === 'function') {
-                        window.styleManager.cleanup();
-                    }
-                    break;
-                    
-                case 'move-submissions':
-                    if (window.submissionManager && typeof window.submissionManager.cleanup === 'function') {
-                        window.submissionManager.cleanup();
-                    }
-                    break;
-            }
-            
-            console.log(`🧹 Cleaned up section: ${sectionName}`);
-            
-        } catch (error) {
-            console.error(`❌ Failed to cleanup section ${sectionName}:`, error);
-        }
+    // 🧹 Clear cache
+    clearCache() {
+        this.sectionCache.clear();
+        this.loadedSections.clear();
+        console.log('🧹 Section cache cleared');
     }
 
     // 🔄 Refresh current section
