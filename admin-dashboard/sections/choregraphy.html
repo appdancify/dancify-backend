@@ -1,0 +1,659 @@
+<!-- 💃 Dancify Admin Dashboard - Choreography Management Section -->
+<!-- Create and manage choreography sequences with move combinations -->
+
+<section id="choreography" class="content-section">
+    <!-- Section Header -->
+    <div class="section-header">
+        <div class="header-content">
+            <h1>🎵 Choreography Management</h1>
+            <p>Create and manage dance choreography sequences and routines</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="choreographyManager?.showCreateChoreographyModal()">
+                ✨ Create Choreography
+            </button>
+            <button class="btn btn-secondary" onclick="choreographyManager?.importChoreography()">
+                📥 Import Routine
+            </button>
+        </div>
+    </div>
+
+    <!-- Choreography Statistics -->
+    <div class="choreo-stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">🎵</div>
+            <div class="stat-content">
+                <h3>Total Choreographies</h3>
+                <div class="stat-value" id="totalChoreographies">24</div>
+                <div class="stat-change">+3 this week</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-content">
+                <h3>Featured Routines</h3>
+                <div class="stat-value" id="featuredRoutines">8</div>
+                <div class="stat-change">2 new</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <h3>Student Enrollments</h3>
+                <div class="stat-value" id="enrollments">342</div>
+                <div class="stat-change">+18 today</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-content">
+                <h3>Completion Rate</h3>
+                <div class="stat-value" id="completionRate">87%</div>
+                <div class="stat-change">+5% this month</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="choreo-controls">
+        <div class="search-section">
+            <input type="text" id="choreographySearch" placeholder="🔍 Search choreographies..." class="form-control">
+        </div>
+        
+        <div class="filter-section">
+            <select id="danceStyleFilter" class="form-control form-select">
+                <option value="">All Dance Styles</option>
+                <option value="Ballet">🩰 Ballet</option>
+                <option value="Hip-Hop">🎤 Hip-Hop</option>
+                <option value="Contemporary">🎭 Contemporary</option>
+                <option value="Jazz">🎺 Jazz</option>
+                <option value="Latin">💃 Latin</option>
+            </select>
+            
+            <select id="difficultyFilter" class="form-control form-select">
+                <option value="">All Difficulties</option>
+                <option value="beginner">🟢 Beginner</option>
+                <option value="intermediate">🟡 Intermediate</option>
+                <option value="advanced">🟠 Advanced</option>
+                <option value="expert">🔴 Expert</option>
+            </select>
+            
+            <select id="statusFilter" class="form-control form-select">
+                <option value="">All Status</option>
+                <option value="published">✅ Published</option>
+                <option value="draft">📝 Draft</option>
+                <option value="featured">⭐ Featured</option>
+            </select>
+            
+            <button class="btn btn-secondary" onclick="choreographyManager?.applyFilters()">
+                🔍 Filter
+            </button>
+        </div>
+    </div>
+
+    <!-- Choreography Grid -->
+    <div class="choreography-container">
+        <div class="choreography-grid" id="choreographyGrid">
+            <!-- Sample Choreography Cards -->
+            <div class="choreo-card">
+                <div class="choreo-thumbnail">
+                    <img src="https://via.placeholder.com/300x200/8A2BE2/FFFFFF?text=Ballet+Basics" alt="Ballet Basics">
+                    <div class="choreo-overlay">
+                        <button class="btn btn-sm btn-primary">▶️ Preview</button>
+                        <button class="btn btn-sm btn-secondary">✏️ Edit</button>
+                    </div>
+                    <div class="choreo-duration">12:30</div>
+                    <div class="choreo-status featured">⭐ Featured</div>
+                </div>
+                
+                <div class="choreo-content">
+                    <div class="choreo-header">
+                        <h3>Ballet Basics Sequence</h3>
+                        <span class="difficulty-badge beginner">🟢 Beginner</span>
+                    </div>
+                    
+                    <div class="choreo-meta">
+                        <span class="dance-style">🩰 Ballet</span>
+                        <span class="moves-count">8 moves</span>
+                        <span class="enrollments">45 students</span>
+                    </div>
+                    
+                    <p class="choreo-description">
+                        A gentle introduction to ballet fundamentals including the five basic positions, pliés, and simple port de bras.
+                    </p>
+                    
+                    <div class="choreo-moves">
+                        <h4>Move Sequence:</h4>
+                        <div class="move-chips">
+                            <span class="move-chip">First Position</span>
+                            <span class="move-chip">Plié</span>
+                            <span class="move-chip">Port de Bras</span>
+                            <span class="move-chip">+5 more</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">👁️</span>
+                            <span class="stat-value">234</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">❤️</span>
+                            <span class="stat-value">89</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🏆</span>
+                            <span class="stat-value">92%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-actions">
+                        <button class="btn btn-sm btn-primary" onclick="choreographyManager?.editChoreography('choreo1')">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="choreographyManager?.duplicateChoreography('choreo1')">
+                            📋 Duplicate
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="choreographyManager?.deleteChoreography('choreo1')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="choreo-card">
+                <div class="choreo-thumbnail">
+                    <img src="https://via.placeholder.com/300x200/FF69B4/FFFFFF?text=Hip-Hop+Flow" alt="Hip-Hop Flow">
+                    <div class="choreo-overlay">
+                        <button class="btn btn-sm btn-primary">▶️ Preview</button>
+                        <button class="btn btn-sm btn-secondary">✏️ Edit</button>
+                    </div>
+                    <div class="choreo-duration">8:45</div>
+                    <div class="choreo-status published">✅ Published</div>
+                </div>
+                
+                <div class="choreo-content">
+                    <div class="choreo-header">
+                        <h3>Urban Flow Routine</h3>
+                        <span class="difficulty-badge intermediate">🟡 Intermediate</span>
+                    </div>
+                    
+                    <div class="choreo-meta">
+                        <span class="dance-style">🎤 Hip-Hop</span>
+                        <span class="moves-count">12 moves</span>
+                        <span class="enrollments">78 students</span>
+                    </div>
+                    
+                    <p class="choreo-description">
+                        High-energy hip-hop routine combining isolations, grooves, and dynamic transitions for intermediate dancers.
+                    </p>
+                    
+                    <div class="choreo-moves">
+                        <h4>Move Sequence:</h4>
+                        <div class="move-chips">
+                            <span class="move-chip">Body Roll</span>
+                            <span class="move-chip">Pop Lock</span>
+                            <span class="move-chip">Freestyle</span>
+                            <span class="move-chip">+9 more</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">👁️</span>
+                            <span class="stat-value">456</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">❤️</span>
+                            <span class="stat-value">123</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🏆</span>
+                            <span class="stat-value">85%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-actions">
+                        <button class="btn btn-sm btn-primary" onclick="choreographyManager?.editChoreography('choreo2')">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="choreographyManager?.duplicateChoreography('choreo2')">
+                            📋 Duplicate
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="choreographyManager?.deleteChoreography('choreo2')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="choreo-card">
+                <div class="choreo-thumbnail">
+                    <img src="https://via.placeholder.com/300x200/9370DB/FFFFFF?text=Contemporary+Expression" alt="Contemporary Expression">
+                    <div class="choreo-overlay">
+                        <button class="btn btn-sm btn-primary">▶️ Preview</button>
+                        <button class="btn btn-sm btn-secondary">✏️ Edit</button>
+                    </div>
+                    <div class="choreo-duration">15:20</div>
+                    <div class="choreo-status draft">📝 Draft</div>
+                </div>
+                
+                <div class="choreo-content">
+                    <div class="choreo-header">
+                        <h3>Emotional Expression</h3>
+                        <span class="difficulty-badge advanced">🟠 Advanced</span>
+                    </div>
+                    
+                    <div class="choreo-meta">
+                        <span class="dance-style">🎭 Contemporary</span>
+                        <span class="moves-count">15 moves</span>
+                        <span class="enrollments">12 students</span>
+                    </div>
+                    
+                    <p class="choreo-description">
+                        Advanced contemporary piece focusing on emotional storytelling through fluid movements and floor work.
+                    </p>
+                    
+                    <div class="choreo-moves">
+                        <h4>Move Sequence:</h4>
+                        <div class="move-chips">
+                            <span class="move-chip">Floor Work</span>
+                            <span class="move-chip">Spiral</span>
+                            <span class="move-chip">Contraction</span>
+                            <span class="move-chip">+12 more</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">👁️</span>
+                            <span class="stat-value">67</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">❤️</span>
+                            <span class="stat-value">23</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🏆</span>
+                            <span class="stat-value">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="choreo-actions">
+                        <button class="btn btn-sm btn-primary" onclick="choreographyManager?.editChoreography('choreo3')">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="choreographyManager?.publishChoreography('choreo3')">
+                            🚀 Publish
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="choreographyManager?.deleteChoreography('choreo3')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Load More Button -->
+        <div class="load-more-section">
+            <button class="btn btn-secondary" onclick="choreographyManager?.loadMore()">
+                📥 Load More Choreographies
+            </button>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Choreography Management Styles */
+.choreo-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-light);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all var(--transition-fast);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-pink));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.stat-content h3 {
+    margin: 0 0 5px 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-purple);
+    margin-bottom: 3px;
+}
+
+.stat-change {
+    font-size: 0.8rem;
+    color: var(--success);
+    font-weight: 500;
+}
+
+.choreo-controls {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    margin-bottom: 25px;
+    align-items: center;
+}
+
+.filter-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-section select {
+    min-width: 140px;
+}
+
+.choreography-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.choreo-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-light);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.choreo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-medium);
+}
+
+.choreo-thumbnail {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.choreo-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.choreo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.choreo-card:hover .choreo-overlay {
+    opacity: 1;
+}
+
+.choreo-duration {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.choreo-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+}
+
+.choreo-status.featured {
+    background: rgba(255, 215, 0, 0.9);
+    color: #B8860B;
+}
+
+.choreo-status.published {
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+}
+
+.choreo-status.draft {
+    background: rgba(108, 117, 125, 0.9);
+    color: white;
+}
+
+.choreo-content {
+    padding: 20px;
+}
+
+.choreo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.choreo-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.difficulty-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.difficulty-badge.beginner {
+    background: rgba(40, 167, 69, 0.1);
+    color: var(--success);
+}
+
+.difficulty-badge.intermediate {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--warning);
+}
+
+.difficulty-badge.advanced {
+    background: rgba(255, 107, 53, 0.1);
+    color: #FF6B35;
+}
+
+.difficulty-badge.expert {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--danger);
+}
+
+.choreo-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.dance-style, .moves-count, .enrollments {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.choreo-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+.choreo-moves h4 {
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.move-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.move-chip {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.choreo-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    padding: 10px 0;
+    border-top: 1px solid #E9ECEF;
+}
+
+.choreo-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.choreo-stats .stat-icon {
+    font-size: 1rem;
+    width: auto;
+    height: auto;
+    background: none;
+    color: var(--text-secondary);
+}
+
+.choreo-stats .stat-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.choreo-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.load-more-section {
+    text-align: center;
+    padding: 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .choreo-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .choreo-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-section select {
+        min-width: unset;
+    }
+    
+    .choreography-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .choreo-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .choreo-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .choreo-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .choreo-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .choreo-stats {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+</style>

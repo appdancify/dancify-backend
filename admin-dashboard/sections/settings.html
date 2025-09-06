@@ -1,0 +1,821 @@
+<!-- 💃 Dancify Admin Dashboard - Settings Section -->
+<!-- System configuration and admin preferences -->
+
+<section id="settings" class="content-section">
+    <!-- Section Header -->
+    <div class="section-header">
+        <div class="header-content">
+            <h1>⚙️ Settings</h1>
+            <p>Configure system settings and application preferences</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-success" onclick="settingsManager?.saveAllSettings()">
+                💾 Save All Changes
+            </button>
+            <button class="btn btn-secondary" onclick="settingsManager?.exportSettings()">
+                📤 Export Config
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="settings-navigation">
+        <button class="settings-tab active" data-tab="general">
+            🏠 General
+        </button>
+        <button class="settings-tab" data-tab="user-management">
+            👥 User Management
+        </button>
+        <button class="settings-tab" data-tab="content">
+            📚 Content
+        </button>
+        <button class="settings-tab" data-tab="notifications">
+            🔔 Notifications
+        </button>
+        <button class="settings-tab" data-tab="api">
+            🔗 API & Integrations
+        </button>
+        <button class="settings-tab" data-tab="security">
+            🔒 Security
+        </button>
+        <button class="settings-tab" data-tab="advanced">
+            🛠️ Advanced
+        </button>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <!-- General Settings -->
+        <div class="settings-panel active" id="general-panel">
+            <div class="settings-section">
+                <h3>🏠 Application Settings</h3>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Database Pool Size</label>
+                    <input type="number" class="form-control" value="10" min="5" max="100" id="dbPoolSize">
+                    <div class="setting-help">Maximum number of database connections</div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>🔧 Backup & Recovery</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Auto Backup</label>
+                        <input type="checkbox" class="toggle-switch" id="autoBackup" checked>
+                    </div>
+                    <div class="setting-help">Automatically backup database daily</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Backup Retention (Days)</label>
+                    <input type="number" class="form-control" value="30" min="7" max="365" id="backupRetention">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Backup Time</label>
+                    <input type="time" class="form-control" value="02:00" id="backupTime">
+                    <div class="setting-help">Daily backup time (server timezone)</div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="backup-actions">
+                        <button class="btn btn-secondary" onclick="settingsManager?.createBackup()">
+                            💾 Create Backup Now
+                        </button>
+                        <button class="btn btn-primary" onclick="settingsManager?.restoreBackup()">
+                            🔄 Restore from Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Actions -->
+    <div class="settings-actions">
+        <div class="actions-left">
+            <button class="btn btn-warning" onclick="settingsManager?.resetToDefaults()">
+                🔄 Reset to Defaults
+            </button>
+            <button class="btn btn-secondary" onclick="settingsManager?.importSettings()">
+                📥 Import Settings
+            </button>
+        </div>
+        
+        <div class="actions-right">
+            <button class="btn btn-secondary" onclick="settingsManager?.cancelChanges()">
+                ✕ Cancel
+            </button>
+            <button class="btn btn-success" onclick="settingsManager?.saveAllSettings()">
+                💾 Save All Changes
+            </button>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Settings Page Styles */
+.settings-navigation {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #E9ECEF;
+    overflow-x: auto;
+    padding-bottom: 0;
+}
+
+.settings-tab {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.settings-tab:hover {
+    color: var(--primary-purple);
+    background: rgba(138, 43, 226, 0.05);
+}
+
+.settings-tab.active {
+    color: var(--primary-purple);
+    border-bottom-color: var(--primary-purple);
+    background: rgba(138, 43, 226, 0.05);
+    font-weight: 600;
+}
+
+.settings-content {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-large);
+    padding: 30px;
+    box-shadow: var(--shadow-light);
+    margin-bottom: 25px;
+}
+
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
+.settings-section {
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid #E9ECEF;
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.settings-section h3 {
+    color: var(--primary-purple);
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-item {
+    margin-bottom: 25px;
+}
+
+.setting-item:last-child {
+    margin-bottom: 0;
+}
+
+.setting-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.setting-help {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.setting-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 25px;
+    appearance: none;
+    background: #E9ECEF;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.toggle-switch:checked {
+    background: var(--primary-purple);
+}
+
+.toggle-switch:before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 21px;
+    height: 21px;
+    background: white;
+    border-radius: 50%;
+    transition: transform var(--transition-fast);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-switch:checked:before {
+    transform: translateX(25px);
+}
+
+.theme-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.theme-option {
+    cursor: pointer;
+    margin: 0;
+}
+
+.theme-option input[type="radio"] {
+    display: none;
+}
+
+.theme-preview {
+    padding: 15px;
+    border: 2px solid #E9ECEF;
+    border-radius: var(--radius-medium);
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+
+.theme-option input[type="radio"]:checked + .theme-preview {
+    border-color: var(--primary-purple);
+    background: rgba(138, 43, 226, 0.05);
+}
+
+.theme-colors {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.theme-colors span {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid #E9ECEF;
+}
+
+.theme-preview span {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.backup-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-top: 2px solid #E9ECEF;
+}
+
+.actions-left,
+.actions-right {
+    display: flex;
+    gap: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settings-navigation {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .settings-tab {
+        text-align: left;
+        border-bottom: 1px solid #E9ECEF;
+        border-radius: 0;
+    }
+    
+    .settings-tab.active {
+        border-left: 4px solid var(--primary-purple);
+        border-bottom: 1px solid #E9ECEF;
+    }
+    
+    .settings-content {
+        padding: 20px;
+    }
+    
+    .theme-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .setting-toggle {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .backup-actions {
+        flex-direction: column;
+    }
+    
+    .settings-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .actions-left,
+    .actions-right {
+        flex-direction: column;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-section h3 {
+        font-size: 1.1rem;
+    }
+    
+    .setting-item {
+        margin-bottom: 20px;
+    }
+    
+    .settings-content {
+        padding: 15px;
+    }
+}
+
+/* Tab switching functionality */
+.settings-navigation .settings-tab[onclick] {
+    cursor: pointer;
+}
+</style>
+
+<script>
+// Settings tab switching functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.settings-tab');
+    const panels = document.querySelectorAll('.settings-panel');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            // Remove active class from all tabs and panels
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding panel
+            this.classList.add('active');
+            document.getElementById(targetTab + '-panel').classList.add('active');
+        });
+    });
+    
+    // Initialize settings manager if available
+    if (window.settingsManager) {
+        window.settingsManager.init();
+    }
+});
+</script>label">Application Name</label>
+                    <input type="text" class="form-control" value="Dancify" id="appName">
+                    <div class="setting-help">Display name for the application</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Default Language</label>
+                    <select class="form-control form-select" id="defaultLanguage">
+                        <option value="en">🇺🇸 English</option>
+                        <option value="es">🇪🇸 Spanish</option>
+                        <option value="fr">🇫🇷 French</option>
+                        <option value="de">🇩🇪 German</option>
+                        <option value="it">🇮🇹 Italian</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Timezone</label>
+                    <select class="form-control form-select" id="timezone">
+                        <option value="UTC">UTC (Coordinated Universal Time)</option>
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles" selected>Pacific Time (PT)</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Paris (CET)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Theme</label>
+                    <div class="theme-options">
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="dance" checked>
+                            <div class="theme-preview dance">
+                                <div class="theme-colors">
+                                    <span style="background: #8A2BE2"></span>
+                                    <span style="background: #FF69B4"></span>
+                                </div>
+                                <span>Dance (Purple/Pink)</span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="dark">
+                            <div class="theme-preview dark">
+                                <div class="theme-colors">
+                                    <span style="background: #2C3E50"></span>
+                                    <span style="background: #34495E"></span>
+                                </div>
+                                <span>Dark Theme</span>
+                            </div>
+                        </label>
+                        <label class="theme-option">
+                            <input type="radio" name="theme" value="light">
+                            <div class="theme-preview light">
+                                <div class="theme-colors">
+                                    <span style="background: #FFFFFF"></span>
+                                    <span style="background: #F8F9FA"></span>
+                                </div>
+                                <span>Light Theme</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>📊 Dashboard Preferences</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Auto-refresh Dashboard</label>
+                        <input type="checkbox" class="toggle-switch" id="autoRefresh" checked>
+                    </div>
+                    <div class="setting-help">Automatically refresh dashboard data every 5 minutes</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Items per Page</label>
+                    <select class="form-control form-select" id="itemsPerPage">
+                        <option value="10">10 items</option>
+                        <option value="20" selected>20 items</option>
+                        <option value="50">50 items</option>
+                        <option value="100">100 items</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Show Tooltips</label>
+                        <input type="checkbox" class="toggle-switch" id="showTooltips" checked>
+                    </div>
+                    <div class="setting-help">Display helpful tooltips throughout the interface</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Settings -->
+        <div class="settings-panel" id="user-management-panel">
+            <div class="settings-section">
+                <h3>👥 Registration Settings</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Allow User Registration</label>
+                        <input type="checkbox" class="toggle-switch" id="allowRegistration" checked>
+                    </div>
+                    <div class="setting-help">Allow new users to create accounts</div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Email Verification Required</label>
+                        <input type="checkbox" class="toggle-switch" id="emailVerification" checked>
+                    </div>
+                    <div class="setting-help">Require email verification for new accounts</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Default User Role</label>
+                    <select class="form-control form-select" id="defaultUserRole">
+                        <option value="student" selected>👤 Student</option>
+                        <option value="premium">⭐ Premium Student</option>
+                        <option value="instructor">🎓 Instructor (Approval Required)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Trial Period (Days)</label>
+                    <input type="number" class="form-control" value="14" min="0" max="30" id="trialPeriod">
+                    <div class="setting-help">Free trial period for premium features</div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>🔐 Account Security</h3>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Minimum Password Length</label>
+                    <input type="number" class="form-control" value="8" min="6" max="20" id="minPasswordLength">
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Require Special Characters</label>
+                        <input type="checkbox" class="toggle-switch" id="requireSpecialChars" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Session Timeout (Hours)</label>
+                    <input type="number" class="form-control" value="24" min="1" max="168" id="sessionTimeout">
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Settings -->
+        <div class="settings-panel" id="content-panel">
+            <div class="settings-section">
+                <h3>📚 Content Management</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Auto-approve Instructor Content</label>
+                        <input type="checkbox" class="toggle-switch" id="autoApprove">
+                    </div>
+                    <div class="setting-help">Automatically approve content from verified instructors</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Maximum Video Length (Minutes)</label>
+                    <input type="number" class="form-control" value="30" min="1" max="120" id="maxVideoLength">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Maximum File Size (MB)</label>
+                    <input type="number" class="form-control" value="100" min="10" max="500" id="maxFileSize">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Featured Content Rotation (Days)</label>
+                    <input type="number" class="form-control" value="7" min="1" max="30" id="featuredRotation">
+                    <div class="setting-help">How often featured content changes automatically</div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>🎥 Video Settings</h3>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Default Video Quality</label>
+                    <select class="form-control form-select" id="defaultVideoQuality">
+                        <option value="480p">480p (Standard)</option>
+                        <option value="720p" selected>720p (HD)</option>
+                        <option value="1080p">1080p (Full HD)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Auto-generate Thumbnails</label>
+                        <input type="checkbox" class="toggle-switch" id="autoThumbnails" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Enable Video Analytics</label>
+                        <input type="checkbox" class="toggle-switch" id="videoAnalytics" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="settings-panel" id="notifications-panel">
+            <div class="settings-section">
+                <h3>🔔 Email Notifications</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">New User Registration</label>
+                        <input type="checkbox" class="toggle-switch" id="notifyNewUsers" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Move Submissions</label>
+                        <input type="checkbox" class="toggle-switch" id="notifySubmissions" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Instructor Applications</label>
+                        <input type="checkbox" class="toggle-switch" id="notifyInstructorApps" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">System Alerts</label>
+                        <input type="checkbox" class="toggle-switch" id="notifySystemAlerts" checked>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>📱 Push Notifications</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Enable Push Notifications</label>
+                        <input type="checkbox" class="toggle-switch" id="enablePush" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Notification Sound</label>
+                    <select class="form-control form-select" id="notificationSound">
+                        <option value="default">Default</option>
+                        <option value="chime">Chime</option>
+                        <option value="bell">Bell</option>
+                        <option value="none">None (Silent)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Settings -->
+        <div class="settings-panel" id="api-panel">
+            <div class="settings-section">
+                <h3>🔗 API Configuration</h3>
+                
+                <div class="setting-item">
+                    <label class="setting-label">API Base URL</label>
+                    <input type="url" class="form-control" value="https://api.dancify.app" id="apiBaseUrl">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">API Version</label>
+                    <select class="form-control form-select" id="apiVersion">
+                        <option value="v1" selected>v1 (Current)</option>
+                        <option value="v2">v2 (Beta)</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Rate Limit (Requests/Minute)</label>
+                    <input type="number" class="form-control" value="100" min="10" max="1000" id="rateLimit">
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>🔑 Third-party Integrations</h3>
+                
+                <div class="setting-item">
+                    <label class="setting-label">YouTube API Key</label>
+                    <input type="password" class="form-control" placeholder="Enter YouTube API key" id="youtubeApiKey">
+                    <div class="setting-help">For video thumbnail generation and validation</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Analytics Provider</label>
+                    <select class="form-control form-select" id="analyticsProvider">
+                        <option value="none">None</option>
+                        <option value="google" selected>Google Analytics</option>
+                        <option value="mixpanel">Mixpanel</option>
+                        <option value="amplitude">Amplitude</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Analytics Tracking ID</label>
+                    <input type="text" class="form-control" placeholder="GA-XXXXXXXXX-X" id="analyticsId">
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="settings-panel" id="security-panel">
+            <div class="settings-section">
+                <h3>🔒 Security Configuration</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Enable Two-Factor Authentication</label>
+                        <input type="checkbox" class="toggle-switch" id="enable2FA">
+                    </div>
+                    <div class="setting-help">Require 2FA for admin accounts</div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">IP Whitelist</label>
+                        <input type="checkbox" class="toggle-switch" id="enableIPWhitelist">
+                    </div>
+                    <div class="setting-help">Restrict admin access to specific IP addresses</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Failed Login Attempts</label>
+                    <input type="number" class="form-control" value="5" min="3" max="10" id="maxLoginAttempts">
+                    <div class="setting-help">Maximum failed attempts before account lockout</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Account Lockout Duration (Minutes)</label>
+                    <input type="number" class="form-control" value="30" min="5" max="1440" id="lockoutDuration">
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>🛡️ Data Protection</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Enable Data Encryption</label>
+                        <input type="checkbox" class="toggle-switch" id="enableEncryption" checked>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Audit Logging</label>
+                        <input type="checkbox" class="toggle-switch" id="enableAuditLog" checked>
+                    </div>
+                    <div class="setting-help">Log all admin actions for security auditing</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Data Retention Period (Days)</label>
+                    <input type="number" class="form-control" value="365" min="30" max="2555" id="dataRetention">
+                    <div class="setting-help">How long to keep user data and logs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="settings-panel" id="advanced-panel">
+            <div class="settings-section">
+                <h3>🛠️ System Configuration</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Maintenance Mode</label>
+                        <input type="checkbox" class="toggle-switch" id="maintenanceMode">
+                    </div>
+                    <div class="setting-help">Temporarily disable public access for maintenance</div>
+                </div>
+                
+                <div class="setting-item">
+                    <div class="setting-toggle">
+                        <label class="setting-label">Debug Mode</label>
+                        <input type="checkbox" class="toggle-switch" id="debugMode">
+                    </div>
+                    <div class="setting-help">Enable detailed error logging (disable in production)</div>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">Cache Duration (Hours)</label>
+                    <input type="number" class="form-control" value="24" min="1" max="168" id="cacheDuration">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-
