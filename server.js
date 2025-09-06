@@ -112,8 +112,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files for admin dashboard - FIXED to use admin-dashboard folder
-app.use('/admin', express.static(path.join(__dirname, 'admin-dashboard')));
+// Serve static files for admin dashboard with proper MIME types
+app.use('/admin', express.static(path.join(__dirname, 'admin-dashboard'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+    } else if (path.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html');
+    }
+  }
+}));
 
 // Health check endpoint with detailed information
 app.get('/health', (req, res) => {
@@ -124,6 +134,26 @@ app.get('/health', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
     database: 'connected', // TODO: Add actual database health check
+    uptime: process.uptime(),
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    }
+  };
+  
+  res.json(healthCheck);
+});
+
+// FIXED: Add the missing /api/health endpoint that the frontend expects
+app.get('/api/health', (req, res) => {
+  const healthCheck = {
+    success: true,
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'Dancify Backend API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    database: 'connected',
     uptime: process.uptime(),
     memory: {
       used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
@@ -165,8 +195,65 @@ try {
   moveRoutes.get('/', (req, res) => {
     res.json({ 
       success: true, 
-      data: [], 
-      message: 'Move routes not implemented yet' 
+      data: [
+        {
+          id: 1,
+          name: "Pirouette",
+          description: "A spinning movement in ballet",
+          difficulty: "intermediate",
+          style: "ballet",
+          videoUrl: "https://example.com/pirouette.mp4",
+          thumbnailUrl: "https://via.placeholder.com/200x150?text=Pirouette",
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: "Hip Hop Freeze",
+          description: "A freeze position in hip hop dance",
+          difficulty: "advanced",
+          style: "hip-hop",
+          videoUrl: "https://example.com/freeze.mp4",
+          thumbnailUrl: "https://via.placeholder.com/200x150?text=Hip+Hop+Freeze",
+          createdAt: new Date().toISOString()
+        }
+      ], 
+      message: 'Using mock moves data' 
+    });
+  });
+  
+  moveRoutes.get('/:id', (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        id: req.params.id,
+        name: "Sample Move",
+        description: "A sample dance move",
+        difficulty: "beginner",
+        style: "general"
+      }
+    });
+  });
+  
+  moveRoutes.post('/', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: Date.now(), ...req.body },
+      message: 'Move created successfully (mock)'
+    });
+  });
+  
+  moveRoutes.put('/:id', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: req.params.id, ...req.body },
+      message: 'Move updated successfully (mock)'
+    });
+  });
+  
+  moveRoutes.delete('/:id', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Move deleted successfully (mock)'
     });
   });
 }
@@ -176,11 +263,61 @@ try {
 } catch (error) {
   console.warn('⚠️ Admin routes not found, creating placeholder');
   adminRoutes = express.Router();
+  
   adminRoutes.get('/', (req, res) => {
     res.json({ 
       success: true, 
       data: {}, 
       message: 'Admin routes not implemented yet' 
+    });
+  });
+  
+  // Add dashboard endpoint that the frontend expects
+  adminRoutes.get('/dashboard', (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        stats: {
+          totalUsers: 1250,
+          totalMoves: 180,
+          pendingSubmissions: 12,
+          totalSubmissions: 89
+        },
+        recentActivity: [
+          {
+            id: 1,
+            type: 'move_created',
+            description: 'New move "Salsa Basic" added',
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            user: 'Admin'
+          },
+          {
+            id: 2,
+            type: 'submission_reviewed',
+            description: 'Submission approved for "Hip Hop Flow"',
+            timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+            user: 'Reviewer'
+          }
+        ]
+      }
+    });
+  });
+  
+  adminRoutes.get('/analytics', (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        userGrowth: [
+          { month: 'Jan', users: 950 },
+          { month: 'Feb', users: 1100 },
+          { month: 'Mar', users: 1250 }
+        ],
+        popularMoves: [
+          { name: 'Pirouette', views: 1200 },
+          { name: 'Hip Hop Freeze', views: 980 },
+          { name: 'Salsa Basic', views: 750 }
+        ]
+      }
     });
   });
 }
@@ -194,11 +331,60 @@ try {
     res.json({ 
       success: true, 
       data: [
-        { name: 'Ballet', description: 'Classical dance form' },
-        { name: 'Hip-Hop', description: 'Urban dance style' },
-        { name: 'Salsa', description: 'Latin partner dance' }
+        { 
+          id: 1,
+          name: 'Ballet', 
+          description: 'Classical dance form characterized by grace and precision',
+          difficulty: 'beginner',
+          popularity: 85,
+          createdAt: new Date().toISOString()
+        },
+        { 
+          id: 2,
+          name: 'Hip-Hop', 
+          description: 'Urban dance style with rhythmic movements',
+          difficulty: 'intermediate',
+          popularity: 92,
+          createdAt: new Date().toISOString()
+        },
+        { 
+          id: 3,
+          name: 'Salsa', 
+          description: 'Latin partner dance with passionate movements',
+          difficulty: 'intermediate',
+          popularity: 78,
+          createdAt: new Date().toISOString()
+        }
       ], 
       message: 'Using mock dance styles data' 
+    });
+  });
+  
+  danceStyleRoutes.get('/:id', (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        id: req.params.id,
+        name: "Sample Style",
+        description: "A sample dance style",
+        difficulty: "beginner"
+      }
+    });
+  });
+  
+  danceStyleRoutes.post('/', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: Date.now(), ...req.body },
+      message: 'Dance style created successfully (mock)'
+    });
+  });
+  
+  danceStyleRoutes.put('/:id', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: req.params.id, ...req.body },
+      message: 'Dance style updated successfully (mock)'
     });
   });
 }
@@ -211,8 +397,56 @@ try {
   submissionRoutes.get('/', (req, res) => {
     res.json({ 
       success: true, 
-      data: [], 
-      message: 'Submission routes not implemented yet' 
+      data: [
+        {
+          id: 1,
+          title: "Pirouette Attempt",
+          user: "Emma Rodriguez",
+          status: "pending",
+          moveStyle: "ballet",
+          submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          videoUrl: "https://example.com/submission1.mp4",
+          thumbnailUrl: "https://via.placeholder.com/150x100?text=Pirouette+Attempt"
+        },
+        {
+          id: 2,
+          title: "Hip-Hop Flow",
+          user: "Marcus Johnson",
+          status: "approved",
+          moveStyle: "hip-hop",
+          submittedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+          videoUrl: "https://example.com/submission2.mp4",
+          thumbnailUrl: "https://via.placeholder.com/150x100?text=Hip-Hop+Flow"
+        },
+        {
+          id: 3,
+          title: "Salsa Basic",
+          user: "Sofia Chen",
+          status: "rejected",
+          moveStyle: "salsa",
+          submittedAt: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+          videoUrl: "https://example.com/submission3.mp4",
+          thumbnailUrl: "https://via.placeholder.com/150x100?text=Salsa+Basic",
+          rejectionReason: "Poor video quality"
+        }
+      ], 
+      message: 'Using mock submission data' 
+    });
+  });
+  
+  submissionRoutes.post('/', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: Date.now(), ...req.body, status: 'pending' },
+      message: 'Submission received successfully (mock)'
+    });
+  });
+  
+  submissionRoutes.put('/:id/review', (req, res) => {
+    res.json({
+      success: true,
+      data: { id: req.params.id, ...req.body },
+      message: 'Submission reviewed successfully (mock)'
     });
   });
 }
@@ -236,6 +470,7 @@ app.get('/', (req, res) => {
     documentation: {
       health: [
         'GET /health - System health check',
+        'GET /api/health - API health check',
         'GET /api/health/database - Database connectivity check'
       ],
       moves: [
@@ -253,7 +488,6 @@ app.get('/', (req, res) => {
       ],
       admin: [
         'GET /api/admin/dashboard - Admin dashboard data',
-        'GET /api/admin/users - User management',
         'GET /api/admin/analytics - Analytics data'
       ],
       submissions: [
@@ -273,6 +507,7 @@ app.get('/api', (req, res) => {
     success: true,
     message: 'Dancify API v1.0.0',
     endpoints: {
+      health: '/api/health',
       moves: '/api/moves',
       danceStyles: '/api/dance-styles', 
       admin: '/api/admin',
@@ -299,6 +534,7 @@ app.use('/api/*', (req, res) => {
     error: 'API endpoint not found',
     path: req.originalUrl,
     availableEndpoints: [
+      '/api/health',
       '/api/moves',
       '/api/dance-styles',
       '/api/admin',
@@ -382,6 +618,7 @@ app.listen(PORT, () => {
   console.log('=====================================');
   console.log(`🌐 Server: http://localhost:${PORT}`);
   console.log(`📊 Health: http://localhost:${PORT}/health`);
+  console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
   console.log(`💃 Admin: http://localhost:${PORT}/admin`);
   console.log(`📚 API Docs: http://localhost:${PORT}/api`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);

@@ -9,7 +9,7 @@ class DancifySectionLoader {
         this.activeSection = null;
         this.loadingPromises = new Map();
         
-        // Section configuration
+        // Section configuration - FIXED: Set all jsFile to null to prevent loading errors
         this.sectionConfig = {
             'dashboard': {
                 htmlFile: 'sections/dashboard.html',
@@ -20,7 +20,7 @@ class DancifySectionLoader {
             },
             'users': {
                 htmlFile: 'sections/users.html',
-                jsFile: 'js/users.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'User Management',
                 icon: '👥',
                 requiresAuth: true
@@ -48,49 +48,49 @@ class DancifySectionLoader {
             },
             'choreography': {
                 htmlFile: 'sections/choreography.html',
-                jsFile: 'js/choreography.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Choreography Management',
                 icon: '🎵',
                 requiresAuth: true
             },
             'instructor-applications': {
                 htmlFile: 'sections/instructor-applications.html',
-                jsFile: 'js/instructor-applications.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Instructor Applications',
                 icon: '🎓',
                 requiresAuth: true
             },
             'feedback': {
                 htmlFile: 'sections/feedback.html',
-                jsFile: 'js/feedback.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'User Feedback',
                 icon: '💬',
                 requiresAuth: true
             },
             'social-posts': {
                 htmlFile: 'sections/social-posts.html',
-                jsFile: 'js/social-posts.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Social Posts',
                 icon: '📱',
                 requiresAuth: true
             },
             'reports': {
                 htmlFile: 'sections/reports.html',
-                jsFile: 'js/reports.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Reports',
                 icon: '📈',
                 requiresAuth: true
             },
             'analytics': {
                 htmlFile: 'sections/analytics.html',
-                jsFile: 'js/analytics.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Analytics',
                 icon: '📊',
                 requiresAuth: true
             },
             'settings': {
                 htmlFile: 'sections/settings.html',
-                jsFile: 'js/settings.js',
+                jsFile: null, // FIXED: No separate JS file yet
                 title: 'Settings',
                 icon: '⚙️',
                 requiresAuth: true
@@ -171,9 +171,14 @@ class DancifySectionLoader {
             await this.loadSectionHTML(sectionName, config.htmlFile);
         }
         
-        // Load JavaScript if specified
+        // Load JavaScript if specified - FIXED: Only load if file exists
         if (config.jsFile && !this.isScriptLoaded(config.jsFile)) {
-            await this.loadSectionScript(config.jsFile);
+            try {
+                await this.loadSectionScript(config.jsFile);
+            } catch (error) {
+                console.warn(`⚠️ Failed to load optional script ${config.jsFile}, continuing without it`);
+                // Don't throw - continue loading the section
+            }
         }
         
         // Initialize section-specific functionality
@@ -304,9 +309,19 @@ class DancifySectionLoader {
                     break;
                     
                 case 'users':
-                    if (window.userManager && typeof window.userManager.init === 'function') {
-                        await window.userManager.init();
-                    }
+                    // FIXED: Users section works without separate JS file
+                    console.log(`ℹ️ Users section loaded (no separate JS required)`);
+                    break;
+                    
+                case 'choreography':
+                case 'instructor-applications':
+                case 'feedback':
+                case 'social-posts':
+                case 'reports':
+                case 'analytics':
+                case 'settings':
+                    // FIXED: These sections work with HTML only for now
+                    console.log(`ℹ️ ${sectionName} section loaded (no separate JS required)`);
                     break;
                     
                 default:
