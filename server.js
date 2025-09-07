@@ -202,7 +202,7 @@ app.get('/api/health', async (req, res) => {
 
 // API Routes
 const movesRouter = require('./src/routes/moves');
-const danceStylesRouter = require('./src/routes/danceStyles');
+const danceStylesRouter = require('./src/routes/DanceStyles.js');
 const adminRouter = require('./src/routes/admin');
 const submissionsRouter = require('./src/routes/submissions');
 
