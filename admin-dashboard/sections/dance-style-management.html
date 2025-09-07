@@ -140,17 +140,66 @@
 <style>
 /* CSS Variables - Define first to fix visibility issues */
 :root {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #e9ecef;
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --primary-purple: #6f42c1;
-    --radius-medium: 8px;
-    --radius-large: 12px;
-    --shadow-light: 0 2px 4px rgba(0,0,0,0.1);
-    --shadow-medium: 0 4px 8px rgba(0,0,0,0.15);
-    --transition-fast: 0.15s ease;
+    --bg-primary: #ffffff !important;
+    --bg-secondary: #f8f9fa !important;
+    --bg-tertiary: #e9ecef !important;
+    --text-primary: #212529 !important;
+    --text-secondary: #6c757d !important;
+    --primary-purple: #6f42c1 !important;
+    --radius-medium: 8px !important;
+    --radius-large: 12px !important;
+    --shadow-light: 0 2px 4px rgba(0,0,0,0.1) !important;
+    --shadow-medium: 0 4px 8px rgba(0,0,0,0.15) !important;
+    --transition-fast: 0.15s ease !important;
+}
+
+/* Force visibility for dance style cards */
+.style-card {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    border: 2px solid #E9ECEF !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+    min-height: 200px !important;
+}
+
+.style-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 15px !important;
+    margin-bottom: 15px !important;
+}
+
+.style-icon {
+    width: 80px !important;
+    height: 80px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 2.5rem !important;
+    color: white !important;
+    margin: 0 auto 15px !important;
+}
+
+.style-name {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #212529 !important;
+    margin: 0 0 8px 0 !important;
+    text-align: center !important;
+}
+
+.style-description {
+    color: #6c757d !important;
+    font-size: 0.95rem !important;
+    line-height: 1.5 !important;
+    margin: 0 0 15px 0 !important;
+    text-align: center !important;
 }
 
 /* Dance Style Management Styles */
@@ -258,216 +307,6 @@
     margin-bottom: 20px;
 }
 
-.style-card {
-    border: 2px solid #E9ECEF;
-    border-radius: var(--radius-large);
-    background: var(--bg-primary);
-    transition: all var(--transition-fast);
-    overflow: hidden;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.style-card:hover {
-    border-color: var(--primary-purple);
-    box-shadow: var(--shadow-medium);
-    transform: translateY(-2px);
-}
-
-.style-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 15px;
-}
-
-.style-checkbox {
-    margin-top: 5px;
-}
-
-.style-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.featured-badge {
-    background: linear-gradient(45deg, #FFD700, #FFA500);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-.style-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.5rem;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    margin: 0 auto 15px;
-}
-
-.style-emoji {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
-.style-info {
-    text-align: center;
-}
-
-.style-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0 0 8px 0;
-}
-
-.style-description {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.5;
-    margin: 0 0 15px 0;
-}
-
-.style-meta {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-}
-
-.difficulty-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.difficulty-beginner {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28A745;
-}
-
-.difficulty-intermediate {
-    background: rgba(255, 193, 7, 0.1);
-    color: #FFC107;
-}
-
-.difficulty-advanced {
-    background: rgba(255, 107, 53, 0.1);
-    color: #FF6B35;
-}
-
-.difficulty-expert {
-    background: rgba(220, 53, 69, 0.1);
-    color: #DC3545;
-}
-
-.origin-badge {
-    background: rgba(138, 43, 226, 0.1);
-    color: var(--primary-purple);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.style-popularity {
-    margin-bottom: 15px;
-}
-
-.popularity-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: 5px;
-}
-
-.popularity-bar {
-    height: 6px;
-    background: #E9ECEF;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-bottom: 5px;
-}
-
-.popularity-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary-purple), #FF69B4);
-    transition: width var(--transition-fast);
-}
-
-.popularity-value {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    text-align: right;
-}
-
-.style-stats {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 15px;
-}
-
-.stat {
-    text-align: center;
-}
-
-.stat-icon {
-    display: block;
-    font-size: 1.2rem;
-    margin-bottom: 5px;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-bottom: 2px;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.music-genres {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: center;
-}
-
-.genre-tag {
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.genre-more {
-    background: var(--primary-purple);
-    color: white;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .management-controls {
@@ -508,53 +347,3 @@
     }
 }
 </style>
-
-<script>
-// TEMPORARY DEBUG SCRIPT
-setTimeout(() => {
-    console.log('🔍 DEBUG: Checking section visibility...');
-    
-    const section = document.getElementById('dance-style-management');
-    console.log('Section exists:', !!section);
-    console.log('Section display:', section ? getComputedStyle(section).display : 'N/A');
-    console.log('Section visibility:', section ? getComputedStyle(section).visibility : 'N/A');
-    console.log('Section opacity:', section ? getComputedStyle(section).opacity : 'N/A');
-    
-    const header = document.querySelector('#dance-style-management .section-header');
-    console.log('Header exists:', !!header);
-    console.log('Header display:', header ? getComputedStyle(header).display : 'N/A');
-    
-    const container = document.querySelector('#dance-style-management .styles-container');
-    console.log('Container exists:', !!container);
-    console.log('Container display:', container ? getComputedStyle(container).display : 'N/A');
-    
-    const grid = document.getElementById('danceStylesGrid');
-    console.log('Grid exists:', !!grid);
-    console.log('Grid innerHTML length:', grid ? grid.innerHTML.length : 0);
-    console.log('Grid innerHTML preview:', grid ? grid.innerHTML.substring(0, 200) : 'N/A');
-    
-    // Force visibility
-    if (section) {
-        section.style.display = 'block';
-        section.style.visibility = 'visible';
-        section.style.opacity = '1';
-        section.style.backgroundColor = '#f0f0f0';
-        section.style.minHeight = '500px';
-        console.log('🔧 Forced section visibility');
-    }
-    
-    if (header) {
-        header.style.display = 'flex';
-        header.style.backgroundColor = '#e0e0e0';
-        header.style.padding = '20px';
-        console.log('🔧 Forced header visibility');
-    }
-    
-    if (container) {
-        container.style.display = 'block';
-        container.style.backgroundColor = '#d0d0d0';
-        container.style.padding = '20px';
-        console.log('🔧 Forced container visibility');
-    }
-}, 3000);
-</script>
