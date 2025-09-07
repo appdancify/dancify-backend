@@ -406,6 +406,16 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
 });
 
+// SPA support for admin dashboard - serve index.html for all admin routes except static files
+app.get('/admin/*', (req, res, next) => {
+  // Don't intercept requests for static files
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|html)$/)) {
+    return next();
+  }
+  // Serve index.html for SPA routes
+  res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
+});
+
 // Root endpoint with comprehensive API documentation
 app.get('/', (req, res) => {
   res.json({
