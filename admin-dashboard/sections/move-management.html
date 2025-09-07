@@ -1,0 +1,592 @@
+<!-- 💃 Dancify Admin Dashboard - Move Management Section -->
+<!-- Create and manage dance moves with video support -->
+<section id="move-management" class="content-section">
+    <!-- Section Header -->
+    <div class="section-header">
+        <div class="header-content">
+            <h1>🕺 Move Management</h1>
+            <p>Create and manage dance moves for your app</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" id="createMoveBtn">
+                ➕ Create New Move
+            </button>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="filters-section">
+        <div class="search-bar">
+            <input type="text" id="moveSearch" placeholder="🔍 Search moves..." class="form-control">
+        </div>
+        
+        <div class="filter-controls">
+            <select id="danceStyleFilter" class="form-control">
+                <option value="">All Dance Styles</option>
+                <option value="ballet">Ballet</option>
+                <option value="hip_hop">Hip Hop</option>
+                <option value="salsa">Salsa</option>
+                <option value="contemporary">Contemporary</option>
+                <option value="house">House</option>
+                <option value="jazz">Jazz</option>
+                <option value="ballroom">Ballroom</option>
+                <option value="latin">Latin</option>
+                <option value="breakdancing">Breakdancing</option>
+            </select>
+            
+            <select id="difficultyFilter" class="form-control">
+                <option value="">All Difficulties</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="expert">Expert</option>
+            </select>
+            
+            <select id="sectionFilter" class="form-control">
+                <option value="">All Sections</option>
+                <option value="Basic Positions">Basic Positions</option>
+                <option value="Footwork">Footwork</option>
+                <option value="Arm Movements">Arm Movements</option>
+                <option value="Body Movements">Body Movements</option>
+                <option value="Advanced Techniques">Advanced Techniques</option>
+                <option value="Turns">Turns</option>
+                <option value="Jumps">Jumps</option>
+                <option value="Combinations">Combinations</option>
+            </select>
+            
+            <button class="btn btn-secondary" onclick="moveManager?.applyFilters()">
+                🔍 Filter
+            </button>
+            
+            <button class="btn btn-ghost" id="refreshMovesBtn">
+                🔄 Refresh
+            </button>
+            
+            <button class="btn btn-ghost" onclick="moveManager?.clearFilters()">
+                🧹 Clear
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="stats-summary">
+        <div class="stat-item">
+            <span class="stat-label">Total Moves</span>
+            <span class="stat-value" id="totalMovesCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Beginner</span>
+            <span class="stat-value" id="beginnerMovesCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Intermediate</span>
+            <span class="stat-value" id="intermediateMovesCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Advanced+</span>
+            <span class="stat-value" id="advancedMovesCount">0</span>
+        </div>
+    </div>
+
+    <!-- Bulk Actions (hidden by default) -->
+    <div id="bulkActionContainer" class="bulk-actions" style="display: none;">
+        <div class="bulk-info">
+            <span class="selected-count">0</span> moves selected
+        </div>
+        <div class="bulk-buttons">
+            <button class="btn btn-secondary" onclick="moveManager?.bulkDelete()">
+                🗑️ Delete Selected
+            </button>
+            <button class="btn btn-ghost" onclick="moveManager?.clearSelection()">
+                Clear Selection
+            </button>
+        </div>
+    </div>
+
+    <!-- Moves Grid -->
+    <div class="moves-container">
+        <div id="movesGrid" class="moves-grid">
+            <!-- Moves will be loaded here -->
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>Loading dance moves...</p>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        <div id="movesPagination" class="pagination-container"></div>
+    </div>
+
+    <!-- Message Container for Notifications -->
+    <div id="messageContainer" class="message-container"></div>
+</section>
+
+<style>
+/* Move Management Styles */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 1px solid #E9ECEF;
+}
+
+.header-content h1 {
+    font-size: 2rem;
+    color: var(--primary-purple);
+    margin: 0 0 5px 0;
+}
+
+.header-content p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.filters-section {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: var(--radius-large);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-bar {
+    flex: 1;
+    min-width: 250px;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-controls select {
+    min-width: 150px;
+}
+
+.stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-item {
+    background: var(--bg-secondary);
+    padding: 15px 20px;
+    border-radius: var(--radius-medium);
+    border-left: 4px solid var(--primary-purple);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-value {
+    color: var(--primary-purple);
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.bulk-actions {
+    background: var(--primary-purple);
+    color: white;
+    padding: 15px 20px;
+    border-radius: var(--radius-medium);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bulk-info {
+    font-weight: 600;
+}
+
+.bulk-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.bulk-buttons .btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.bulk-buttons .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.moves-container {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-large);
+    padding: 25px;
+}
+
+.moves-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.loading-placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(138, 43, 226, 0.1);
+    border-top: 4px solid var(--primary-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+.loading-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px;
+    color: var(--text-secondary);
+}
+
+.no-data {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px;
+    color: var(--text-secondary);
+}
+
+.no-data-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.no-data-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.no-data-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.no-data-subtitle {
+    margin-bottom: 25px;
+}
+
+/* Move Card Styles */
+.move-card {
+    background: white;
+    border-radius: var(--radius-medium);
+    border: 2px solid transparent;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.move-card:hover {
+    border-color: var(--primary-purple);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(138, 43, 226, 0.15);
+}
+
+.move-card.selected {
+    border-color: var(--primary-purple);
+    box-shadow: 0 4px 12px rgba(138, 43, 226, 0.2);
+}
+
+.move-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: var(--bg-light);
+}
+
+.move-checkbox {
+    cursor: pointer;
+}
+
+.move-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.move-thumbnail {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+}
+
+.move-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.move-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.move-thumbnail:hover .move-overlay {
+    opacity: 1;
+}
+
+.play-button {
+    background: var(--primary-purple);
+    color: white;
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.play-button:hover {
+    transform: scale(1.1);
+}
+
+.move-info {
+    padding: 20px;
+}
+
+.move-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px 0;
+    line-height: 1.3;
+}
+
+.move-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0 0 15px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.move-meta {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.move-style {
+    background: var(--primary-purple);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.move-difficulty {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.move-section {
+    margin-bottom: 15px;
+}
+
+.section-badge, .subsection-badge {
+    display: inline-block;
+    background: var(--bg-light);
+    color: var(--text-secondary);
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 5px;
+}
+
+.move-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-icon {
+    font-size: 0.9rem;
+}
+
+/* Pagination Styles */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.pagination-item {
+    background: white;
+    border: 1px solid #ddd;
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: var(--radius-small);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.pagination-item:hover {
+    background: var(--primary-purple);
+    color: white;
+    border-color: var(--primary-purple);
+}
+
+.pagination-item.active {
+    background: var(--primary-purple);
+    color: white;
+    border-color: var(--primary-purple);
+}
+
+/* Message Styles */
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: var(--radius-medium);
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-medium);
+    min-width: 300px;
+}
+
+.message-icon {
+    font-size: 1.2rem;
+}
+
+.message-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.message-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.message-close:hover {
+    opacity: 1;
+}
+
+.message-success {
+    border-left: 4px solid var(--success);
+}
+
+.message-error {
+    border-left: 4px solid var(--danger);
+}
+
+.message-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.message-info {
+    border-left: 4px solid var(--info);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .filters-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-controls {
+        justify-content: center;
+    }
+    
+    .stats-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .moves-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+        text-align: center;
+    }
+}
+</style>
