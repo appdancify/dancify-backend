@@ -149,27 +149,27 @@ app.get('/health', async (req, res) => {
   }
   
   const healthCheck = {
-    status: databaseStatus === 'connected' ? 'ok' : 'degraded',
+    status: databaseStatus === 'connected' ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
-    service: 'Dancify Backend API',
+    uptime: process.uptime(),
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    database: databaseStatus,
-    uptime: process.uptime(),
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    database: {
+      status: databaseStatus,
+      provider: 'Supabase'
+    },
+    server: {
+      platform: process.platform,
+      nodeVersion: process.version,
+      memory: process.memoryUsage()
     }
   };
   
-  res.json(healthCheck);
+  res.status(databaseStatus === 'connected' ? 200 : 503).json(healthCheck);
 });
 
-// API health endpoint that the frontend expects
+// API health endpoint
 app.get('/api/health', async (req, res) => {
-  let databaseStatus = 'connected';
-  
-  // Test database connection
   try {
     const { error } = await supabase
       .from('dance_moves')
@@ -177,280 +177,85 @@ app.get('/api/health', async (req, res) => {
       .limit(1);
     
     if (error) {
-      databaseStatus = 'disconnected';
-      console.error('Database health check failed:', error);
+      return res.status(503).json({
+        success: false,
+        error: 'Database connection failed',
+        timestamp: new Date().toISOString()
+      });
     }
-  } catch (error) {
-    databaseStatus = 'disconnected';
-    console.error('Database health check error:', error);
-  }
-  
-  const healthCheck = {
-    success: true,
-    status: databaseStatus === 'connected' ? 'ok' : 'degraded',
-    timestamp: new Date().toISOString(),
-    service: 'Dancify Backend API',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    database: databaseStatus,
-    uptime: process.uptime(),
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
-    }
-  };
-  
-  res.json(healthCheck);
-});
-
-// Database connection test endpoint
-app.get('/api/health/database', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('dance_moves')
-      .select('count')
-      .limit(1);
-    
-    if (error) throw error;
     
     res.json({
       success: true,
+      message: 'API is healthy',
       database: 'connected',
-      timestamp: new Date().toISOString(),
-      test_query: 'SELECT count FROM dance_moves LIMIT 1'
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(503).json({
       success: false,
-      database: 'disconnected',
-      error: error.message,
+      error: 'Health check failed',
+      details: error.message,
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// INLINE ROUTE IMPLEMENTATIONS (to fix dashboard immediately)
+// API Routes
+const movesRouter = require('./src/routes/moves');
+const danceStylesRouter = require('./src/routes/danceStyles');
+const adminRouter = require('./src/routes/admin');
+const submissionsRouter = require('./src/routes/submissions');
 
-// Dance Moves Routes
-app.get('/api/moves', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('dance_moves')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    res.json({
-      success: true,
-      data: data || [],
-      message: `Found ${data?.length || 0} dance moves`,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching moves:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      data: [],
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+app.use('/api/moves', movesRouter);
+app.use('/api/dance-styles', danceStylesRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/submissions', submissionsRouter);
 
-app.get('/api/moves/:id', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('dance_moves')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
-    
-    if (error) throw error;
-    if (!data) {
-      return res.status(404).json({
-        success: false,
-        error: 'Move not found',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: data,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching move:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Dance Styles Routes
-app.get('/api/dance-styles', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('dance_styles')
-      .select('*')
-      .order('name');
-    
-    if (error) throw error;
-    
-    res.json({
-      success: true,
-      data: data || [],
-      message: `Found ${data?.length || 0} dance styles`,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching dance styles:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      data: [],
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.post('/api/dance-styles', async (req, res) => {
-  try {
-    const { name, description, color, icon } = req.body;
-    
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name is required',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    const { data, error } = await supabase
-      .from('dance_styles')
-      .insert([{ name, description, color, icon }])
-      .select()
-      .single();
-    
-    if (error) throw error;
-    
-    res.status(201).json({
-      success: true,
-      data: data,
-      message: 'Dance style created successfully',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error creating dance style:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Admin Routes
-app.get('/api/admin/dashboard', async (req, res) => {
-  try {
-    // Get dashboard stats
-    const [movesResult, stylesResult, submissionsResult] = await Promise.all([
-      supabase.from('dance_moves').select('id', { count: 'exact' }),
-      supabase.from('dance_styles').select('id', { count: 'exact' }),
-      supabase.from('move_submissions').select('id', { count: 'exact' })
-    ]);
-    
-    const stats = {
-      totalMoves: movesResult.count || 0,
-      totalStyles: stylesResult.count || 0,
-      totalSubmissions: submissionsResult.count || 0,
-      activeUsers: 0 // Placeholder
-    };
-    
-    // Get recent moves
-    const { data: recentMoves } = await supabase
-      .from('dance_moves')
-      .select('id, name, dance_style, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    
-    res.json({
-      success: true,
-      data: {
-        stats,
-        recentMoves: recentMoves || []
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.get('/api/admin/moves', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-    
-    const { data, error, count } = await supabase
-      .from('dance_moves')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    
-    if (error) throw error;
-    
-    res.json({
-      success: true,
-      data: data || [],
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching admin moves:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      data: [],
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
+// Create move endpoint
 app.post('/api/admin/moves', async (req, res) => {
   try {
-    const moveData = req.body;
-    
-    if (!moveData.name || !moveData.dance_style) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name and dance style are required',
-        timestamp: new Date().toISOString()
-      });
-    }
-    
+    const {
+      name, videoUrl, description, detailedInstructions, danceStyle,
+      section, subsection, difficulty, levelRequired, xpReward,
+      estimatedDuration, equipment, moveType, targetRepetitions,
+      recordingTimeLimit, keyTechniques, prerequisites,
+      instructorId, instructorName
+    } = req.body;
+
+    // Extract video ID from YouTube URL
+    const videoId = videoUrl ? extractYouTubeId(videoUrl) : null;
+    const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
+
     const { data, error } = await supabase
       .from('dance_moves')
-      .insert([moveData])
+      .insert([{
+        name,
+        video_id: videoId,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        description,
+        detailed_instructions: detailedInstructions,
+        dance_style: danceStyle,
+        section,
+        subsection,
+        difficulty,
+        level_required: levelRequired || 1,
+        xp_reward: xpReward || 50,
+        estimated_duration: estimatedDuration || 10,
+        equipment: equipment || [],
+        move_type: moveType || 'time',
+        target_repetitions: targetRepetitions,
+        recording_time_limit: recordingTimeLimit,
+        key_techniques: keyTechniques || [],
+        prerequisites: prerequisites || [],
+        instructor_id: instructorId,
+        instructor_name: instructorName
+      }])
       .select()
       .single();
-    
+
     if (error) throw error;
-    
+
     res.status(201).json({
       success: true,
       data: data,
@@ -467,18 +272,57 @@ app.post('/api/admin/moves', async (req, res) => {
   }
 });
 
+// Get moves endpoint
+app.get('/api/admin/moves', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      message: `Found ${data?.length || 0} moves`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching moves:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Update move endpoint
 app.put('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
+    // Extract video ID if video URL is provided
+    if (updateData.videoUrl) {
+      const videoId = extractYouTubeId(updateData.videoUrl);
+      updateData.video_id = videoId;
+      updateData.thumbnail_url = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
+    }
+
     const { data, error } = await supabase
       .from('dance_moves')
-      .update(updateData)
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .select()
       .single();
-    
+
     if (error) throw error;
     if (!data) {
       return res.status(404).json({
@@ -487,7 +331,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     res.json({
       success: true,
       data: data,
@@ -507,14 +351,14 @@ app.put('/api/admin/moves/:id', async (req, res) => {
 app.delete('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const { error } = await supabase
       .from('dance_moves')
       .delete()
       .eq('id', id);
-    
+
     if (error) throw error;
-    
+
     res.json({
       success: true,
       message: 'Move deleted successfully',
@@ -537,9 +381,9 @@ app.get('/api/submissions', async (req, res) => {
       .from('move_submissions')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) throw error;
-    
+
     res.json({
       success: true,
       data: data || [],
@@ -557,7 +401,7 @@ app.get('/api/submissions', async (req, res) => {
   }
 });
 
-// Admin dashboard route
+// Admin dashboard route - Serve index.html for the main admin route
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
 });
@@ -615,7 +459,7 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: '/api/health',
       moves: '/api/moves',
-      danceStyles: '/api/dance-styles', 
+      danceStyles: '/api/dance-styles',
       admin: '/api/admin',
       submissions: '/api/submissions'
     },
@@ -628,14 +472,9 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Catch-all for unmatched admin routes (SPA support)
-app.get('/admin/*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
-});
-
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     success: false,
     error: 'API endpoint not found',
     path: req.originalUrl,
@@ -651,85 +490,38 @@ app.use('/api/*', (req, res) => {
 
 // 404 handler for all other routes
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     success: false,
-    error: 'Endpoint not found',
+    error: 'Route not found',
     path: req.originalUrl,
-    suggestion: 'Visit / for API documentation or /admin for the dashboard'
+    message: 'The requested resource does not exist'
   });
 });
 
-// Global error handler with better error categorization
+// Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Global error:', error);
-  
-  // Handle specific error types
-  let statusCode = error.status || 500;
-  let errorMessage = error.message || 'Internal server error';
-  
-  if (error.name === 'ValidationError') {
-    statusCode = 400;
-    errorMessage = 'Validation failed';
-  } else if (error.name === 'UnauthorizedError') {
-    statusCode = 401;
-    errorMessage = 'Unauthorized access';
-  } else if (error.code === 'ECONNREFUSED') {
-    statusCode = 503;
-    errorMessage = 'Database connection failed';
-  }
-  
-  const errorResponse = {
+  console.error('Unhandled error:', error);
+  res.status(500).json({
     success: false,
-    error: errorMessage,
-    timestamp: new Date().toISOString(),
-    path: req.originalUrl,
-    method: req.method
-  };
-  
-  // Include stack trace in development
-  if (process.env.NODE_ENV === 'development') {
-    errorResponse.stack = error.stack;
-    errorResponse.details = error;
-  }
-  
-  res.status(statusCode).json(errorResponse);
+    error: 'Internal server error',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Graceful shutdown handling
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
-  process.exit(0);
+// Helper function to extract YouTube video ID
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
+// Port configuration
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
+  console.log(`API Documentation: http://localhost:${PORT}/api`);
 });
-
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully...');
-  process.exit(0);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-const PORT = process.env.PORT || 3001;
-
-app.listen(PORT, () => {
-  console.log('🕺 Dancify Backend API Server Started');
-  console.log('=====================================');
-  console.log(`🌐 Server: http://localhost:${PORT}`);
-  console.log(`📊 Health: http://localhost:${PORT}/health`);
-  console.log(`📊 API Health: http://localhost:${PORT}/api/health`);
-  console.log(`💃 Admin: http://localhost:${PORT}/admin`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/api`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🚀 Version: 1.0.0`);
-  console.log('=====================================');
-});
-
-module.exports = app;
