@@ -18,6 +18,11 @@ class DancifySectionLoader {
                 title: 'Move Management',
                 icon: '🕺'
             },
+            'dance-style-management': {
+                htmlFile: 'sections/dance-style-management.html',
+                title: 'Dance Style Management',
+                icon: '🎭'
+            },
             'users': {
                 htmlFile: 'sections/users.html',
                 title: 'User Management',
@@ -100,6 +105,17 @@ class DancifySectionLoader {
                         }
                         if (typeof window.moveManager.init === 'function') {
                             await window.moveManager.init();
+                        }
+                    }
+                    break;
+                    
+                case 'dance-style-management':
+                    if (window.DanceStyleManager && window.apiClient) {
+                        if (!window.danceStyleManager) {
+                            window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
+                        }
+                        if (typeof window.danceStyleManager.init === 'function') {
+                            await window.danceStyleManager.init();
                         }
                     }
                     break;

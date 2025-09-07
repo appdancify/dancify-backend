@@ -151,6 +151,27 @@ class DancifyAdmin {
                     }
                     break;
                     
+                case 'dance-style-management':
+                    targetSection.innerHTML = `
+                        <div class="dance-style-management-section">
+                            <h1>🎭 Dance Style Management</h1>
+                            <p>Dance style management is loading...</p>
+                            <button class="btn btn-primary" onclick="alert('Dance style management functionality coming soon!')">
+                                ➕ Add Dance Style
+                            </button>
+                        </div>
+                    `;
+                    // Try to initialize dance style manager
+                    if (window.DanceStyleManager && window.apiClient) {
+                        if (!window.danceStyleManager) {
+                            window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
+                        }
+                        if (typeof window.danceStyleManager.init === 'function') {
+                            await window.danceStyleManager.init();
+                        }
+                    }
+                    break;
+                    
                 default:
                     targetSection.innerHTML = `
                         <div class="section-placeholder">
