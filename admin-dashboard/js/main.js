@@ -28,7 +28,7 @@ class DancifyAdmin {
             // Set up global event listeners
             this.setupGlobalEventListeners();
             
-            // FIXED: Load dashboard section content by default
+            // Load default dashboard section
             await this.loadDefaultSection();
             
             // Start connection monitoring
@@ -56,6 +56,7 @@ class DancifyAdmin {
                 
                 // Make API client globally available for other components
                 window.apiClient = this.components.api;
+                console.log('✅ API client initialized successfully');
             } else {
                 throw new Error('DancifyAPI class not available');
             }
@@ -67,6 +68,7 @@ class DancifyAdmin {
                 
                 // Make navigation globally available
                 window.navigationManager = this.components.navigation;
+                console.log('✅ Navigation system initialized successfully');
             } else {
                 throw new Error('DancifyNavigation class not available');
             }
@@ -78,6 +80,7 @@ class DancifyAdmin {
                 
                 // Make section loader globally available
                 window.sectionLoader = this.components.sectionLoader;
+                console.log('✅ Section loader initialized successfully');
             } else {
                 throw new Error('DancifySectionLoader class not available');
             }
@@ -86,6 +89,7 @@ class DancifyAdmin {
             if (window.DancifyDashboard) {
                 this.components.dashboard = new window.DancifyDashboard();
                 // Dashboard will be initialized when section loads
+                console.log('✅ Dashboard component ready');
             } else {
                 console.warn('⚠️ DancifyDashboard class not available');
             }
@@ -106,6 +110,7 @@ class DancifyAdmin {
             // Load dashboard section via section loader
             if (this.components.sectionLoader) {
                 await this.components.sectionLoader.loadSection('dashboard');
+                console.log('✅ Default section loaded successfully');
             } else {
                 // Fallback: direct dashboard load
                 await this.loadSection('dashboard');
@@ -121,13 +126,21 @@ class DancifyAdmin {
     setupGlobalEventListeners() {
         console.log('🔧 Setting up global event listeners...');
         
-        // Handle navigation clicks
-        document.addEventListener('click', (e) => {
+        // Handle navigation clicks with proper delegation
+        document.addEventListener('click', async (e) => {
+            // Handle section navigation
             const sectionLink = e.target.closest('[data-section]');
             if (sectionLink) {
                 e.preventDefault();
-                const section = sectionLink.dataset.section;
-                this.loadSection(section);
+                const sectionName = sectionLink.dataset.section;
+                console.log(`🔗 Navigation clicked: ${sectionName}`);
+                
+                // Update navigation active state immediately for responsiveness
+                this.updateNavigationState(sectionName);
+                
+                // Load the section
+                await this.loadSection(sectionName);
+                return;
             }
             
             // Handle action buttons
@@ -135,270 +148,281 @@ class DancifyAdmin {
             if (actionButton) {
                 e.preventDefault();
                 const action = actionButton.dataset.action;
-                this.handleAction(action, actionButton);
+                await this.handleAction(action, actionButton);
+                return;
             }
         });
         
-        // Handle hash changes for direct navigation
-        window.addEventListener('hashchange', () => {
+        // Handle hash changes for direct URL navigation
+        window.addEventListener('hashchange', async () => {
             const hash = window.location.hash.slice(1);
-            if (hash && hash !== this.currentSection) {
-                this.loadSection(hash);
+            if (hash && this.components.sectionLoader?.sectionConfig[hash]) {
+                console.log(`🔗 Hash change navigation: ${hash}`);
+                await this.loadSection(hash);
             }
         });
         
-        // Handle connection status changes
-        window.addEventListener('online', () => {
-            this.connectionStatus = 'connected';
-            this.showSuccessMessage('Connection restored');
-            this.refreshCurrentSection();
-        });
+        // Handle initial hash on page load
+        const initialHash = window.location.hash.slice(1);
+        if (initialHash && initialHash !== 'dashboard') {
+            // Load after initialization is complete
+            setTimeout(() => {
+                console.log(`🔗 Initial hash navigation: ${initialHash}`);
+                this.loadSection(initialHash);
+            }, 1000);
+        }
         
-        window.addEventListener('offline', () => {
-            this.connectionStatus = 'disconnected';
-            this.showWarningMessage('Connection lost - working offline');
+        // Handle browser back/forward
+        window.addEventListener('popstate', async () => {
+            const hash = window.location.hash.slice(1) || 'dashboard';
+            console.log(`🔗 Browser navigation: ${hash}`);
+            await this.loadSection(hash);
         });
         
         console.log('✅ Global event listeners setup completed');
     }
 
-    // 📄 Load a specific section
+    // 📄 Load section with comprehensive error handling
     async loadSection(sectionName) {
         try {
             console.log(`📂 Loading section: ${sectionName}`);
             
-            // Use section loader if available
-            if (this.components.sectionLoader) {
-                await this.components.sectionLoader.loadSection(sectionName);
+            if (!this.components.sectionLoader) {
+                throw new Error('Section loader not available');
+            }
+            
+            // Validate section exists
+            if (!this.components.sectionLoader.sectionConfig[sectionName]) {
+                throw new Error(`Unknown section: ${sectionName}`);
+            }
+            
+            // Show loading state
+            this.showSectionLoading(sectionName);
+            
+            // Load the section
+            const success = await this.components.sectionLoader.loadSection(sectionName);
+            
+            if (success) {
+                this.currentSection = sectionName;
+                console.log(`✅ Section loaded successfully: ${sectionName}`);
+                
+                // Initialize section-specific functionality
+                await this.initializeSectionFunctionality(sectionName);
             } else {
-                // Fallback: manual section loading
-                await this.manualLoadSection(sectionName);
+                throw new Error(`Failed to load section: ${sectionName}`);
             }
-            
-            // Update navigation
-            if (this.components.navigation) {
-                this.components.navigation.setActiveSection(sectionName);
-            }
-            
-            // Initialize section-specific functionality
-            await this.initializeSectionFunctionality(sectionName);
-            
-            this.currentSection = sectionName;
-            
-            // Update URL hash
-            if (window.history && window.history.pushState) {
-                window.history.pushState(null, null, `#${sectionName}`);
-            }
-            
-            console.log(`✅ Section loaded: ${sectionName}`);
             
         } catch (error) {
             console.error(`❌ Failed to load section ${sectionName}:`, error);
             this.showErrorMessage(`Failed to load ${sectionName}: ${error.message}`);
+            
+            // Fallback to dashboard if current section fails
+            if (sectionName !== 'dashboard') {
+                console.log('🔄 Falling back to dashboard...');
+                setTimeout(() => this.loadSection('dashboard'), 2000);
+            }
         }
-    }
-
-    // 📄 Manual section loading (fallback)
-    async manualLoadSection(sectionName) {
-        const mainContent = document.getElementById('mainContent');
-        const contentContainer = mainContent?.querySelector('.content-container');
-        
-        if (!contentContainer) {
-            throw new Error('Content container not found');
-        }
-        
-        // Hide all sections
-        const allSections = contentContainer.querySelectorAll('.content-section');
-        allSections.forEach(section => {
-            section.classList.remove('active');
-            section.style.display = 'none';
-        });
-        
-        // Show target section
-        let targetSection = document.getElementById(sectionName);
-        if (!targetSection) {
-            // Create section if it doesn't exist
-            targetSection = document.createElement('section');
-            targetSection.id = sectionName;
-            targetSection.className = 'content-section';
-            targetSection.innerHTML = `
-                <div class="section-placeholder">
-                    <h2>📊 ${sectionName.replace('-', ' ').toUpperCase()}</h2>
-                    <p>Loading ${sectionName} interface...</p>
-                </div>
-            `;
-            contentContainer.appendChild(targetSection);
-        }
-        
-        targetSection.classList.add('active');
-        targetSection.style.display = 'block';
     }
 
     // 🔧 Initialize section-specific functionality
     async initializeSectionFunctionality(sectionName) {
-        switch (sectionName) {
-            case 'dashboard':
-                if (this.components.dashboard && !this.components.dashboard.isInitialized) {
-                    await this.components.dashboard.init();
-                }
-                break;
-                
-            case 'users':
-                // Initialize user management functionality
-                if (window.UserManager) {
-                    const userManager = new window.UserManager(this.components.api);
-                    await userManager.init();
-                }
-                break;
-                
-            case 'move-management':
-                // Initialize move management functionality
-                if (window.MoveManager && this.components.api) {
-                    if (!window.moveManager) {
-                        window.moveManager = new window.MoveManager(this.components.api);
+        try {
+            console.log(`🔧 Initializing functionality for: ${sectionName}`);
+            
+            switch (sectionName) {
+                case 'dashboard':
+                    if (this.components.dashboard && !this.components.dashboard.isInitialized) {
+                        await this.components.dashboard.init();
+                        console.log('✅ Dashboard functionality initialized');
                     }
-                    if (typeof window.moveManager.init === 'function') {
+                    break;
+                    
+                case 'move-management':
+                    // Enhanced move management initialization
+                    if (window.MoveManager && this.components.api) {
+                        if (!window.moveManager) {
+                            console.log('🕺 Creating MoveManager instance...');
+                            window.moveManager = new window.MoveManager(this.components.api);
+                        }
+                        
+                        // Always call init to refresh data and setup
+                        console.log('🕺 Initializing move management...');
                         await window.moveManager.init();
+                        console.log('✅ Move management initialized successfully');
+                    } else {
+                        console.error('❌ MoveManager or API not available');
+                        console.log('Available classes:', Object.keys(window).filter(k => k.includes('Manager')));
+                        throw new Error('Move management components not available');
                     }
-                }
-                break;
-                
-            case 'dance-style-management':
-                // Initialize dance style management functionality
-                if (window.DanceStyleManager) {
-                    const styleManager = new window.DanceStyleManager(this.components.api);
-                    await styleManager.init();
-                }
-                break;
-                
-            case 'move-submissions':
-                // Initialize submission management functionality
-                if (window.SubmissionManager) {
-                    const submissionManager = new window.SubmissionManager(this.components.api);
-                    await submissionManager.init();
-                }
-                break;
-                
-            default:
-                console.log(`ℹ️ No specific initialization for section: ${sectionName}`);
+                    break;
+                    
+                case 'users':
+                    if (window.UserManager && this.components.api) {
+                        if (!window.userManager) {
+                            console.log('👥 Creating UserManager instance...');
+                            window.userManager = new window.UserManager(this.components.api);
+                        }
+                        await window.userManager.init();
+                        console.log('✅ User management initialized successfully');
+                    }
+                    break;
+                    
+                case 'dance-style-management':
+                    if (window.DanceStyleManager && this.components.api) {
+                        if (!window.styleManager) {
+                            console.log('🎭 Creating DanceStyleManager instance...');
+                            window.styleManager = new window.DanceStyleManager(this.components.api);
+                        }
+                        await window.styleManager.init();
+                        console.log('✅ Dance style management initialized successfully');
+                    }
+                    break;
+                    
+                case 'move-submissions':
+                    if (window.SubmissionManager && this.components.api) {
+                        if (!window.submissionManager) {
+                            console.log('📹 Creating SubmissionManager instance...');
+                            window.submissionManager = new window.SubmissionManager(this.components.api);
+                        }
+                        await window.submissionManager.init();
+                        console.log('✅ Move submissions management initialized successfully');
+                    }
+                    break;
+                    
+                default:
+                    console.log(`ℹ️ No specific initialization required for: ${sectionName}`);
+                    break;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Failed to initialize ${sectionName} functionality:`, error);
+            throw error;
         }
     }
 
-    // 🎯 Handle various actions
-    handleAction(action, element) {
-        switch (action) {
-            case 'refresh':
-                this.refreshCurrentSection();
-                break;
-                
-            case 'logout':
-                this.handleLogout();
-                break;
-                
-            case 'toggle-sidebar':
-                this.toggleSidebar();
-                break;
-                
-            case 'show-settings':
-                this.loadSection('settings');
-                break;
-                
-            default:
-                console.warn(`⚠️ Unknown action: ${action}`);
+    // 🧭 Update navigation active state
+    updateNavigationState(sectionName) {
+        const navItems = document.querySelectorAll('[data-section]');
+        navItems.forEach(item => {
+            if (item.dataset.section === sectionName) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    // 🔄 Show section loading state
+    showSectionLoading(sectionName) {
+        const contentContainer = document.querySelector('.content-container');
+        if (contentContainer) {
+            const sectionTitle = sectionName.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            contentContainer.innerHTML = `
+                <div class="section-loading">
+                    <div class="loading-spinner"></div>
+                    <h2>Loading ${sectionTitle}</h2>
+                    <p>Please wait while we load the interface...</p>
+                </div>
+            `;
+        }
+    }
+
+    // 🎬 Handle action buttons
+    async handleAction(action, button) {
+        console.log(`🎬 Handling action: ${action}`);
+        
+        try {
+            switch (action) {
+                case 'refresh':
+                    await this.refreshCurrentSection();
+                    this.showSuccessMessage('Section refreshed successfully');
+                    break;
+                    
+                case 'create-move':
+                    if (window.moveManager && typeof window.moveManager.showCreateMoveModal === 'function') {
+                        window.moveManager.showCreateMoveModal();
+                    } else {
+                        // Navigate to move management if not available
+                        await this.loadSection('move-management');
+                    }
+                    break;
+                    
+                case 'create-user':
+                    if (window.userManager && typeof window.userManager.showCreateUserModal === 'function') {
+                        window.userManager.showCreateUserModal();
+                    } else {
+                        await this.loadSection('users');
+                    }
+                    break;
+                    
+                default:
+                    console.warn(`⚠️ Unknown action: ${action}`);
+                    this.showErrorMessage(`Unknown action: ${action}`);
+                    break;
+            }
+        } catch (error) {
+            console.error(`❌ Error handling action ${action}:`, error);
+            this.showErrorMessage(`Failed to execute action: ${error.message}`);
         }
     }
 
     // 🔄 Refresh current section
     async refreshCurrentSection() {
-        console.log(`🔄 Refreshing section: ${this.currentSection}`);
-        
-        try {
-            // Refresh based on current section
-            switch (this.currentSection) {
-                case 'dashboard':
-                    if (this.components.dashboard && this.components.dashboard.refresh) {
-                        await this.components.dashboard.refresh();
-                    }
-                    break;
-                    
-                default:
-                    // Reload the section
-                    await this.loadSection(this.currentSection);
-            }
+        if (this.currentSection && this.components.sectionLoader) {
+            console.log(`🔄 Refreshing current section: ${this.currentSection}`);
             
-            this.showSuccessMessage('Section refreshed successfully');
+            // Clear the section from cache to force reload
+            this.components.sectionLoader.loadedSections.delete(this.currentSection);
+            this.components.sectionLoader.sectionCache.delete(this.currentSection);
             
-        } catch (error) {
-            console.error('❌ Failed to refresh section:', error);
-            this.showErrorMessage('Failed to refresh section: ' + error.message);
+            // Reload the section
+            await this.loadSection(this.currentSection);
         }
-    }
-
-    // 📱 Toggle sidebar
-    toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.classList.toggle('collapsed');
-        }
-    }
-
-    // 🚪 Handle logout
-    handleLogout() {
-        if (this.components.api && this.components.api.logout) {
-            this.components.api.logout();
-        }
-        
-        // Clear local data
-        this.clearLocalData();
-        
-        // Redirect to login
-        window.location.href = '/login';
-    }
-
-    // 🧹 Clear local data
-    clearLocalData() {
-        // Clear any cached data
-        if (this.components.sectionLoader) {
-            this.components.sectionLoader.clearCache();
-        }
-        
-        // Stop auto-refresh
-        this.stopConnectionMonitoring();
     }
 
     // 📡 Start connection monitoring
     startConnectionMonitoring() {
         console.log('📡 Starting connection monitoring...');
         
-        // Check connection every 30 seconds
-        this.connectionInterval = setInterval(async () => {
-            try {
-                if (this.components.api && this.components.api.checkHealth) {
-                    const isConnected = await this.components.api.checkHealth();
-                    
-                    if (isConnected && this.connectionStatus === 'disconnected') {
-                        this.connectionStatus = 'connected';
-                        this.showSuccessMessage('Connection restored');
-                    } else if (!isConnected && this.connectionStatus === 'connected') {
-                        this.connectionStatus = 'disconnected';
-                        this.showWarningMessage('Connection lost');
-                    }
-                }
-            } catch (error) {
-                console.warn('Connection check failed:', error);
-            }
-        }, 30000);
+        // Initial connection check
+        this.checkConnection();
+        
+        // Periodic connection check
+        setInterval(async () => {
+            await this.checkConnection();
+        }, 30000); // Check every 30 seconds
+        
+        // Update connection status display
+        this.updateConnectionDisplay();
     }
 
-    // 📡 Stop connection monitoring
-    stopConnectionMonitoring() {
-        if (this.connectionInterval) {
-            clearInterval(this.connectionInterval);
-            this.connectionInterval = null;
+    // 🔍 Check connection status
+    async checkConnection() {
+        try {
+            if (this.components.api) {
+                const health = await this.components.api.checkHealth();
+                this.connectionStatus = health.success ? 'connected' : 'disconnected';
+            } else {
+                this.connectionStatus = 'disconnected';
+            }
+        } catch (error) {
+            console.warn('⚠️ Connection check failed:', error);
+            this.connectionStatus = 'disconnected';
+        }
+        
+        this.updateConnectionDisplay();
+    }
+
+    // 📊 Update connection display
+    updateConnectionDisplay() {
+        const connectionIndicator = document.getElementById('connectionStatus');
+        if (connectionIndicator) {
+            connectionIndicator.className = `connection-status ${this.connectionStatus}`;
+            connectionIndicator.textContent = this.connectionStatus === 'connected' ? '🟢 Online' : '🔴 Offline';
         }
     }
 
-    // 🔔 Show messages
+    // 💬 Message helpers
     showSuccessMessage(message) {
         this.showMessage(message, 'success');
     }
@@ -411,84 +435,132 @@ class DancifyAdmin {
         this.showMessage(message, 'warning');
     }
 
-    showCriticalError(message) {
-        // Show critical error overlay
-        const errorOverlay = document.createElement('div');
-        errorOverlay.className = 'critical-error-overlay';
-        errorOverlay.innerHTML = `
-            <div class="error-content">
-                <h2>❌ Critical Error</h2>
-                <p>${message}</p>
-                <button onclick="window.location.reload()">🔄 Reload Application</button>
-            </div>
-        `;
-        document.body.appendChild(errorOverlay);
+    showInfoMessage(message) {
+        this.showMessage(message, 'info');
     }
 
     showMessage(message, type = 'info') {
-        // Create or find message container
-        let messageContainer = document.getElementById('messageContainer');
-        if (!messageContainer) {
-            messageContainer = document.createElement('div');
-            messageContainer.id = 'messageContainer';
-            messageContainer.className = 'message-container';
-            document.body.appendChild(messageContainer);
-        }
+        const messageContainer = document.getElementById('messageContainer') || document.body;
         
-        // Create message element
-        const messageElement = document.createElement('div');
-        messageElement.className = `message message-${type}`;
-        messageElement.innerHTML = `
+        const messageEl = document.createElement('div');
+        messageEl.className = `message message-${type}`;
+        
+        const iconMap = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+        
+        messageEl.innerHTML = `
+            <span class="message-icon">${iconMap[type] || iconMap.info}</span>
             <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">×</button>
+            <button class="message-close" onclick="this.parentElement.remove()">✕</button>
         `;
         
-        messageContainer.appendChild(messageElement);
+        messageContainer.appendChild(messageEl);
         
-        // Auto-remove after 5 seconds
+        // Auto-remove after delay
         setTimeout(() => {
-            if (messageElement.parentElement) {
-                messageElement.remove();
+            if (messageEl.parentNode) {
+                messageEl.parentNode.removeChild(messageEl);
             }
-        }, 5000);
+        }, type === 'error' ? 8000 : 5000); // Errors stay longer
+    }
+
+    // 🚨 Show critical error
+    showCriticalError(message) {
+        console.error('🚨 Critical Error:', message);
+        
+        document.body.innerHTML = `
+            <div class="critical-error">
+                <div class="error-content">
+                    <h1>❌ Critical Error</h1>
+                    <p>${message}</p>
+                    <div class="error-actions">
+                        <button class="btn btn-primary" onclick="window.location.reload()">
+                            🔄 Reload Page
+                        </button>
+                        <button class="btn btn-secondary" onclick="console.log('Debug info:', window.dancifyAdmin)">
+                            🔍 Debug Info
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // 📊 Get application status
+    getStatus() {
+        return {
+            isInitialized: this.isInitialized,
+            currentSection: this.currentSection,
+            connectionStatus: this.connectionStatus,
+            components: {
+                api: !!this.components.api,
+                navigation: !!this.components.navigation,
+                dashboard: !!this.components.dashboard,
+                sectionLoader: !!this.components.sectionLoader
+            },
+            sections: this.components.sectionLoader ? this.components.sectionLoader.getStats() : null
+        };
+    }
+
+    // 🧹 Cleanup
+    cleanup() {
+        console.log('🧹 Cleaning up Dancify Admin...');
+        
+        // Clear intervals
+        if (this.connectionCheckInterval) {
+            clearInterval(this.connectionCheckInterval);
+        }
+        
+        // Cleanup components
+        if (this.components.sectionLoader) {
+            this.components.sectionLoader.cleanup();
+        }
+        
+        // Clear global references
+        window.apiClient = null;
+        window.navigationManager = null;
+        window.sectionLoader = null;
+        window.moveManager = null;
+        window.userManager = null;
+        window.styleManager = null;
+        window.submissionManager = null;
+        
+        console.log('✅ Cleanup completed');
     }
 }
 
-// 🚀 Initialize application when DOM is ready
-let dancifyAdmin = null;
+// 🌐 Initialize the application
+window.dancifyAdmin = new DancifyAdmin();
 
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('💃 Starting Dancify Admin...');
-    
-    try {
-        // Create and initialize main application
-        dancifyAdmin = new DancifyAdmin();
-        await dancifyAdmin.init();
-        
-        // Make globally available for debugging
-        window.dancifyAdmin = dancifyAdmin;
-        
-        console.log('🎉 Dancify Admin started successfully');
-        
-    } catch (error) {
-        console.error('💥 Failed to start Dancify Admin:', error);
-        
-        // Show error to user
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'startup-error';
-        errorMessage.innerHTML = `
-            <h2>❌ Startup Error</h2>
-            <p>Failed to initialize Dancify Admin: ${error.message}</p>
-            <button onclick="window.location.reload()">🔄 Retry</button>
-        `;
-        
-        document.body.appendChild(errorMessage);
+// Start initialization when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 DOM loaded, initializing Dancify Admin...');
+        window.dancifyAdmin.init();
+    });
+} else {
+    console.log('📄 DOM already loaded, initializing Dancify Admin...');
+    window.dancifyAdmin.init();
+}
+
+// Global error handler
+window.addEventListener('error', (event) => {
+    console.error('🚨 Global error:', event.error);
+    if (window.dancifyAdmin && window.dancifyAdmin.isInitialized) {
+        window.dancifyAdmin.showErrorMessage('An unexpected error occurred. Please refresh the page if problems persist.');
     }
 });
 
-// Handle unload
-window.addEventListener('beforeunload', () => {
-    if (dancifyAdmin) {
-        dancifyAdmin.stopConnectionMonitoring();
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('🚨 Unhandled promise rejection:', event.reason);
+    if (window.dancifyAdmin && window.dancifyAdmin.isInitialized) {
+        window.dancifyAdmin.showErrorMessage('A background operation failed. Some features may not work correctly.');
     }
 });
+
+console.log('💃 Dancify Admin main script loaded');
