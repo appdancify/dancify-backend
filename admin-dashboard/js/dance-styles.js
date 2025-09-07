@@ -172,114 +172,6 @@ class DanceStyleManager {
         `;
     }
 
-    // 📊 Update style statistics
-    updateStyleStats() {
-        const stats = {
-            total: this.danceStyles.length,
-            featured: this.danceStyles.filter(s => s.is_featured).length,
-            beginner: this.danceStyles.filter(s => s.difficulty_level === 'beginner').length,
-            intermediate: this.danceStyles.filter(s => s.difficulty_level === 'intermediate').length,
-            advanced: this.danceStyles.filter(s => s.difficulty_level === 'advanced').length
-        };
-        
-        // Update stat cards
-        const totalStylesEl = document.getElementById('totalStylesCount');
-        const featuredStylesEl = document.getElementById('featuredStylesCount');
-        const beginnerStylesEl = document.getElementById('beginnerStylesCount');
-        const advancedStylesEl = document.getElementById('advancedStylesCount');
-        
-        if (totalStylesEl) totalStylesEl.textContent = stats.total.toLocaleString();
-        if (featuredStylesEl) featuredStylesEl.textContent = stats.featured.toLocaleString();
-        if (beginnerStylesEl) beginnerStylesEl.textContent = stats.beginner.toLocaleString();
-        if (advancedStylesEl) advancedStylesEl.textContent = (stats.intermediate + stats.advanced).toLocaleString();
-    }
-
-    // 🎯 Set up event listeners
-    setupEventListeners() {
-        // Search input
-        const searchInput = document.getElementById('styleSearchInput');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    this.applyFilters();
-                }, 500);
-            });
-        }
-
-        // Filter dropdowns
-        const filterElements = ['difficultyFilter', 'featuredFilter'];
-        filterElements.forEach(filterId => {
-            const element = document.getElementById(filterId);
-            if (element) {
-                element.addEventListener('change', () => {
-                    this.applyFilters();
-                });
-            }
-        });
-
-        // Create style button
-        const createBtn = document.getElementById('createStyleBtn');
-        if (createBtn) {
-            createBtn.addEventListener('click', () => {
-                this.showCreateStyleModal();
-            });
-        }
-
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshStylesBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
-                this.refreshStyles();
-            });
-        }
-    }
-
-    // 🔄 Set up real-time updates
-    setupRealTimeUpdates() {
-        // Refresh data every 10 minutes
-        setInterval(() => {
-            console.log('🔄 Auto-refreshing dance style data...');
-            this.loadDanceStyles();
-        }, 10 * 60 * 1000);
-    }
-
-    // 🔍 Apply filters
-    applyFilters() {
-        const searchInput = document.getElementById('styleSearchInput');
-        const difficultyFilter = document.getElementById('difficultyFilter');
-        const featuredFilter = document.getElementById('featuredFilter');
-
-        let filteredStyles = [...this.danceStyles];
-
-        // Apply search filter
-        if (searchInput?.value.trim()) {
-            const searchTerm = searchInput.value.toLowerCase();
-            filteredStyles = filteredStyles.filter(style => 
-                style.name.toLowerCase().includes(searchTerm) ||
-                style.description.toLowerCase().includes(searchTerm) ||
-                (style.cultural_origin && style.cultural_origin.toLowerCase().includes(searchTerm))
-            );
-        }
-
-        // Apply difficulty filter
-        if (difficultyFilter?.value) {
-            filteredStyles = filteredStyles.filter(style => 
-                style.difficulty_level === difficultyFilter.value
-            );
-        }
-
-        // Apply featured filter
-        if (featuredFilter?.value === 'featured') {
-            filteredStyles = filteredStyles.filter(style => style.is_featured);
-        } else if (featuredFilter?.value === 'not-featured') {
-            filteredStyles = filteredStyles.filter(style => !style.is_featured);
-        }
-
-        this.renderFilteredStyles(filteredStyles);
-    }
-
     // 🎨 Render filtered styles
     renderFilteredStyles(styles) {
         const stylesContainer = document.getElementById('danceStylesGrid');
@@ -305,23 +197,145 @@ class DanceStyleManager {
         stylesContainer.innerHTML = styleCards;
     }
 
+    // 📊 Update style statistics
+    updateStyleStats() {
+        const stats = {
+            total: this.danceStyles.length,
+            featured: this.danceStyles.filter(s => s.is_featured).length,
+            beginner: this.danceStyles.filter(s => s.difficulty_level === 'beginner').length,
+            intermediate: this.danceStyles.filter(s => s.difficulty_level === 'intermediate').length,
+            advanced: this.danceStyles.filter(s => s.difficulty_level === 'advanced').length
+        };
+        
+        // Update stat cards
+        const totalStylesEl = document.getElementById('totalStyles');
+        const totalCategoriesEl = document.getElementById('totalCategories');
+        const totalMovesEl = document.getElementById('totalMoves');
+        
+        if (totalStylesEl) totalStylesEl.textContent = stats.total.toLocaleString();
+        if (totalCategoriesEl) totalCategoriesEl.textContent = '0'; // Placeholder
+        if (totalMovesEl) totalMovesEl.textContent = '0'; // Placeholder
+    }
+
+    // 🎯 Set up event listeners
+    setupEventListeners() {
+        // Search input
+        const searchInput = document.getElementById('styleSearch');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.applyFilters();
+                }, 500);
+            });
+        }
+    }
+
+    // 🔍 Apply filters
+    applyFilters() {
+        const searchInput = document.getElementById('styleSearch');
+        const searchTerm = searchInput?.value.toLowerCase() || '';
+        
+        let filteredStyles = this.danceStyles;
+        
+        // Apply search filter
+        if (searchTerm) {
+            filteredStyles = filteredStyles.filter(style =>
+                style.name.toLowerCase().includes(searchTerm) ||
+                style.description.toLowerCase().includes(searchTerm) ||
+                (style.cultural_origin && style.cultural_origin.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        this.renderFilteredStyles(filteredStyles);
+    }
+
     // 🧹 Clear filters
     clearFilters() {
-        document.getElementById('styleSearchInput').value = '';
-        document.getElementById('difficultyFilter').value = '';
-        document.getElementById('featuredFilter').value = '';
+        const searchInput = document.getElementById('styleSearch');
+        if (searchInput) searchInput.value = '';
         
         this.renderDanceStyles();
     }
 
-    // 🔄 Refresh styles
-    async refreshStyles() {
-        console.log('🔄 Refreshing dance style data...');
-        await this.loadDanceStyles();
-        this.showSuccessMessage('Dance style data refreshed successfully');
+    // 🔄 Set up real-time updates
+    setupRealTimeUpdates() {
+        // Auto-refresh every 5 minutes
+        setInterval(() => {
+            this.loadDanceStyles();
+        }, 300000);
     }
 
-    // ✅ Toggle style selection
+    // ➕ Show create style modal
+    showCreateStyleModal() {
+        const modal = document.getElementById('styleModal');
+        if (modal) {
+            const form = modal.querySelector('#styleForm');
+            if (form) form.reset();
+            
+            const title = modal.querySelector('.modal-title');
+            if (title) title.textContent = '✨ Create Dance Style';
+            
+            modal.style.display = 'flex';
+        }
+    }
+
+    // ✏️ Edit style
+    editStyle(styleId) {
+        const style = this.danceStyles.find(s => s.id === styleId);
+        if (!style) return;
+        
+        const modal = document.getElementById('styleModal');
+        if (modal) {
+            const form = modal.querySelector('#styleForm');
+            if (form) {
+                form.name.value = style.name || '';
+                form.description.value = style.description || '';
+                form.icon.value = style.icon || '';
+                form.color.value = style.color || '#FF69B4';
+                form.difficulty.value = style.difficulty_level || 'beginner';
+                form.origin.value = style.cultural_origin || '';
+            }
+            
+            const title = modal.querySelector('.modal-title');
+            if (title) title.textContent = '✏️ Edit Dance Style';
+            
+            modal.style.display = 'flex';
+        }
+    }
+
+    // 👁️ View style details
+    viewStyle(styleId) {
+        const style = this.danceStyles.find(s => s.id === styleId);
+        if (!style) return;
+        
+        console.log('Viewing style:', style);
+        // Implement style detail view
+    }
+
+    // 🗑️ Delete style
+    async deleteStyle(styleId) {
+        if (!confirm('Are you sure you want to delete this dance style? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await this.api.deleteDanceStyle(styleId);
+            
+            if (response.success) {
+                this.showSuccessMessage('Dance style deleted successfully');
+                await this.loadDanceStyles(); // Reload data
+            } else {
+                throw new Error(response.error || 'Failed to delete dance style');
+            }
+        } catch (error) {
+            console.error('❌ Error deleting dance style:', error);
+            this.showErrorMessage('Failed to delete dance style: ' + error.message);
+        }
+    }
+
+    // 🔀 Toggle style selection
     toggleStyleSelection(styleId) {
         if (this.selectedStyles.has(styleId)) {
             this.selectedStyles.delete(styleId);
@@ -329,46 +343,75 @@ class DanceStyleManager {
             this.selectedStyles.add(styleId);
         }
         
-        this.updateBulkActionButtons();
+        // Update UI
+        const card = document.querySelector(`[data-style-id="${styleId}"]`);
+        if (card) {
+            card.classList.toggle('selected', this.selectedStyles.has(styleId));
+        }
     }
 
-    // 🎯 Update bulk action buttons
-    updateBulkActionButtons() {
-        const bulkActionContainer = document.getElementById('bulkActionContainer');
-        const selectedCount = this.selectedStyles.size;
+    // 💾 Save style form
+    async saveStyleForm() {
+        const form = document.getElementById('styleForm');
+        if (!form) return;
         
-        if (bulkActionContainer) {
-            if (selectedCount > 0) {
-                bulkActionContainer.style.display = 'block';
-                bulkActionContainer.querySelector('.selected-count').textContent = selectedCount;
+        const formData = new FormData(form);
+        const styleData = {
+            name: formData.get('name'),
+            description: formData.get('description'),
+            icon: formData.get('icon'),
+            color: formData.get('color'),
+            difficulty_level: formData.get('difficulty'),
+            cultural_origin: formData.get('origin')
+        };
+        
+        try {
+            const response = await this.api.createDanceStyle(styleData);
+            
+            if (response.success) {
+                this.showSuccessMessage('Dance style created successfully');
+                document.getElementById('styleModal').style.display = 'none';
+                await this.loadDanceStyles(); // Reload data
             } else {
-                bulkActionContainer.style.display = 'none';
+                throw new Error(response.error || 'Failed to create dance style');
             }
-        }
-    }
-
-    // 👁️ View style details
-    async viewStyle(styleId) {
-        try {
-            const response = await this.api.getDanceStyle(styleId);
-            
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to load dance style');
-            }
-            
-            this.showStyleModal(response.data, 'view');
-            
         } catch (error) {
-            console.error('❌ Failed to load dance style:', error);
-            this.showErrorMessage('Failed to load dance style details: ' + error.message);
+            console.error('❌ Error creating dance style:', error);
+            this.showErrorMessage('Failed to create dance style: ' + error.message);
         }
     }
 
-    // ✏️ Edit style
-    async editStyle(styleId) {
-        try {
-            const response = await this.api.getDanceStyle(styleId);
-            
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to load dance style');
-            }
+    // 🎨 Show loading state
+    showLoadingState() {
+        const container = document.getElementById('danceStylesGrid');
+        if (container) {
+            container.innerHTML = `
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading dance styles...</div>
+                </div>
+            `;
+        }
+    }
+
+    // 🎨 Hide loading state
+    hideLoadingState() {
+        // Loading state will be replaced by actual content
+    }
+
+    // ✅ Show success message
+    showSuccessMessage(message) {
+        console.log('✅ Success:', message);
+        // Implement success notification
+    }
+
+    // ❌ Show error message
+    showErrorMessage(message) {
+        console.error('❌ Error:', message);
+        // Implement error notification
+    }
+}
+
+// Make the class available globally
+window.DanceStyleManager = DanceStyleManager;
+console.log('🎭 Dance Style Manager loaded');
