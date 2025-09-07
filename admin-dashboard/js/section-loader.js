@@ -1,617 +1,108 @@
-// 💃 Dancify Admin Dashboard - Section Loader
-// Handles dynamic loading of HTML sections and their associated JavaScript
-// Provides seamless navigation between different admin sections
-
-class DancifySectionLoader {
-    constructor() {
-        this.loadedSections = new Set();
-        this.sectionCache = new Map();
-        this.activeSection = null;
-        this.loadingPromises = new Map();
+// 🔧 Initialize section-specific functionality - COMPLETELY FIXED
+async initializeSectionFunctionality(sectionName) {
+    try {
+        console.log(`🔧 Initializing section functionality: ${sectionName}`);
         
-        // Section configuration - FIXED: Set all jsFile to null to prevent loading errors
-        this.sectionConfig = {
-            'dashboard': {
-                htmlFile: 'sections/dashboard.html',
-                jsFile: null, // Dashboard JS is already loaded
-                title: 'Dashboard',
-                icon: '📊',
-                requiresAuth: true
-            },
-            'users': {
-                htmlFile: 'sections/users.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'User Management',
-                icon: '👥',
-                requiresAuth: true
-            },
-            'move-management': {
-                htmlFile: 'sections/move-management.html',
-                jsFile: null, // Moves JS is already loaded
-                title: 'Move Management',
-                icon: '🕺',
-                requiresAuth: true
-            },
-            'dance-style-management': {
-                htmlFile: 'sections/dance-style-management.html',
-                jsFile: null, // Styles JS is already loaded
-                title: 'Dance Style Management',
-                icon: '🎭',
-                requiresAuth: true
-            },
-            'move-submissions': {
-                htmlFile: 'sections/move-submissions.html',
-                jsFile: null, // Submissions JS is already loaded
-                title: 'Move Submissions',
-                icon: '📹',
-                requiresAuth: true
-            },
-            'choreography': {
-                htmlFile: 'sections/choreography.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Choreography Management',
-                icon: '🎵',
-                requiresAuth: true
-            },
-            'instructor-applications': {
-                htmlFile: 'sections/instructor-applications.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Instructor Applications',
-                icon: '🎓',
-                requiresAuth: true
-            },
-            'feedback': {
-                htmlFile: 'sections/feedback.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'User Feedback',
-                icon: '💬',
-                requiresAuth: true
-            },
-            'social-posts': {
-                htmlFile: 'sections/social-posts.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Social Posts',
-                icon: '📱',
-                requiresAuth: true
-            },
-            'reports': {
-                htmlFile: 'sections/reports.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Reports',
-                icon: '📈',
-                requiresAuth: true
-            },
-            'analytics': {
-                htmlFile: 'sections/analytics.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Analytics',
-                icon: '📊',
-                requiresAuth: true
-            },
-            'settings': {
-                htmlFile: 'sections/settings.html',
-                jsFile: null, // FIXED: No separate JS file yet
-                title: 'Settings',
-                icon: '⚙️',
-                requiresAuth: true
-            }
-        };
-        
-        // Track initialization attempts to prevent infinite loops
-        this.initializationAttempts = new Map();
-        this.maxAttempts = 3;
-    }
-
-    // 🚀 Initialize section loader
-    init() {
-        console.log('📂 Initializing Section Loader...');
-        this.setupEventListeners();
-        console.log('✅ Section Loader initialized');
-    }
-
-    // 📄 Load a specific section
-    async loadSection(sectionName) {
-        try {
-            console.log(`📂 Loading section: ${sectionName}`);
-            
-            // Validate section exists
-            if (!this.sectionConfig[sectionName]) {
-                throw new Error(`Unknown section: ${sectionName}`);
-            }
-            
-            const config = this.sectionConfig[sectionName];
-            
-            // Check authentication if required
-            if (config.requiresAuth && !this.checkAuthentication()) {
-                throw new Error('Authentication required');
-            }
-            
-            // Check if already loading
-            if (this.loadingPromises.has(sectionName)) {
-                return await this.loadingPromises.get(sectionName);
-            }
-            
-            // Start loading
-            const loadingPromise = this.performSectionLoad(sectionName, config);
-            this.loadingPromises.set(sectionName, loadingPromise);
-            
-            try {
-                await loadingPromise;
-                
-                // Activate section
-                this.activateSection(sectionName);
-                
-                // Update page state
-                this.updatePageState(sectionName, config);
-                
-                console.log(`✅ Section ${sectionName} loaded successfully`);
-                return true;
-                
-            } finally {
-                this.loadingPromises.delete(sectionName);
-            }
-            
-        } catch (error) {
-            console.error(`❌ Failed to load section ${sectionName}:`, error);
-            this.showSectionError(sectionName, error.message);
-            return false;
-        }
-    }
-
-    // 🔧 Perform the actual section loading
-    async performSectionLoad(sectionName, config) {
-        // Check if section is already loaded and cached
-        if (this.loadedSections.has(sectionName) && this.sectionCache.has(sectionName)) {
-            console.log(`📋 Using cached section: ${sectionName}`);
+        // Track initialization attempts
+        const attempts = this.initializationAttempts.get(sectionName) || 0;
+        if (attempts >= this.maxAttempts) {
+            console.warn(`⚠️ Max initialization attempts reached for ${sectionName}`);
             return;
         }
         
-        // Load HTML content
-        if (config.htmlFile) {
-            await this.loadSectionHTML(sectionName, config.htmlFile);
-        }
+        this.initializationAttempts.set(sectionName, attempts + 1);
         
-        // Load JavaScript if specified - FIXED: Only load if file exists
-        if (config.jsFile && !this.isScriptLoaded(config.jsFile)) {
-            try {
-                await this.loadSectionScript(config.jsFile);
-            } catch (error) {
-                console.warn(`⚠️ Failed to load optional script ${config.jsFile}, continuing without it`);
-                // Don't throw - continue loading the section
-            }
-        }
-        
-        // Initialize section-specific functionality
-        await this.initializeSectionFunctionality(sectionName);
-        
-        // Mark as loaded
-        this.loadedSections.add(sectionName);
-    }
-
-    // 📄 Load section HTML
-    async loadSectionHTML(sectionName, htmlFile) {
-        try {
-            // Check cache first
-            if (this.sectionCache.has(sectionName)) {
-                this.injectSectionHTML(sectionName, this.sectionCache.get(sectionName));
-                return;
-            }
-            
-            console.log(`📄 Loading HTML: ${htmlFile}`);
-            
-            const response = await fetch(htmlFile);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const html = await response.text();
-            
-            // Cache the HTML
-            this.sectionCache.set(sectionName, html);
-            
-            // Inject into DOM
-            this.injectSectionHTML(sectionName, html);
-            
-        } catch (error) {
-            console.error(`❌ Failed to load HTML for ${sectionName}:`, error);
-            // Create fallback content
-            this.createFallbackSection(sectionName);
-        }
-    }
-
-    // 💉 Inject section HTML into DOM - FIXED
-    injectSectionHTML(sectionName, html) {
-        let sectionElement = document.getElementById(sectionName);
-        
-        if (!sectionElement) {
-            // Create new section element
-            sectionElement = document.createElement('section');
-            sectionElement.id = sectionName;
-            sectionElement.className = 'content-section';
-            
-            // FIXED: Use correct container selector
-            const contentContainer = document.querySelector('.content-container');
-            if (contentContainer) {
-                contentContainer.appendChild(sectionElement);
-            } else {
-                console.error('❌ Content container not found');
-                return;
-            }
-        }
-        
-        // Set content - FIXED: Replace placeholder content
-        sectionElement.innerHTML = html;
-        
-        console.log(`📄 HTML injected for section: ${sectionName}`);
-    }
-
-    // 📜 Load section JavaScript
-    async loadSectionScript(jsFile) {
-        try {
-            console.log(`📜 Loading script: ${jsFile}`);
-            
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = jsFile;
-                script.async = true;
+        // Initialize based on section type
+        switch (sectionName) {
+            case 'dashboard':
+                if (window.DancifyDashboard && window.apiClient) {
+                    if (!window.dashboardManager) {
+                        console.log('📊 Creating Dashboard instance...');
+                        window.dashboardManager = new window.DancifyDashboard(window.apiClient);
+                    }
+                    if (typeof window.dashboardManager.init === 'function') {
+                        await window.dashboardManager.init();
+                        console.log('✅ Dashboard initialized successfully');
+                    }
+                }
+                break;
                 
-                script.onload = () => {
-                    console.log(`✅ Script loaded: ${jsFile}`);
-                    resolve();
-                };
+            case 'move-management':
+                // FIXED: Proper MoveManager initialization
+                console.log('🕺 Initializing Move Management...');
                 
-                script.onerror = (error) => {
-                    console.error(`❌ Failed to load script: ${jsFile}`, error);
-                    reject(new Error(`Failed to load script: ${jsFile}`));
-                };
+                // Check if we have the required classes
+                if (!window.MoveManager) {
+                    console.error('❌ MoveManager class not found');
+                    throw new Error('MoveManager class not available');
+                }
                 
-                document.head.appendChild(script);
-            });
-        } catch (error) {
-            console.error(`❌ Script loading error for ${jsFile}:`, error);
-            throw error;
-        }
-    }
-
-    // 🔧 Initialize section-specific functionality - FIXED
-    async initializeSectionFunctionality(sectionName) {
-        try {
-            // Track initialization attempts
-            const attempts = this.initializationAttempts.get(sectionName) || 0;
-            if (attempts >= this.maxAttempts) {
-                console.warn(`⚠️ Max initialization attempts reached for ${sectionName}`);
-                return;
-            }
-            
-            this.initializationAttempts.set(sectionName, attempts + 1);
-            
-            // Initialize based on section type
-            switch (sectionName) {
-                case 'dashboard':
-                    if (window.dancifyAdmin?.modules?.dashboard) {
-                        await window.dancifyAdmin.modules.dashboard.refresh();
+                if (!window.apiClient) {
+                    console.error('❌ API client not found');
+                    throw new Error('API client not available');
+                }
+                
+                // Create MoveManager instance if it doesn't exist
+                if (!window.moveManager) {
+                    console.log('🕺 Creating MoveManager instance...');
+                    window.moveManager = new window.MoveManager(window.apiClient);
+                    console.log('✅ MoveManager instance created');
+                }
+                
+                // Initialize the move manager
+                if (typeof window.moveManager.init === 'function') {
+                    console.log('🕺 Calling MoveManager.init()...');
+                    await window.moveManager.init();
+                    console.log('✅ MoveManager initialized successfully');
+                } else {
+                    console.error('❌ MoveManager.init() method not found');
+                }
+                break;
+                
+            case 'dance-style-management':
+                if (window.DanceStyleManager && window.apiClient) {
+                    if (!window.styleManager) {
+                        window.styleManager = new window.DanceStyleManager(window.apiClient);
                     }
-                    break;
-                    
-                case 'move-management':
-                    // FIXED: Create MoveManager instance if it doesn't exist
-                    if (window.MoveManager && window.apiClient) {
-                        if (!window.moveManager) {
-                            console.log('🕺 Creating MoveManager instance...');
-                            window.moveManager = new window.MoveManager(window.apiClient);
-                        }
-                        if (typeof window.moveManager.init === 'function') {
-                            console.log('🕺 Initializing MoveManager...');
-                            await window.moveManager.init();
-                            console.log('✅ MoveManager initialized successfully');
-                        }
-                    } else {
-                        console.error('❌ MoveManager class or apiClient not available');
-                        console.log('Available classes:', Object.keys(window).filter(key => key.includes('Manager')));
-                        console.log('apiClient available:', !!window.apiClient);
+                    if (typeof window.styleManager.init === 'function') {
+                        await window.styleManager.init();
                     }
-                    break;
-                    
-                case 'dance-style-management':
-                    // FIXED: Create StyleManager instance if it doesn't exist
-                    if (window.DanceStyleManager && window.apiClient) {
-                        if (!window.styleManager) {
-                            console.log('🎭 Creating StyleManager instance...');
-                            window.styleManager = new window.DanceStyleManager(window.apiClient);
-                        }
-                        if (typeof window.styleManager.init === 'function') {
-                            await window.styleManager.init();
-                        }
-                    } else {
-                        console.log('ℹ️ DanceStyleManager not available yet');
+                }
+                break;
+                
+            case 'move-submissions':
+                if (window.SubmissionManager && window.apiClient) {
+                    if (!window.submissionManager) {
+                        window.submissionManager = new window.SubmissionManager(window.apiClient);
                     }
-                    break;
-                    
-                case 'move-submissions':
-                    // FIXED: Create SubmissionManager instance if it doesn't exist
-                    if (window.SubmissionManager && window.apiClient) {
-                        if (!window.submissionManager) {
-                            console.log('📹 Creating SubmissionManager instance...');
-                            window.submissionManager = new window.SubmissionManager(window.apiClient);
-                        }
-                        if (typeof window.submissionManager.init === 'function') {
-                            await window.submissionManager.init();
-                        }
-                    } else {
-                        console.log('ℹ️ SubmissionManager not available yet');
+                    if (typeof window.submissionManager.init === 'function') {
+                        await window.submissionManager.init();
                     }
-                    break;
-                    
-                case 'users':
-                    // FIXED: Users section works without separate JS file
-                    console.log(`ℹ️ Users section loaded (no separate JS required)`);
-                    break;
-                    
-                case 'choreography':
-                case 'instructor-applications':
-                case 'feedback':
-                case 'social-posts':
-                case 'reports':
-                case 'analytics':
-                case 'settings':
-                    // FIXED: These sections work with HTML only for now
-                    console.log(`ℹ️ ${sectionName} section loaded (no separate JS required)`);
-                    break;
-                    
-                default:
-                    // For other sections, try to find and call their init functions
-                    await this.initializeGenericSection(sectionName);
-                    break;
-            }
-            
-            console.log(`🔧 Section functionality initialized: ${sectionName}`);
-            
-        } catch (error) {
-            console.error(`❌ Failed to initialize section functionality for ${sectionName}:`, error);
-            // Don't throw - allow section to load without full functionality
-        }
-    }
-
-    // 🔧 Initialize generic section functionality
-    async initializeGenericSection(sectionName) {
-        // Try to find a manager or init function
-        const possibleNames = [
-            `${sectionName}Manager`,
-            `${sectionName.replace(/-/g, '')}Manager`,
-            `${sectionName.replace(/-/g, '').toLowerCase()}Manager`
-        ];
-        
-        for (const name of possibleNames) {
-            if (window[name] && typeof window[name].init === 'function') {
-                await window[name].init();
-                console.log(`🔧 Initialized ${name} for section ${sectionName}`);
-                return;
-            }
+                }
+                break;
+                
+            case 'users':
+                if (window.UserManager && window.apiClient) {
+                    if (!window.userManager) {
+                        window.userManager = new window.UserManager(window.apiClient);
+                    }
+                    if (typeof window.userManager.init === 'function') {
+                        await window.userManager.init();
+                    }
+                }
+                break;
+                
+            default:
+                console.log(`ℹ️ No specific initialization for section: ${sectionName}`);
+                break;
         }
         
-        // Try to find standalone init functions
-        const initFunctionNames = [
-            `init${sectionName.replace(/-/g, '').replace(/^./, str => str.toUpperCase())}`,
-            `initialize${sectionName.replace(/-/g, '').replace(/^./, str => str.toUpperCase())}`
-        ];
+        console.log(`✅ Section functionality initialized: ${sectionName}`);
         
-        for (const funcName of initFunctionNames) {
-            if (typeof window[funcName] === 'function') {
-                await window[funcName]();
-                console.log(`🔧 Called ${funcName} for section ${sectionName}`);
-                return;
-            }
-        }
-        
-        console.log(`ℹ️ No specific initialization found for section: ${sectionName}`);
-    }
-
-    // ✨ Activate section (show/hide) - COMPLETELY FIXED
-    activateSection(sectionName) {
-        console.log(`✨ Activating section: ${sectionName}`);
-        
-        // Hide all sections
-        const allSections = document.querySelectorAll('.content-section');
-        console.log(`✨ Found ${allSections.length} total sections`);
-        
-        allSections.forEach(section => {
-            section.classList.remove('active');
-            section.style.display = 'none'; // FIXED: Force hide
-        });
-        
-        // Show target section
-        const targetSection = document.getElementById(sectionName);
-        if (targetSection) {
-            targetSection.classList.add('active');
-            targetSection.style.display = 'block'; // FIXED: Force show
-            this.activeSection = sectionName;
-            
-            console.log(`✨ Section ${sectionName} activated successfully`);
-            console.log(`✨ Section classes: ${targetSection.className}`);
-            console.log(`✨ Section display: ${getComputedStyle(targetSection).display}`);
-        } else {
-            console.error(`❌ Section ${sectionName} not found for activation`);
-        }
-    }
-
-    // 🔄 Update page state
-    updatePageState(sectionName, config) {
-        // Update page title
-        document.title = `${config.title} - Dancify Admin`;
-        
-        // Update URL hash
-        if (window.location.hash !== `#${sectionName}`) {
-            window.history.pushState(null, null, `#${sectionName}`);
-        }
-        
-        // Update navigation active state
-        this.updateNavigationState(sectionName);
-    }
-
-    // 🧭 Update navigation active state
-    updateNavigationState(sectionName) {
-        const navItems = document.querySelectorAll('[data-section]');
-        navItems.forEach(item => {
-            if (item.dataset.section === sectionName) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
-        });
-    }
-
-    // 🔐 Check authentication (placeholder)
-    checkAuthentication() {
-        // TODO: Implement actual authentication check
-        return true;
-    }
-
-    // 📜 Check if script is already loaded
-    isScriptLoaded(jsFile) {
-        const scripts = document.querySelectorAll('script[src]');
-        return Array.from(scripts).some(script => script.src.includes(jsFile));
-    }
-
-    // 🔧 Create fallback section
-    createFallbackSection(sectionName) {
-        const config = this.sectionConfig[sectionName];
-        const fallbackHTML = `
-            <div class="section-error">
-                <div class="error-content">
-                    <div class="error-icon">⚠️</div>
-                    <h2>Failed to Load ${config.title}</h2>
-                    <p class="error-message">Unable to load section content</p>
-                    <div class="error-actions">
-                        <button class="btn btn-primary" onclick="sectionLoader.loadSection('${sectionName}')">
-                            🔄 Retry
-                        </button>
-                        <button class="btn btn-secondary" onclick="sectionLoader.loadSection('dashboard')">
-                            🏠 Go to Dashboard
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.injectSectionHTML(sectionName, fallbackHTML);
-    }
-
-    // ❌ Show section error
-    showSectionError(sectionName, errorMessage) {
-        const config = this.sectionConfig[sectionName];
-        const errorHTML = `
-            <div class="section-error">
-                <div class="error-content">
-                    <div class="error-icon">⚠️</div>
-                    <h2>Failed to Load ${config.title}</h2>
-                    <p class="error-message">${this.escapeHtml(errorMessage)}</p>
-                    <div class="error-actions">
-                        <button class="btn btn-primary" onclick="sectionLoader.loadSection('${sectionName}')">
-                            🔄 Retry
-                        </button>
-                        <button class="btn btn-secondary" onclick="sectionLoader.loadSection('dashboard')">
-                            🏠 Go to Dashboard
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.injectSectionHTML(sectionName, errorHTML);
-    }
-
-    // 🔗 Setup event listeners
-    setupEventListeners() {
-        // Listen for hash changes
-        window.addEventListener('hashchange', () => {
-            const hash = window.location.hash.slice(1);
-            if (hash && this.sectionConfig[hash]) {
-                this.loadSection(hash);
-            }
-        });
-        
-        // Listen for section navigation clicks
-        document.addEventListener('click', (e) => {
-            const sectionLink = e.target.closest('[data-section]');
-            if (sectionLink) {
-                e.preventDefault();
-                const sectionName = sectionLink.dataset.section;
-                this.loadSection(sectionName);
-            }
-        });
-    }
-
-    // 🧹 Clear cache
-    clearCache() {
-        this.sectionCache.clear();
-        this.loadedSections.clear();
-        console.log('🧹 Section cache cleared');
-    }
-
-    // 🔄 Refresh current section
-    async refreshCurrentSection() {
-        if (this.activeSection) {
-            await this.loadSection(this.activeSection);
-        }
-    }
-
-    // 📋 Preload section
-    async preloadSection(sectionName) {
-        if (!this.loadedSections.has(sectionName)) {
-            try {
-                await this.performSectionLoad(sectionName, this.sectionConfig[sectionName]);
-                console.log(`📋 Preloaded section: ${sectionName}`);
-            } catch (error) {
-                console.warn(`⚠️ Failed to preload section ${sectionName}:`, error);
-            }
-        }
-    }
-
-    // 🔍 Get section info
-    getSectionInfo(sectionName) {
-        return {
-            config: this.sectionConfig[sectionName],
-            isLoaded: this.loadedSections.has(sectionName),
-            isActive: this.activeSection === sectionName,
-            isCached: this.sectionCache.has(sectionName)
-        };
-    }
-
-    // 📊 Get loader statistics
-    getStats() {
-        return {
-            totalSections: Object.keys(this.sectionConfig).length,
-            loadedSections: this.loadedSections.size,
-            cachedSections: this.sectionCache.size,
-            activeSection: this.activeSection,
-            loadingPromises: this.loadingPromises.size
-        };
-    }
-
-    // 🔧 Utility methods
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // 🧹 Cleanup
-    cleanup() {
-        // Clear all caches and states
-        this.loadedSections.clear();
-        this.sectionCache.clear();
-        this.loadingPromises.clear();
-        this.initializationAttempts.clear();
-        this.activeSection = null;
-        
-        console.log('🧹 Section loader cleanup completed');
+    } catch (error) {
+        console.error(`❌ Failed to initialize section functionality for ${sectionName}:`, error);
+        // Show error message to user
+        this.showSectionError(sectionName, `Failed to initialize: ${error.message}`);
+        throw error; // Re-throw to prevent section from appearing to load successfully
     }
 }
-
-// 🌐 Export for global use
-window.DancifySectionLoader = DancifySectionLoader;
-
-// Create global instance
-window.sectionLoader = new DancifySectionLoader();
-
-console.log('📂 Dancify Section Loader loaded');
