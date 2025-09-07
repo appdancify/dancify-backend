@@ -1,108 +1,152 @@
-// 🔧 Initialize section-specific functionality - COMPLETELY FIXED
-async initializeSectionFunctionality(sectionName) {
-    try {
-        console.log(`🔧 Initializing section functionality: ${sectionName}`);
+class DancifySectionLoader {
+    constructor() {
+        this.loadedSections = new Set();
+        this.sectionCache = new Map();
+        this.activeSection = null;
+        this.loadingPromises = new Map();
+        this.initializationAttempts = new Map();
+        this.maxAttempts = 3;
         
-        // Track initialization attempts
-        const attempts = this.initializationAttempts.get(sectionName) || 0;
-        if (attempts >= this.maxAttempts) {
-            console.warn(`⚠️ Max initialization attempts reached for ${sectionName}`);
-            return;
+        this.sectionConfig = {
+            'dashboard': {
+                htmlFile: 'sections/dashboard.html',
+                title: 'Dashboard',
+                icon: '📊'
+            },
+            'move-management': {
+                htmlFile: 'sections/move-management.html',
+                title: 'Move Management',
+                icon: '🕺'
+            },
+            'users': {
+                htmlFile: 'sections/users.html',
+                title: 'User Management',
+                icon: '👥'
+            }
+        };
+    }
+
+    init() {
+        console.log('📂 Section Loader initialized');
+        this.setupEventListeners();
+    }
+
+    async loadSection(sectionName) {
+        try {
+            console.log(`📂 Loading section: ${sectionName}`);
+            
+            if (!this.sectionConfig[sectionName]) {
+                throw new Error(`Unknown section: ${sectionName}`);
+            }
+            
+            const config = this.sectionConfig[sectionName];
+            await this.loadSectionHTML(sectionName, config.htmlFile);
+            await this.initializeSectionFunctionality(sectionName);
+            this.activateSection(sectionName);
+            
+            console.log(`✅ Section ${sectionName} loaded`);
+            return true;
+            
+        } catch (error) {
+            console.error(`❌ Failed to load section ${sectionName}:`, error);
+            return false;
+        }
+    }
+
+    async loadSectionHTML(sectionName, htmlFile) {
+        try {
+            console.log(`📄 Loading HTML: ${htmlFile}`);
+            
+            const response = await fetch(htmlFile);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const html = await response.text();
+            this.injectSectionHTML(sectionName, html);
+            
+        } catch (error) {
+            console.error(`❌ Failed to load HTML for ${sectionName}:`, error);
+        }
+    }
+
+    injectSectionHTML(sectionName, html) {
+        let sectionElement = document.getElementById(sectionName);
+        
+        if (!sectionElement) {
+            sectionElement = document.createElement('section');
+            sectionElement.id = sectionName;
+            sectionElement.className = 'content-section';
+            
+            const contentContainer = document.querySelector('.content-container');
+            if (contentContainer) {
+                contentContainer.appendChild(sectionElement);
+            }
         }
         
-        this.initializationAttempts.set(sectionName, attempts + 1);
-        
-        // Initialize based on section type
-        switch (sectionName) {
-            case 'dashboard':
-                if (window.DancifyDashboard && window.apiClient) {
-                    if (!window.dashboardManager) {
-                        console.log('📊 Creating Dashboard instance...');
-                        window.dashboardManager = new window.DancifyDashboard(window.apiClient);
+        sectionElement.innerHTML = html;
+        console.log(`📄 HTML injected for section: ${sectionName}`);
+    }
+
+    async initializeSectionFunctionality(sectionName) {
+        try {
+            console.log(`🔧 Initializing: ${sectionName}`);
+            
+            switch (sectionName) {
+                case 'move-management':
+                    if (window.MoveManager && window.apiClient) {
+                        if (!window.moveManager) {
+                            window.moveManager = new window.MoveManager(window.apiClient);
+                        }
+                        if (typeof window.moveManager.init === 'function') {
+                            await window.moveManager.init();
+                        }
                     }
-                    if (typeof window.dashboardManager.init === 'function') {
-                        await window.dashboardManager.init();
-                        console.log('✅ Dashboard initialized successfully');
+                    break;
+                    
+                case 'dashboard':
+                    if (window.DancifyDashboard && window.apiClient) {
+                        if (!window.dashboardManager) {
+                            window.dashboardManager = new window.DancifyDashboard(window.apiClient);
+                        }
+                        if (typeof window.dashboardManager.init === 'function') {
+                            await window.dashboardManager.init();
+                        }
                     }
-                }
-                break;
-                
-            case 'move-management':
-                // FIXED: Proper MoveManager initialization
-                console.log('🕺 Initializing Move Management...');
-                
-                // Check if we have the required classes
-                if (!window.MoveManager) {
-                    console.error('❌ MoveManager class not found');
-                    throw new Error('MoveManager class not available');
-                }
-                
-                if (!window.apiClient) {
-                    console.error('❌ API client not found');
-                    throw new Error('API client not available');
-                }
-                
-                // Create MoveManager instance if it doesn't exist
-                if (!window.moveManager) {
-                    console.log('🕺 Creating MoveManager instance...');
-                    window.moveManager = new window.MoveManager(window.apiClient);
-                    console.log('✅ MoveManager instance created');
-                }
-                
-                // Initialize the move manager
-                if (typeof window.moveManager.init === 'function') {
-                    console.log('🕺 Calling MoveManager.init()...');
-                    await window.moveManager.init();
-                    console.log('✅ MoveManager initialized successfully');
-                } else {
-                    console.error('❌ MoveManager.init() method not found');
-                }
-                break;
-                
-            case 'dance-style-management':
-                if (window.DanceStyleManager && window.apiClient) {
-                    if (!window.styleManager) {
-                        window.styleManager = new window.DanceStyleManager(window.apiClient);
-                    }
-                    if (typeof window.styleManager.init === 'function') {
-                        await window.styleManager.init();
-                    }
-                }
-                break;
-                
-            case 'move-submissions':
-                if (window.SubmissionManager && window.apiClient) {
-                    if (!window.submissionManager) {
-                        window.submissionManager = new window.SubmissionManager(window.apiClient);
-                    }
-                    if (typeof window.submissionManager.init === 'function') {
-                        await window.submissionManager.init();
-                    }
-                }
-                break;
-                
-            case 'users':
-                if (window.UserManager && window.apiClient) {
-                    if (!window.userManager) {
-                        window.userManager = new window.UserManager(window.apiClient);
-                    }
-                    if (typeof window.userManager.init === 'function') {
-                        await window.userManager.init();
-                    }
-                }
-                break;
-                
-            default:
-                console.log(`ℹ️ No specific initialization for section: ${sectionName}`);
-                break;
+                    break;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Init failed for ${sectionName}:`, error);
         }
+    }
+
+    activateSection(sectionName) {
+        const allSections = document.querySelectorAll('.content-section');
+        allSections.forEach(section => {
+            section.classList.remove('active');
+            section.style.display = 'none';
+        });
         
-        console.log(`✅ Section functionality initialized: ${sectionName}`);
-        
-    } catch (error) {
-        console.error(`❌ Failed to initialize section functionality for ${sectionName}:`, error);
-        // Show error message to user
-        this.showSectionError(sectionName, `Failed to initialize: ${error.message}`);
-        throw error; // Re-throw to prevent section from appearing to load successfully
+        const targetSection = document.getElementById(sectionName);
+        if (targetSection) {
+            targetSection.classList.add('active');
+            targetSection.style.display = 'block';
+            this.activeSection = sectionName;
+        }
+    }
+
+    setupEventListeners() {
+        document.addEventListener('click', (e) => {
+            const sectionLink = e.target.closest('[data-section]');
+            if (sectionLink) {
+                e.preventDefault();
+                const sectionName = sectionLink.dataset.section;
+                this.loadSection(sectionName);
+            }
+        });
     }
 }
+
+window.DancifySectionLoader = DancifySectionLoader;
+console.log('📂 Section Loader loaded');

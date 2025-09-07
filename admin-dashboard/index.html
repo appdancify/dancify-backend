@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https://dancify-media.s3.amazonaws.com; connect-src 'self' https://dancify-backend.onrender.com; font-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https:; font-src 'self' data:;">
     <title>Dancify Admin Dashboard</title>
     
     <!-- External Dependencies -->
@@ -43,7 +43,7 @@
                     Users
                 </a>
             </div>
-
+            
             <div class="nav-section">
                 <h3>Content Management</h3>
                 <a class="nav-item" data-section="move-management">
@@ -56,7 +56,7 @@
                 </a>
                 <a class="nav-item" data-section="move-submissions">
                     <span class="nav-icon">📹</span>
-                    Move Submissions
+                    Submissions
                 </a>
                 <a class="nav-item" data-section="choreography">
                     <span class="nav-icon">🎵</span>
@@ -65,14 +65,14 @@
             </div>
 
             <div class="nav-section">
-                <h3>Community</h3>
+                <h3>Learning & Growth</h3>
                 <a class="nav-item" data-section="instructor-applications">
                     <span class="nav-icon">🎓</span>
-                    Instructor Applications
+                    Instructors
                 </a>
                 <a class="nav-item" data-section="feedback">
                     <span class="nav-icon">💬</span>
-                    User Feedback
+                    Feedback
                 </a>
                 <a class="nav-item" data-section="social-posts">
                     <span class="nav-icon">📱</span>
@@ -81,7 +81,7 @@
             </div>
 
             <div class="nav-section">
-                <h3>Analytics</h3>
+                <h3>Analytics & Reports</h3>
                 <a class="nav-item" data-section="reports">
                     <span class="nav-icon">📈</span>
                     Reports
@@ -125,14 +125,21 @@
     <script src="/admin/js/main.js"></script>
 
     <script>
-        // Initialize the application when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Dancify Admin Dashboard starting...');
             
-            // Hide loading screen after initialization
+            // FIXED: Safe loading screen removal
             setTimeout(function() {
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContainer').style.display = 'flex';
+                const loadingScreen = document.getElementById('loadingScreen');
+                const mainContainer = document.getElementById('mainContainer');
+                
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                if (mainContainer) {
+                    mainContainer.style.display = 'flex';
+                }
+                
                 console.log('Dancify Admin Dashboard loaded');
             }, 1500);
         });
