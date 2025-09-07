@@ -493,3 +493,53 @@
     }
 }
 </style>
+
+<script>
+// TEMPORARY DEBUG SCRIPT
+setTimeout(() => {
+    console.log('🔍 DEBUG: Checking section visibility...');
+    
+    const section = document.getElementById('dance-style-management');
+    console.log('Section exists:', !!section);
+    console.log('Section display:', section ? getComputedStyle(section).display : 'N/A');
+    console.log('Section visibility:', section ? getComputedStyle(section).visibility : 'N/A');
+    console.log('Section opacity:', section ? getComputedStyle(section).opacity : 'N/A');
+    
+    const header = document.querySelector('#dance-style-management .section-header');
+    console.log('Header exists:', !!header);
+    console.log('Header display:', header ? getComputedStyle(header).display : 'N/A');
+    
+    const container = document.querySelector('#dance-style-management .styles-container');
+    console.log('Container exists:', !!container);
+    console.log('Container display:', container ? getComputedStyle(container).display : 'N/A');
+    
+    const grid = document.getElementById('danceStylesGrid');
+    console.log('Grid exists:', !!grid);
+    console.log('Grid innerHTML length:', grid ? grid.innerHTML.length : 0);
+    console.log('Grid innerHTML preview:', grid ? grid.innerHTML.substring(0, 200) : 'N/A');
+    
+    // Force visibility
+    if (section) {
+        section.style.display = 'block';
+        section.style.visibility = 'visible';
+        section.style.opacity = '1';
+        section.style.backgroundColor = '#f0f0f0';
+        section.style.minHeight = '500px';
+        console.log('🔧 Forced section visibility');
+    }
+    
+    if (header) {
+        header.style.display = 'flex';
+        header.style.backgroundColor = '#e0e0e0';
+        header.style.padding = '20px';
+        console.log('🔧 Forced header visibility');
+    }
+    
+    if (container) {
+        container.style.display = 'block';
+        container.style.backgroundColor = '#d0d0d0';
+        container.style.padding = '20px';
+        console.log('🔧 Forced container visibility');
+    }
+}, 3000);
+</script>
