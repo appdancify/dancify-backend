@@ -26,96 +26,46 @@ app.use(helmet({
   }
 }));
 
-// Rate limiting with different tiers
+// Rate limiting
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    error: 'Too many requests from this IP, please try again later.',
-    retryAfter: '15 minutes'
-  },
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false
 });
 
-const adminLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 200, // Higher limit for admin operations
-  message: {
-    success: false,
-    error: 'Too many admin requests from this IP, please try again later.',
-    retryAfter: '5 minutes'
-  }
-});
-
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Limit uploads
-  message: {
-    success: false,
-    error: 'Upload limit exceeded, please try again later.',
-    retryAfter: '1 hour'
-  }
-});
-
 app.use('/api', generalLimiter);
-app.use('/api/admin', adminLimiter);
-app.use('/api/*/upload', uploadLimiter);
 
-// CORS configuration - FIXED for Render deployment
+// CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, etc.)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:8080',
-      'https://dancify-admin.vercel.app',
-      'https://dancify-dashboard.netlify.app',
-      // Add Render domains
-      'https://dancify-backend.onrender.com',
-      'https://dancify-admin.onrender.com'
-    ];
-    
-    // In development or if origin contains onrender.com, allow all
     if (process.env.NODE_ENV === 'development' || 
         (origin && origin.includes('.onrender.com'))) {
       return callback(null, true);
     }
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(null, true); // Allow all for now, restrict in production
-    }
+    callback(null, true); // Allow all for now
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200
 }));
 
 // Body parsing middleware
-app.use(express.json({ 
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware
+// Request logging
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   console.log(`${timestamp} ${req.method} ${req.path} - ${req.ip}`);
   next();
 });
 
-// Serve static files for admin dashboard with proper MIME types
+// Serve static files for admin dashboard
 app.use('/admin', express.static(path.join(__dirname, 'admin-dashboard'), {
   setHeaders: (res, path) => {
     if (path.endsWith('.js')) {
@@ -128,11 +78,10 @@ app.use('/admin', express.static(path.join(__dirname, 'admin-dashboard'), {
   }
 }));
 
-// Health check endpoint with detailed information
+// Health check endpoints
 app.get('/health', async (req, res) => {
   let databaseStatus = 'connected';
   
-  // Test database connection
   try {
     const { error } = await supabase
       .from('dance_moves')
@@ -148,27 +97,16 @@ app.get('/health', async (req, res) => {
     console.error('Database health check error:', error);
   }
   
-  const healthCheck = {
+  res.status(databaseStatus === 'connected' ? 200 : 503).json({
     status: databaseStatus === 'connected' ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    database: {
-      status: databaseStatus,
-      provider: 'Supabase'
-    },
-    server: {
-      platform: process.platform,
-      nodeVersion: process.version,
-      memory: process.memoryUsage()
-    }
-  };
-  
-  res.status(databaseStatus === 'connected' ? 200 : 503).json(healthCheck);
+    database: { status: databaseStatus, provider: 'Supabase' }
+  });
 });
 
-// API health endpoint
 app.get('/api/health', async (req, res) => {
   try {
     const { error } = await supabase
@@ -200,7 +138,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// FIXED: Direct admin moves endpoints before other routes
+// ADMIN ENDPOINTS - Direct implementation to avoid import issues
 app.get('/api/admin/moves', async (req, res) => {
   try {
     console.log('🔍 Fetching admin moves...');
@@ -211,10 +149,7 @@ app.get('/api/admin/moves', async (req, res) => {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('❌ Database error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     console.log(`✅ Found ${data?.length || 0} moves`);
     
@@ -236,7 +171,6 @@ app.get('/api/admin/moves', async (req, res) => {
   }
 });
 
-// Create move endpoint
 app.post('/api/admin/moves', async (req, res) => {
   try {
     console.log('🆕 Creating new move:', req.body);
@@ -249,7 +183,14 @@ app.post('/api/admin/moves', async (req, res) => {
       instructor_id, instructor_name
     } = req.body;
 
-    // Extract video ID from YouTube URL
+    if (!name || !description || !detailed_instructions || !dance_style || !section || !difficulty) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['name', 'description', 'detailed_instructions', 'dance_style', 'section', 'difficulty']
+      });
+    }
+
     const videoId = video_url ? extractYouTubeId(video_url) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
@@ -281,10 +222,7 @@ app.post('/api/admin/moves', async (req, res) => {
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Database error creating move:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     console.log('✅ Move created successfully:', data.id);
 
@@ -304,15 +242,13 @@ app.post('/api/admin/moves', async (req, res) => {
   }
 });
 
-// Update move endpoint
 app.put('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
     
-    console.log('📝 Updating move:', id, updateData);
+    console.log('📝 Updating move:', id);
 
-    // Extract video ID if video URL is provided
     if (updateData.video_url) {
       const videoId = extractYouTubeId(updateData.video_url);
       updateData.video_id = videoId;
@@ -329,10 +265,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Database error updating move:', error);
-      throw error;
-    }
+    if (error) throw error;
     
     if (!data) {
       return res.status(404).json({
@@ -360,7 +293,6 @@ app.put('/api/admin/moves/:id', async (req, res) => {
   }
 });
 
-// Delete move endpoint
 app.delete('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -375,10 +307,7 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
       })
       .eq('id', id);
 
-    if (error) {
-      console.error('❌ Database error deleting move:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     console.log('✅ Move deleted successfully:', id);
 
@@ -397,105 +326,139 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
   }
 });
 
-// API Routes - MOVED AFTER the direct endpoints to avoid conflicts
-const movesRouter = require('./src/routes/moves');
-const danceStylesRouter = require('./src/routes/DanceStyles.js');
-const adminRouter = require('./src/routes/admin');
-const submissionsRouter = require('./src/routes/submissions');
-
-app.use('/api/moves', movesRouter);
-app.use('/api/dance-styles', danceStylesRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/submissions', submissionsRouter);
-
-// Submissions Routes
-app.get('/api/submissions', async (req, res) => {
+app.get('/api/admin/dashboard', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('move_submissions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    console.log('📊 Fetching dashboard data...');
 
-    if (error) throw error;
+    const [movesResult, stylesResult, submissionsResult] = await Promise.all([
+      supabase.from('dance_moves').select('id', { count: 'exact' }).eq('is_active', true),
+      supabase.from('dance_styles').select('id', { count: 'exact' }).eq('is_active', true),
+      supabase.from('move_submissions').select('id', { count: 'exact' })
+    ]);
+
+    const { data: recentMoves } = await supabase
+      .from('dance_moves')
+      .select('id, name, dance_style, difficulty, created_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(5);
 
     res.json({
       success: true,
-      data: data || [],
-      message: `Found ${data?.length || 0} submissions`,
-      timestamp: new Date().toISOString()
+      data: {
+        stats: {
+          totalMoves: movesResult.count || 0,
+          totalStyles: stylesResult.count || 0,
+          totalSubmissions: submissionsResult.count || 0
+        },
+        recentMoves: recentMoves || []
+      },
+      message: 'Dashboard data retrieved successfully'
     });
   } catch (error) {
-    console.error('Error fetching submissions:', error);
+    console.error('❌ Error fetching dashboard data:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      data: [],
-      timestamp: new Date().toISOString()
+      error: 'Failed to fetch dashboard data',
+      message: error.message
     });
   }
 });
 
-// Admin dashboard route - Serve index.html for the main admin route
+app.get('/api/admin/analytics', async (req, res) => {
+  try {
+    console.log('📈 Fetching analytics data...');
+
+    const { data: styleStats } = await supabase
+      .from('dance_moves')
+      .select('dance_style')
+      .eq('is_active', true);
+
+    const styleBreakdown = styleStats?.reduce((acc, move) => {
+      acc[move.dance_style] = (acc[move.dance_style] || 0) + 1;
+      return acc;
+    }, {}) || {};
+
+    const { data: difficultyStats } = await supabase
+      .from('dance_moves')
+      .select('difficulty')
+      .eq('is_active', true);
+
+    const difficultyBreakdown = difficultyStats?.reduce((acc, move) => {
+      acc[move.difficulty] = (acc[move.difficulty] || 0) + 1;
+      return acc;
+    }, {}) || {};
+
+    res.json({
+      success: true,
+      data: {
+        styleBreakdown,
+        difficultyBreakdown,
+        totalMoves: styleStats?.length || 0
+      },
+      message: 'Analytics data retrieved successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error fetching analytics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch analytics data',
+      message: error.message
+    });
+  }
+});
+
+// Load only the working routers (NOT admin router)
+try {
+  const movesRouter = require('./src/routes/moves');
+  app.use('/api/moves', movesRouter);
+  console.log('✅ Moves router loaded');
+} catch (error) {
+  console.error('❌ Error loading moves router:', error);
+}
+
+try {
+  const danceStylesRouter = require('./src/routes/DanceStyles.js');
+  app.use('/api/dance-styles', danceStylesRouter);
+  console.log('✅ Dance styles router loaded');
+} catch (error) {
+  console.error('❌ Error loading dance styles router:', error);
+}
+
+try {
+  const submissionsRouter = require('./src/routes/submissions');
+  app.use('/api/submissions', submissionsRouter);
+  console.log('✅ Submissions router loaded');
+} catch (error) {
+  console.error('❌ Error loading submissions router:', error);
+}
+
+// DO NOT LOAD ADMIN ROUTER - it has browser code that breaks the server
+console.log('⚠️ Admin router skipped due to browser code in server file');
+
+// Static routes
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
 });
 
-// SPA support for admin dashboard - serve index.html for all admin routes except static files
 app.get('/admin/*', (req, res, next) => {
-  // Don't intercept requests for static files
   if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|html)$/)) {
     return next();
   }
-  // Serve index.html for SPA routes
   res.sendFile(path.join(__dirname, 'admin-dashboard', 'index.html'));
 });
 
-// Root endpoint with comprehensive API documentation
 app.get('/', (req, res) => {
   res.json({
     message: 'Dancify Backend API',
     version: '1.0.0',
-    documentation: {
-      health: [
-        'GET /health - System health check',
-        'GET /api/health - API health check',
-        'GET /api/health/database - Database connectivity check'
-      ],
-      moves: [
-        'GET /api/moves - Get all dance moves',
-        'GET /api/moves/:id - Get specific move',
-        'GET /api/moves/sections/:danceStyle - Get sections for dance style'
-      ],
-      danceStyles: [
-        'GET /api/dance-styles - Get all dance styles',
-        'GET /api/dance-styles/:id - Get specific dance style',
-        'POST /api/dance-styles - Create new style (admin)',
-        'PUT /api/dance-styles/:id - Update style (admin)',
-        'DELETE /api/dance-styles/:id - Delete style (admin)'
-      ],
-      admin: [
-        'GET /api/admin/dashboard - Admin dashboard data',
-        'GET /api/admin/analytics - Analytics data',
-        'GET /api/admin/moves - Admin move management',
-        'POST /api/admin/moves - Create new move',
-        'PUT /api/admin/moves/:id - Update move',
-        'DELETE /api/admin/moves/:id - Delete move'
-      ],
-      submissions: [
-        'GET /api/submissions - Get move submissions',
-        'GET /api/submissions/:id - Get specific submission',
-        'POST /api/submissions - Submit move video',
-        'PUT /api/submissions/:id/review - Review submission (admin)',
-        'POST /api/submissions/:id/approve - Approve submission',
-        'POST /api/submissions/:id/reject - Reject submission'
-      ]
-    },
+    status: 'running',
     admin_dashboard: '/admin',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    note: 'Admin endpoints implemented directly due to router issues'
   });
 });
 
-// API documentation endpoint
 app.get('/api', (req, res) => {
   res.json({
     success: true,
@@ -503,46 +466,29 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: '/api/health',
       moves: '/api/moves',
-      danceStyles: '/api/dance-styles',
       admin: '/api/admin',
       submissions: '/api/submissions'
-    },
-    authentication: 'Bearer token required for admin endpoints',
-    rateLimit: {
-      general: '100 requests per 15 minutes',
-      admin: '200 requests per 5 minutes',
-      uploads: '50 requests per hour'
     }
   });
 });
 
-// 404 handler for API routes
+// Error handlers
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
     error: 'API endpoint not found',
-    path: req.originalUrl,
-    availableEndpoints: [
-      '/api/health',
-      '/api/moves',
-      '/api/dance-styles',
-      '/api/admin',
-      '/api/submissions'
-    ]
+    path: req.originalUrl
   });
 });
 
-// 404 handler for all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     error: 'Route not found',
-    path: req.originalUrl,
-    message: 'The requested resource does not exist'
+    path: req.originalUrl
   });
 });
 
-// Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
   res.status(500).json({
@@ -552,7 +498,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Helper function to extract YouTube video ID
+// Helper function
 function extractYouTubeId(url) {
   if (!url) return null;
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -560,7 +506,7 @@ function extractYouTubeId(url) {
   return match ? match[1] : null;
 }
 
-// Port configuration
+// Start server
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -568,4 +514,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
+  console.log(`✅ Server started successfully without problematic admin router`);
 });
