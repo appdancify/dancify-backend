@@ -1,93 +1,80 @@
-<!-- 💃 Dancify Admin Dashboard - Dashboard Section -->
-<!-- Main dashboard with stats, charts, and activity feed -->
-
-<section id="dashboard" class="content-section active">
-    <div class="dashboard-header">
-        <h1>💃 Dashboard</h1>
-        <p>Welcome to your Dancify admin dashboard</p>
+<!-- Dashboard Section -->
+<section class="dashboard-section">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>Dashboard</h1>
+            <p>Overview of your dance move management system</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="dashboardManager.refresh()">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-primary" data-section="move-management">
+                ➕ Add Move
+            </button>
+        </div>
     </div>
 
-    <!-- Statistics Grid -->
-    <div class="stats-grid">
+    <!-- Stats Overview -->
+    <div class="stats-grid" id="statsGrid">
         <div class="stat-card">
-            <div class="stat-header">
-                <h3>Total Users</h3>
-                <span class="stat-icon">👥</span>
-            </div>
+            <div class="stat-icon">🕺</div>
             <div class="stat-content">
-                <div class="value" id="totalUsers">0</div>
-                <div class="change" id="usersChange">+0 today</div>
+                <h3>Total Moves</h3>
+                <div class="value" id="totalMoves">--</div>
+                <div class="change">Loading...</div>
             </div>
         </div>
-
         <div class="stat-card">
-            <div class="stat-header">
-                <h3>Dance Moves</h3>
-                <span class="stat-icon">🕺</span>
-            </div>
+            <div class="stat-icon">👥</div>
             <div class="stat-content">
-                <div class="value" id="totalMoves">0</div>
-                <div class="change" id="movesChange">0 pending</div>
+                <h3>Active Users</h3>
+                <div class="value" id="totalUsers">--</div>
+                <div class="change">Loading...</div>
             </div>
         </div>
-
         <div class="stat-card">
-            <div class="stat-header">
-                <h3>Move Submissions</h3>
-                <span class="stat-icon">📹</span>
-            </div>
+            <div class="stat-icon">📊</div>
             <div class="stat-content">
-                <div class="value" id="totalSubmissions">0</div>
-                <div class="change" id="submissionsChange">0 pending</div>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-header">
                 <h3>Dance Styles</h3>
-                <span class="stat-icon">🎭</span>
-            </div>
-            <div class="stat-content">
-                <div class="value" id="totalDanceStyles">0</div>
-                <div class="change" id="stylesChange">0 active</div>
+                <div class="value" id="totalStyles">--</div>
+                <div class="change">Loading...</div>
             </div>
         </div>
-
         <div class="stat-card">
-            <div class="stat-header">
-                <h3>Instructors</h3>
-                <span class="stat-icon">🎓</span>
-            </div>
+            <div class="stat-icon">📝</div>
             <div class="stat-content">
-                <div class="value" id="totalInstructors">0</div>
-                <div class="change" id="instructorsChange">0 pending</div>
+                <h3>Submissions</h3>
+                <div class="value" id="totalSubmissions">--</div>
+                <div class="change">Loading...</div>
             </div>
         </div>
     </div>
 
-    <!-- Charts Section -->
+    <!-- Charts Grid -->
     <div class="charts-grid">
         <div class="chart-container">
             <div class="chart-header">
-                <h3>📈 User Engagement Over Time</h3>
-                <button class="btn btn-sm btn-ghost" onclick="window.dancifyAdmin?.modules?.dashboard?.refresh()">
-                    🔄 Refresh
-                </button>
+                <h3>Dance Style Popularity</h3>
+                <div class="chart-actions">
+                    <button class="btn-icon" onclick="dashboardManager.refreshChart('styleChart')">🔄</button>
+                </div>
             </div>
             <div class="chart-content">
-                <canvas id="engagementChart"></canvas>
+                <canvas id="styleChart" width="400" height="300"></canvas>
             </div>
         </div>
-
+        
         <div class="chart-container">
             <div class="chart-header">
-                <h3>🎭 Popular Dance Styles</h3>
-                <button class="btn btn-sm btn-ghost" onclick="window.dancifyAdmin?.modules?.dashboard?.exportDashboardData('csv')">
-                    📊 Export
-                </button>
+                <h3>Difficulty Distribution</h3>
+                <div class="chart-actions">
+                    <button class="btn-icon" onclick="dashboardManager.refreshChart('difficultyChart')">🔄</button>
+                </div>
             </div>
             <div class="chart-content">
-                <canvas id="danceStylesChart"></canvas>
+                <canvas id="difficultyChart" width="400" height="300"></canvas>
             </div>
         </div>
     </div>
@@ -95,70 +82,98 @@
     <!-- Recent Activity -->
     <div class="recent-activity">
         <div class="activity-header">
-            <h3>📰 Recent Activity</h3>
-            <span class="activity-status">Live updates</span>
+            <h3>Recent Activity</h3>
+            <div class="activity-status">
+                <span class="status-dot"></span>
+                Live Updates
+            </div>
         </div>
         <div class="activity-list" id="activityList">
-            <div class="activity-item">
-                <span class="activity-icon">🔄</span>
-                <span class="activity-text">Loading recent activity...</span>
-                <span class="activity-time">-</span>
+            <div class="activity-item loading">
+                <div class="activity-icon">🔄</div>
+                <div class="activity-text">Loading recent activity...</div>
+                <div class="activity-time">Just now</div>
             </div>
         </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="quick-actions">
-        <h3>⚡ Quick Actions</h3>
+        <h3>Quick Actions</h3>
         <div class="actions-grid">
-            <button class="action-card" onclick="window.navigationManager?.navigateToSection('move-management')">
-                <span class="action-icon">🕺</span>
-                <span class="action-title">Add New Move</span>
-                <span class="action-desc">Create a new dance move</span>
+            <button class="action-card" data-section="move-management">
+                <div class="action-icon">🕺</div>
+                <div class="action-text">
+                    <h4>Manage Moves</h4>
+                    <p>Add, edit, or organize dance moves</p>
+                </div>
             </button>
-
-            <button class="action-card" onclick="window.navigationManager?.navigateToSection('move-submissions')">
-                <span class="action-icon">📹</span>
-                <span class="action-title">Review Submissions</span>
-                <span class="action-desc">Review pending videos</span>
+            <button class="action-card" data-section="users">
+                <div class="action-icon">👥</div>
+                <div class="action-text">
+                    <h4>User Management</h4>
+                    <p>View and manage user accounts</p>
+                </div>
             </button>
-
-            <button class="action-card" onclick="window.navigationManager?.navigateToSection('dance-style-management')">
-                <span class="action-icon">🎭</span>
-                <span class="action-title">Manage Styles</span>
-                <span class="action-desc">Edit dance categories</span>
+            <button class="action-card" data-section="dance-style-management">
+                <div class="action-icon">💃</div>
+                <div class="action-text">
+                    <h4>Dance Styles</h4>
+                    <p>Configure dance style categories</p>
+                </div>
             </button>
-
-            <button class="action-card" onclick="window.navigationManager?.navigateToSection('users')">
-                <span class="action-icon">👥</span>
-                <span class="action-title">View Users</span>
-                <span class="action-desc">Manage user accounts</span>
+            <button class="action-card" data-section="analytics">
+                <div class="action-icon">📊</div>
+                <div class="action-text">
+                    <h4>Analytics</h4>
+                    <p>View detailed performance metrics</p>
+                </div>
             </button>
         </div>
     </div>
+
+    <!-- Message Container -->
+    <div id="dashboardMessages" class="message-container"></div>
 </section>
 
 <style>
 /* Dashboard-specific styles */
-.dashboard-header {
-    margin-bottom: 30px;
-    text-align: center;
+.dashboard-section {
+    padding: 0;
+    margin: 0;
 }
 
-.dashboard-header h1 {
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-bottom: 1px solid #E9ECEF;
+}
+
+.header-content h1 {
     font-size: 2.5rem;
     color: var(--primary-purple);
-    margin-bottom: 8px;
+    margin: 0 0 5px 0;
+    font-weight: 700;
 }
 
-.dashboard-header p {
+.header-content p {
     color: var(--text-secondary);
+    margin: 0;
     font-size: 1.1rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 20px;
     margin-bottom: 30px;
 }
@@ -170,6 +185,9 @@
     box-shadow: var(--shadow-light);
     transition: all var(--transition-fast);
     border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
 .stat-card:hover {
@@ -178,25 +196,18 @@
     border-color: var(--primary-purple);
 }
 
-.stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+.stat-icon {
+    font-size: 3rem;
+    opacity: 0.8;
 }
 
-.stat-header h3 {
+.stat-content h3 {
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-secondary);
-    margin: 0;
+    margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-}
-
-.stat-icon {
-    font-size: 1.8rem;
-    opacity: 0.7;
 }
 
 .stat-content .value {
@@ -278,6 +289,17 @@
     background: rgba(40, 167, 69, 0.1);
     padding: 4px 8px;
     border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
 }
 
 .activity-list {
@@ -294,6 +316,11 @@
 
 .activity-item:last-child {
     border-bottom: none;
+}
+
+.activity-item.loading {
+    opacity: 0.6;
+    animation: pulse 1.5s infinite;
 }
 
 .activity-icon {
@@ -325,7 +352,7 @@
     font-size: 1.2rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 20px;
+    margin: 0 0 20px 0;
 }
 
 .actions-grid {
@@ -339,93 +366,70 @@
     border: 2px solid transparent;
     border-radius: var(--radius-medium);
     padding: 20px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 15px;
     cursor: pointer;
     transition: all var(--transition-fast);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    text-align: left;
 }
 
 .action-card:hover {
     border-color: var(--primary-purple);
+    background: white;
     transform: translateY(-2px);
-    box-shadow: var(--shadow-light);
+    box-shadow: var(--shadow-medium);
 }
 
 .action-icon {
     font-size: 2rem;
-    margin-bottom: 8px;
+    opacity: 0.8;
 }
 
-.action-title {
+.action-text h4 {
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 1rem;
+    margin: 0 0 5px 0;
 }
 
-.action-desc {
+.action-text p {
     font-size: 0.85rem;
     color: var(--text-secondary);
+    margin: 0;
 }
 
-/* Loading animation */
-.stat-card.loading .value {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s infinite;
-    color: transparent;
+/* Animations */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-section {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Loading placeholders */
+.loading-placeholder {
+    background: #f0f0f0;
     border-radius: 4px;
+    animation: shimmer 1.5s infinite;
 }
 
-.chart-container.loading .chart-content::after {
-    content: '📊 Loading charts...';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--text-secondary);
-    font-size: 1.1rem;
+@keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
 }
 
-@keyframes skeleton-loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-    
-    .charts-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-    
-    .actions-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .chart-content {
-        height: 250px;
-    }
-}
-
-@media (max-width: 480px) {
-    .actions-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .stat-card {
-        padding: 20px;
-    }
-    
-    .chart-container {
-        padding: 20px;
-    }
+.loading-placeholder::before {
+    content: '';
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
 }
 </style>
