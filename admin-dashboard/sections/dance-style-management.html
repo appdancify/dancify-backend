@@ -9,7 +9,7 @@
             <p>Manage dance styles, categories, and hierarchical organization</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary" onclick="danceStyleManager?.showCreateStyleModal()">
+            <button class="btn btn-primary" onclick="window.danceStyleManager?.showCreateStyleModal()">
                 ➕ Create Dance Style
             </button>
         </div>
@@ -23,15 +23,15 @@
         
         <div class="quick-stats">
             <div class="quick-stat">
-                <span class="stat-number" id="totalStyles">8</span>
+                <span class="stat-number" id="totalStyles">0</span>
                 <span class="stat-label">Styles</span>
             </div>
             <div class="quick-stat">
-                <span class="stat-number" id="totalCategories">32</span>
+                <span class="stat-number" id="totalCategories">0</span>
                 <span class="stat-label">Categories</span>
             </div>
             <div class="quick-stat">
-                <span class="stat-number" id="totalMoves">180</span>
+                <span class="stat-number" id="totalMoves">0</span>
                 <span class="stat-label">Total Moves</span>
             </div>
         </div>
@@ -40,104 +40,7 @@
     <!-- Dance Styles Grid -->
     <div class="styles-container">
         <div id="danceStylesGrid" class="styles-grid">
-            <!-- Predefined Dance Styles -->
-            <div class="style-card" data-style="ballet">
-                <div class="style-header" onclick="this.closest('.style-card').classList.toggle('expanded')">
-                    <div class="style-info">
-                        <div class="style-icon" style="background-color: #FFB6C1">🩰</div>
-                        <div class="style-details">
-                            <h3>Ballet</h3>
-                            <p>Classical dance form emphasizing grace, precision, and fluid movements</p>
-                            <div class="style-meta">
-                                <span class="difficulty-badge intermediate">Intermediate</span>
-                                <span class="origin">📍 France/Italy</span>
-                                <span class="moves-count">🕺 25 moves</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="style-actions">
-                        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); danceStyleManager?.editStyle('ballet')">✏️</button>
-                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); danceStyleManager?.deleteStyle('ballet')">🗑️</button>
-                        <span class="expand-icon">▶️</span>
-                    </div>
-                </div>
-                
-                <div class="style-content">
-                    <div class="categories-section">
-                        <div class="section-header-small">
-                            <h4>📂 Categories</h4>
-                            <button class="btn btn-sm btn-primary" onclick="danceStyleManager?.showCreateCategoryModal('Ballet')">➕ Add Category</button>
-                        </div>
-                        
-                        <div class="categories-list">
-                            <div class="category-item">
-                                <div class="category-info">
-                                    <h5>Basic Positions</h5>
-                                    <p>Fundamental ballet positions for feet, arms, and body</p>
-                                    <span class="subcategories-count">5 subcategories</span>
-                                </div>
-                                <div class="category-actions">
-                                    <button class="btn btn-sm btn-ghost">✏️</button>
-                                    <button class="btn btn-sm btn-primary">➕ Sub</button>
-                                    <button class="btn btn-sm btn-danger">🗑️</button>
-                                </div>
-                            </div>
-                            
-                            <div class="category-item">
-                                <div class="category-info">
-                                    <h5>Barre Work</h5>
-                                    <p>Exercises performed at the barre for strength and technique</p>
-                                    <span class="subcategories-count">6 subcategories</span>
-                                </div>
-                                <div class="category-actions">
-                                    <button class="btn btn-sm btn-ghost">✏️</button>
-                                    <button class="btn btn-sm btn-primary">➕ Sub</button>
-                                    <button class="btn btn-sm btn-danger">🗑️</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="style-card" data-style="hiphop">
-                <div class="style-header" onclick="this.closest('.style-card').classList.toggle('expanded')">
-                    <div class="style-info">
-                        <div class="style-icon" style="background-color: #FF6B35">🎤</div>
-                        <div class="style-details">
-                            <h3>Hip-Hop</h3>
-                            <p>Urban dance style featuring rhythmic movements, isolations, and attitude</p>
-                            <div class="style-meta">
-                                <span class="difficulty-badge beginner">Beginner</span>
-                                <span class="origin">📍 USA</span>
-                                <span class="moves-count">🕺 42 moves</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="style-actions">
-                        <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); danceStyleManager?.editStyle('hiphop')">✏️</button>
-                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); danceStyleManager?.deleteStyle('hiphop')">🗑️</button>
-                        <span class="expand-icon">▶️</span>
-                    </div>
-                </div>
-                
-                <div class="style-content">
-                    <div class="categories-section">
-                        <div class="section-header-small">
-                            <h4>📂 Categories</h4>
-                            <button class="btn btn-sm btn-primary" onclick="danceStyleManager?.showCreateCategoryModal('Hip-Hop')">➕ Add Category</button>
-                        </div>
-                        
-                        <div class="empty-categories">
-                            <div class="no-data-content">
-                                <div class="no-data-icon">📂</div>
-                                <div class="no-data-text">No categories yet</div>
-                                <div class="no-data-subtitle">Add the first one!</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Dynamic content will be loaded here -->
         </div>
     </div>
 </section>
@@ -198,7 +101,7 @@
         
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').style.display='none'">Cancel</button>
-            <button class="btn btn-primary" onclick="danceStyleManager?.saveStyleForm()">✨ Create Style</button>
+            <button class="btn btn-primary" onclick="window.danceStyleManager?.saveStyleForm()">✨ Create Style</button>
         </div>
     </div>
 </div>
@@ -229,7 +132,7 @@
         
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').style.display='none'">Cancel</button>
-            <button class="btn btn-primary" onclick="danceStyleManager?.saveCategoryForm()">✨ Create Category</button>
+            <button class="btn btn-primary" onclick="window.danceStyleManager?.saveCategoryForm()">✨ Create Category</button>
         </div>
     </div>
 </div>
@@ -280,11 +183,64 @@
     background: var(--bg-secondary);
     border-radius: var(--radius-large);
     padding: 25px;
+    min-height: 200px;
 }
 
 .styles-grid {
     display: grid;
     gap: 20px;
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.no-data {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.no-data-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.no-data-icon {
+    font-size: 4rem;
+    opacity: 0.6;
+}
+
+.no-data-text {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.no-data-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
 }
 
 .style-card {
@@ -293,62 +249,84 @@
     background: var(--bg-primary);
     transition: all var(--transition-fast);
     overflow: hidden;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .style-card:hover {
     border-color: var(--primary-purple);
     box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
 }
 
-.style-card.expanded {
-    border-color: var(--primary-purple);
-}
-
-.style-header {
+.style-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    cursor: pointer;
-    background: var(--bg-secondary);
+    align-items: flex-start;
+    gap: 15px;
 }
 
-.style-info {
+.style-checkbox {
+    margin-top: 5px;
+}
+
+.style-actions {
     display: flex;
-    align-items: center;
-    gap: 15px;
-    flex: 1;
+    gap: 8px;
+}
+
+.featured-badge {
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .style-icon {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8rem;
+    font-size: 2.5rem;
     color: white;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    margin: 0 auto 15px;
 }
 
-.style-details h3 {
-    margin: 0 0 5px 0;
+.style-emoji {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.style-info {
+    text-align: center;
+}
+
+.style-name {
+    font-size: 1.5rem;
+    font-weight: 700;
     color: var(--text-primary);
-    font-size: 1.3rem;
-    font-weight: 600;
+    margin: 0 0 8px 0;
 }
 
-.style-details p {
-    margin: 0 0 10px 0;
+.style-description {
     color: var(--text-secondary);
     font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 0 15px 0;
 }
 
 .style-meta {
     display: flex;
+    justify-content: center;
     gap: 15px;
-    align-items: center;
+    margin-bottom: 15px;
     flex-wrap: wrap;
 }
 
@@ -361,142 +339,118 @@
     letter-spacing: 0.5px;
 }
 
-.difficulty-badge.beginner {
+.difficulty-beginner {
     background: rgba(40, 167, 69, 0.1);
     color: #28A745;
 }
 
-.difficulty-badge.intermediate {
+.difficulty-intermediate {
     background: rgba(255, 193, 7, 0.1);
     color: #FFC107;
 }
 
-.difficulty-badge.advanced {
+.difficulty-advanced {
     background: rgba(255, 107, 53, 0.1);
     color: #FF6B35;
 }
 
-.difficulty-badge.expert {
+.difficulty-expert {
     background: rgba(220, 53, 69, 0.1);
     color: #DC3545;
 }
 
-.origin, .moves-count {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.style-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.expand-icon {
-    font-size: 1.2rem;
-    color: var(--text-secondary);
-    transition: transform var(--transition-fast);
-    margin-left: 10px;
-}
-
-.style-card.expanded .expand-icon {
-    transform: rotate(90deg);
-}
-
-.style-content {
-    padding: 0 20px 20px;
-    display: none;
-    border-top: 1px solid #E9ECEF;
-    background: var(--bg-primary);
-}
-
-.style-card.expanded .style-content {
-    display: block;
-}
-
-.categories-section {
-    padding-top: 20px;
-}
-
-.section-header-small {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.section-header-small h4 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
-}
-
-.categories-list {
-    space-y: 10px;
-}
-
-.category-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-medium);
-    border: 1px solid #E9ECEF;
-    margin-bottom: 10px;
-}
-
-.category-info h5 {
-    margin: 0 0 5px 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.category-info p {
-    margin: 0 0 5px 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.subcategories-count {
-    font-size: 0.8rem;
+.origin-badge {
+    background: rgba(138, 43, 226, 0.1);
     color: var(--primary-purple);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
     font-weight: 500;
 }
 
-.category-actions {
-    display: flex;
-    gap: 5px;
+.style-popularity {
+    margin-bottom: 15px;
 }
 
-.empty-categories {
-    text-align: center;
-    padding: 40px 20px;
+.popularity-label {
+    font-size: 0.85rem;
     color: var(--text-secondary);
-    font-style: italic;
+    margin-bottom: 5px;
 }
 
-.no-data-content {
+.popularity-bar {
+    height: 6px;
+    background: #E9ECEF;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.popularity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-purple), #FF69B4);
+    transition: width var(--transition-fast);
+}
+
+.popularity-value {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.style-stats {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
+    justify-content: space-around;
+    margin-bottom: 15px;
 }
 
-.no-data-icon {
-    font-size: 2rem;
-    opacity: 0.6;
+.stat {
+    text-align: center;
 }
 
-.no-data-text {
+.stat-icon {
+    display: block;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.no-data-subtitle {
-    font-size: 0.9rem;
+.music-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+}
+
+.genre-tag {
+    background: var(--bg-secondary);
     color: var(--text-secondary);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.genre-more {
+    background: var(--primary-purple);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 /* Responsive Design */
@@ -511,29 +465,13 @@
         gap: 15px;
     }
     
-    .style-header {
+    .style-card-header {
         flex-direction: column;
-        gap: 15px;
-        align-items: stretch;
-    }
-    
-    .style-info {
-        flex-direction: column;
-        text-align: center;
-        gap: 10px;
-    }
-    
-    .style-meta {
-        justify-content: center;
-    }
-    
-    .category-item {
-        flex-direction: column;
-        gap: 15px;
+        align-items: center;
         text-align: center;
     }
     
-    .category-actions {
+    .style-actions {
         justify-content: center;
     }
 }
@@ -549,9 +487,9 @@
         gap: 8px;
     }
     
-    .category-actions {
+    .style-stats {
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
 }
 </style>
