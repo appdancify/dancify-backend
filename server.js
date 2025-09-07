@@ -200,30 +200,57 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// API Routes
-const movesRouter = require('./src/routes/moves');
-const danceStylesRouter = require('./src/routes/DanceStyles.js');
-const adminRouter = require('./src/routes/admin');
-const submissionsRouter = require('./src/routes/submissions');
+// FIXED: Direct admin moves endpoints before other routes
+app.get('/api/admin/moves', async (req, res) => {
+  try {
+    console.log('🔍 Fetching admin moves...');
+    
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
 
-app.use('/api/moves', movesRouter);
-app.use('/api/dance-styles', danceStylesRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/submissions', submissionsRouter);
+    if (error) {
+      console.error('❌ Database error:', error);
+      throw error;
+    }
+
+    console.log(`✅ Found ${data?.length || 0} moves`);
+    
+    res.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      message: `Found ${data?.length || 0} moves`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching moves:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch dance moves',
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Create move endpoint
 app.post('/api/admin/moves', async (req, res) => {
   try {
+    console.log('🆕 Creating new move:', req.body);
+    
     const {
-      name, videoUrl, description, detailedInstructions, danceStyle,
-      section, subsection, difficulty, levelRequired, xpReward,
-      estimatedDuration, equipment, moveType, targetRepetitions,
-      recordingTimeLimit, keyTechniques, prerequisites,
-      instructorId, instructorName
+      name, video_url, description, detailed_instructions, dance_style,
+      section, subsection, difficulty, level_required, xp_reward,
+      estimated_duration, equipment, move_type, target_repetitions,
+      recording_time_limit, key_techniques, prerequisites,
+      instructor_id, instructor_name
     } = req.body;
 
     // Extract video ID from YouTube URL
-    const videoId = videoUrl ? extractYouTubeId(videoUrl) : null;
+    const videoId = video_url ? extractYouTubeId(video_url) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
     const { data, error } = await supabase
@@ -231,30 +258,35 @@ app.post('/api/admin/moves', async (req, res) => {
       .insert([{
         name,
         video_id: videoId,
-        video_url: videoUrl,
+        video_url,
         thumbnail_url: thumbnailUrl,
         description,
-        detailed_instructions: detailedInstructions,
-        dance_style: danceStyle,
+        detailed_instructions,
+        dance_style,
         section,
         subsection,
         difficulty,
-        level_required: levelRequired || 1,
-        xp_reward: xpReward || 50,
-        estimated_duration: estimatedDuration || 10,
+        level_required: level_required || 1,
+        xp_reward: xp_reward || 50,
+        estimated_duration: estimated_duration || 10,
         equipment: equipment || [],
-        move_type: moveType || 'time',
-        target_repetitions: targetRepetitions,
-        recording_time_limit: recordingTimeLimit,
-        key_techniques: keyTechniques || [],
+        move_type: move_type || 'time',
+        target_repetitions,
+        recording_time_limit,
+        key_techniques: key_techniques || [],
         prerequisites: prerequisites || [],
-        instructor_id: instructorId,
-        instructor_name: instructorName
+        instructor_id,
+        instructor_name
       }])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error creating move:', error);
+      throw error;
+    }
+
+    console.log('✅ Move created successfully:', data.id);
 
     res.status(201).json({
       success: true,
@@ -263,38 +295,10 @@ app.post('/api/admin/moves', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error creating move:', error);
+    console.error('❌ Error creating move:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Get moves endpoint
-app.get('/api/admin/moves', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('dance_moves')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      data: data || [],
-      message: `Found ${data?.length || 0} moves`,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error fetching moves:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      data: [],
+      error: error.message || 'Failed to create move',
       timestamp: new Date().toISOString()
     });
   }
@@ -305,10 +309,12 @@ app.put('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    
+    console.log('📝 Updating move:', id, updateData);
 
     // Extract video ID if video URL is provided
-    if (updateData.videoUrl) {
-      const videoId = extractYouTubeId(updateData.videoUrl);
+    if (updateData.video_url) {
+      const videoId = extractYouTubeId(updateData.video_url);
       updateData.video_id = videoId;
       updateData.thumbnail_url = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
     }
@@ -323,7 +329,11 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error updating move:', error);
+      throw error;
+    }
+    
     if (!data) {
       return res.status(404).json({
         success: false,
@@ -332,6 +342,8 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       });
     }
 
+    console.log('✅ Move updated successfully:', id);
+
     res.json({
       success: true,
       data: data,
@@ -339,25 +351,36 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error updating move:', error);
+    console.error('❌ Error updating move:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to update move',
       timestamp: new Date().toISOString()
     });
   }
 });
 
+// Delete move endpoint
 app.delete('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    console.log('🗑️ Deleting move:', id);
 
     const { error } = await supabase
       .from('dance_moves')
-      .delete()
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error deleting move:', error);
+      throw error;
+    }
+
+    console.log('✅ Move deleted successfully:', id);
 
     res.json({
       success: true,
@@ -365,14 +388,25 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error deleting move:', error);
+    console.error('❌ Error deleting move:', error);
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to delete move',
       timestamp: new Date().toISOString()
     });
   }
 });
+
+// API Routes - MOVED AFTER the direct endpoints to avoid conflicts
+const movesRouter = require('./src/routes/moves');
+const danceStylesRouter = require('./src/routes/DanceStyles.js');
+const adminRouter = require('./src/routes/admin');
+const submissionsRouter = require('./src/routes/submissions');
+
+app.use('/api/moves', movesRouter);
+app.use('/api/dance-styles', danceStylesRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/submissions', submissionsRouter);
 
 // Submissions Routes
 app.get('/api/submissions', async (req, res) => {
@@ -530,7 +564,7 @@ function extractYouTubeId(url) {
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
