@@ -1,5 +1,5 @@
-// 🕺 Move Management System - Section Loading Compatible
-// Enhanced to work with dynamic section loading - UPDATED VERSION
+// 🕺 Move Management System - Complete Fixed Version
+// Enhanced DOM handling, section loading compatibility, and robust error handling
 
 class MoveManager {
     constructor() {
@@ -44,31 +44,47 @@ class MoveManager {
         }
     }
 
-    // 🔍 Check if required DOM elements are available
+    // 🔍 Check if required DOM elements are available - Enhanced
     waitForDOM() {
         const requiredElements = [
             'movesGrid',
-            'createMoveBtn',
+            'createMoveBtn', 
             'moveSearchInput'
         ];
         
-        return requiredElements.every(id => document.getElementById(id) !== null);
+        return requiredElements.some(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                console.log(`✅ Found required element: ${id}`);
+                return true;
+            }
+            return false;
+        });
     }
 
-    // ⏳ Wait for DOM to be ready
+    // ⏳ Wait for DOM to be ready - Enhanced with partial readiness
     async waitForDOMReady(maxWait = 5000) {
         const startTime = Date.now();
+        let foundElements = 0;
         
-        while (!this.waitForDOM() && (Date.now() - startTime) < maxWait) {
+        while (foundElements < 2 && (Date.now() - startTime) < maxWait) {
+            const requiredElements = ['movesGrid', 'createMoveBtn', 'moveSearchInput'];
+            foundElements = requiredElements.filter(id => document.getElementById(id) !== null).length;
+            
+            if (foundElements >= 2) {
+                console.log(`✅ Found ${foundElements}/3 required DOM elements`);
+                return true;
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        if (!this.waitForDOM()) {
-            console.warn('⚠️ Required DOM elements not found after waiting');
+        if (foundElements === 0) {
+            console.warn('⚠️ No required DOM elements found after waiting');
             return false;
         }
         
-        console.log('✅ DOM elements ready');
+        console.log(`⚡ Proceeding with partial DOM readiness (${foundElements}/3 elements found)`);
         return true;
     }
 
@@ -79,68 +95,94 @@ class MoveManager {
         // Remove existing listeners to prevent duplicates
         this.removeEventListeners();
         
-        // Create move button
-        const createMoveBtn = document.getElementById('createMoveBtn');
-        if (createMoveBtn) {
-            this.createMoveBtnHandler = () => this.showCreateMoveModal();
-            createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
-            console.log('✅ Create move button listener added');
-        } else {
-            console.warn('⚠️ Create move button not found');
-        }
+        // Wait a moment for elements to be available
+        setTimeout(() => {
+            // Create move button
+            const createMoveBtn = document.getElementById('createMoveBtn');
+            if (createMoveBtn) {
+                this.createMoveBtnHandler = () => this.showCreateMoveModal();
+                createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
+                console.log('✅ Create move button listener added');
+            } else {
+                console.warn('⚠️ Create move button not found');
+                // Try to find it with a more general selector
+                const altBtn = document.querySelector('[id*="create"], .btn[onclick*="create"], .create-move-btn');
+                if (altBtn) {
+                    console.log('🔍 Found alternative create button');
+                    this.createMoveBtnHandler = () => this.showCreateMoveModal();
+                    altBtn.addEventListener('click', this.createMoveBtnHandler);
+                }
+            }
 
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshMovesBtn');
-        if (refreshBtn) {
-            this.refreshBtnHandler = () => this.loadMoves(1);
-            refreshBtn.addEventListener('click', this.refreshBtnHandler);
-            console.log('✅ Refresh button listener added');
-        }
+            // Refresh button
+            const refreshBtn = document.getElementById('refreshMovesBtn');
+            if (refreshBtn) {
+                this.refreshBtnHandler = () => this.loadMoves(1);
+                refreshBtn.addEventListener('click', this.refreshBtnHandler);
+                console.log('✅ Refresh button listener added');
+            } else {
+                console.warn('⚠️ Refresh button not found');
+            }
 
-        // Search input
-        const searchInput = document.getElementById('moveSearchInput');
-        if (searchInput) {
-            this.searchInputHandler = (e) => {
-                this.currentFilters.search = e.target.value.trim();
-                this.applyFilters();
-            };
-            searchInput.addEventListener('input', this.searchInputHandler);
-            console.log('✅ Search input listener added');
-        } else {
-            console.warn('⚠️ Search input not found');
-        }
-
-        // Filter dropdowns
-        const filterElements = [
-            'danceStyleFilter',
-            'sectionFilter', 
-            'difficultyFilter'
-        ];
-
-        filterElements.forEach(filterId => {
-            const element = document.getElementById(filterId);
-            if (element) {
-                const handler = (e) => {
-                    this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
+            // Search input
+            const searchInput = document.getElementById('moveSearchInput');
+            if (searchInput) {
+                this.searchInputHandler = (e) => {
+                    this.currentFilters.search = e.target.value.trim();
                     this.applyFilters();
                 };
-                
-                // Store handler reference for cleanup
-                this[`${filterId}Handler`] = handler;
-                element.addEventListener('change', handler);
-                console.log(`✅ ${filterId} listener added`);
+                searchInput.addEventListener('input', this.searchInputHandler);
+                console.log('✅ Search input listener added');
+            } else {
+                console.warn('⚠️ Search input not found');
+                // Try alternative selector
+                const altSearch = document.querySelector('input[placeholder*="search"], input[id*="search"]');
+                if (altSearch) {
+                    console.log('🔍 Found alternative search input');
+                    this.searchInputHandler = (e) => {
+                        this.currentFilters.search = e.target.value.trim();
+                        this.applyFilters();
+                    };
+                    altSearch.addEventListener('input', this.searchInputHandler);
+                }
             }
-        });
 
-        // Bulk delete button
-        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-        if (bulkDeleteBtn) {
-            this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
-            bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
-            console.log('✅ Bulk delete button listener added');
-        }
+            // Filter dropdowns
+            const filterElements = [
+                'danceStyleFilter',
+                'sectionFilter', 
+                'difficultyFilter'
+            ];
 
-        console.log('🔗 Event listeners setup complete');
+            filterElements.forEach(filterId => {
+                const element = document.getElementById(filterId);
+                if (element) {
+                    const handler = (e) => {
+                        this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
+                        this.applyFilters();
+                    };
+                    
+                    // Store handler reference for cleanup
+                    this[`${filterId}Handler`] = handler;
+                    element.addEventListener('change', handler);
+                    console.log(`✅ ${filterId} listener added`);
+                } else {
+                    console.warn(`⚠️ ${filterId} not found`);
+                }
+            });
+
+            // Bulk delete button
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            if (bulkDeleteBtn) {
+                this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
+                bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
+                console.log('✅ Bulk delete button listener added');
+            } else {
+                console.warn('⚠️ Bulk delete button not found');
+            }
+
+            console.log('🔗 Event listeners setup complete');
+        }, 100); // Small delay to ensure DOM is ready
     }
 
     // 🧹 Remove event listeners to prevent duplicates
@@ -229,11 +271,11 @@ class MoveManager {
             {
                 id: 'move-sample-1',
                 name: 'Hip Hop Basic Step',
-                description: 'Foundation move for hip hop dancing',
-                detailed_instructions: 'Step to the right, bring left foot to meet right, step left, bring right foot to meet left. Add bounce and attitude.',
+                description: 'Foundation move for hip hop dancing with rhythm and style',
+                detailed_instructions: 'Step to the right, bring left foot to meet right, step left, bring right foot to meet left. Add bounce and attitude. Keep your knees slightly bent and let your body flow with the beat.',
                 dance_style: 'hip-hop',
                 section: 'Basic Steps',
-                subsection: '',
+                subsection: 'Foundation',
                 difficulty: 'beginner',
                 xp_reward: 25,
                 video_url: 'https://youtube.com/watch?v=example1',
@@ -248,15 +290,15 @@ class MoveManager {
             {
                 id: 'move-sample-2',
                 name: 'Pirouette',
-                description: 'Classic ballet turn on one foot',
-                detailed_instructions: 'Start in fourth position, plié, push off back foot, rise to relevé on supporting leg, turn, land in fourth position.',
+                description: 'Classic ballet turn executed on one foot with grace and control',
+                detailed_instructions: 'Start in fourth position, plié deeply, push off back foot while rising to relevé on supporting leg. Spot your head and maintain core engagement throughout the turn. Land softly in fourth position.',
                 dance_style: 'ballet',
                 section: 'Turns',
                 subsection: 'Single Turns',
                 difficulty: 'intermediate',
                 xp_reward: 75,
-                video_url: '',
-                thumbnail_url: 'https://via.placeholder.com/300x200?text=Ballet+Pirouette',
+                video_url: 'https://youtube.com/watch?v=example2',
+                thumbnail_url: 'https://img.youtube.com/vi/example2/maxresdefault.jpg',
                 view_count: 890,
                 rating: 4.8,
                 rating_count: 45,
@@ -267,11 +309,11 @@ class MoveManager {
             {
                 id: 'move-sample-3',
                 name: 'Windmill',
-                description: 'Advanced breakdancing power move',
-                detailed_instructions: 'Start in freeze position, sweep leg around while spinning on back/shoulders. Requires core strength and momentum.',
+                description: 'Advanced breakdancing power move requiring core strength and momentum',
+                detailed_instructions: 'Start in freeze position, sweep leg around while spinning on back/shoulders. Requires strong core and proper momentum transfer. Practice the motion slowly before attempting full speed.',
                 dance_style: 'breakdance',
                 section: 'Power Moves',
-                subsection: '',
+                subsection: 'Advanced Power',
                 difficulty: 'expert',
                 xp_reward: 150,
                 video_url: 'https://youtube.com/watch?v=example3',
@@ -286,8 +328,8 @@ class MoveManager {
             {
                 id: 'move-sample-4',
                 name: 'Jazz Square',
-                description: 'Classic jazz dance combination move',
-                detailed_instructions: 'Cross right foot over left, step back on left, step right foot to side, bring left foot together. Add arms and style.',
+                description: 'Classic jazz dance combination move with traveling steps',
+                detailed_instructions: 'Cross right foot over left, step back on left, step right foot to side, bring left foot together. Add sharp arm movements and maintain jazz hands. Travel in a square pattern.',
                 dance_style: 'jazz',
                 section: 'Basic Steps',
                 subsection: 'Travel Steps',
@@ -305,8 +347,8 @@ class MoveManager {
             {
                 id: 'move-sample-5',
                 name: 'Moonwalk',
-                description: 'Iconic sliding backward dance move',
-                detailed_instructions: 'Lift right heel while sliding left foot backward. Switch quickly and repeat. Practice on smooth surface.',
+                description: 'Iconic sliding backward dance move popularized by Michael Jackson',
+                detailed_instructions: 'Lift right heel while sliding left foot backward smoothly. Switch quickly and repeat the motion. Practice on smooth surface. Keep upper body steady and maintain illusion of walking forward.',
                 dance_style: 'hip-hop',
                 section: 'Advanced Combos',
                 subsection: 'Slides',
@@ -320,16 +362,52 @@ class MoveManager {
                 is_active: true,
                 created_at: '2024-01-19T16:45:00Z',
                 updated_at: '2024-01-19T16:45:00Z'
+            },
+            {
+                id: 'move-sample-6',
+                name: 'Grand Jeté',
+                description: 'Dramatic ballet leap with extended legs in split position',
+                detailed_instructions: 'Run forward with momentum, push off with one leg while extending the other forward. Achieve split position in air with arms in graceful port de bras. Land softly on front leg.',
+                dance_style: 'ballet',
+                section: 'Jumps',
+                subsection: 'Traveling Jumps',
+                difficulty: 'advanced',
+                xp_reward: 120,
+                video_url: '',
+                thumbnail_url: 'https://via.placeholder.com/300x200?text=Grand+Jete',
+                view_count: 1890,
+                rating: 4.6,
+                rating_count: 67,
+                is_active: true,
+                created_at: '2024-01-20T08:20:00Z',
+                updated_at: '2024-01-20T08:20:00Z'
             }
         ];
     }
 
-    // 🎨 Render moves grid
+    // 🎨 Render moves grid - Enhanced with better error handling
     renderMoves() {
-        const movesContainer = document.getElementById('movesGrid');
+        // Try multiple selectors to find the container
+        let movesContainer = document.getElementById('movesGrid');
         if (!movesContainer) {
-            console.warn('❌ Moves container not found - DOM may not be ready');
-            return;
+            movesContainer = document.querySelector('.moves-grid, [id*="moves"], .move-container');
+        }
+        
+        if (!movesContainer) {
+            console.warn('❌ Moves container not found - trying to create one');
+            
+            // Try to find a parent container and create the grid
+            const parentContainer = document.querySelector('.moves-container, .content-section, #move-management');
+            if (parentContainer) {
+                movesContainer = document.createElement('div');
+                movesContainer.id = 'movesGrid';
+                movesContainer.className = 'moves-grid';
+                parentContainer.appendChild(movesContainer);
+                console.log('✅ Created moves container');
+            } else {
+                console.error('❌ Cannot find suitable parent for moves container');
+                return;
+            }
         }
 
         if (!this.moves || this.moves.length === 0) {
@@ -409,13 +487,25 @@ class MoveManager {
         `;
     }
 
-    // 📊 Enhanced move statistics calculation
+    // 📊 Enhanced move statistics calculation - Better element finding
     updateMoveStats() {
         try {
-            const totalMovesEl = document.getElementById('totalMoves');
-            const difficultyBreakdownEl = document.getElementById('difficultyBreakdown');
-            const totalViewsEl = document.getElementById('totalViews');
-            const averageRatingEl = document.getElementById('averageRating');
+            // Helper function to find element by multiple selectors
+            const findElement = (id, altSelectors = []) => {
+                let element = document.getElementById(id);
+                if (!element) {
+                    for (const selector of altSelectors) {
+                        element = document.querySelector(selector);
+                        if (element) break;
+                    }
+                }
+                return element;
+            };
+
+            const totalMovesEl = findElement('totalMoves', ['[data-stat="total"]', '.stat-value:first-child']);
+            const difficultyBreakdownEl = findElement('difficultyBreakdown', ['[data-stat="difficulty"]']);
+            const totalViewsEl = findElement('totalViews', ['[data-stat="views"]']);
+            const averageRatingEl = findElement('averageRating', ['[data-stat="rating"]']);
             
             if (!this.moves || this.moves.length === 0) {
                 if (totalMovesEl) totalMovesEl.textContent = '0';

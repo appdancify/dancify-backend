@@ -1,5 +1,5 @@
 // 💃 Dancify Admin Dashboard - Section Loader
-// Dynamic section loading with proper initialization - UPDATED VERSION
+// Dynamic section loading with proper initialization - FIXED DOM TIMING
 
 class DancifySectionLoader {
     constructor() {
@@ -193,15 +193,42 @@ class DancifySectionLoader {
             
             switch (sectionName) {
                 case 'move-management':
-                    // CRITICAL FIX: Re-initialize the existing MoveManager with the new DOM
+                    // CRITICAL FIX: Wait longer for DOM to be fully ready
+                    console.log('🔄 Re-initializing existing MoveManager with new DOM...');
+                    
+                    // Wait longer for DOM to be fully injected and rendered
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    // Verify DOM elements exist before proceeding
+                    const requiredElements = ['createMoveBtn', 'moveSearchInput', 'movesGrid'];
+                    let elementsReady = false;
+                    let retries = 0;
+                    const maxRetries = 10;
+                    
+                    while (!elementsReady && retries < maxRetries) {
+                        elementsReady = requiredElements.every(id => {
+                            const element = document.getElementById(id);
+                            if (!element) {
+                                console.log(`⏳ Waiting for element: ${id}`);
+                                return false;
+                            }
+                            return true;
+                        });
+                        
+                        if (!elementsReady) {
+                            retries++;
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                    }
+                    
+                    if (!elementsReady) {
+                        console.error('❌ Required DOM elements not found after waiting');
+                        // Still try to proceed with initialization
+                    }
+                    
                     if (window.moveManager) {
-                        console.log('🔄 Re-initializing existing MoveManager with new DOM...');
-                        
-                        // Wait a moment for DOM to be fully ready
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                        
-                        // Re-setup event listeners and re-render with new DOM elements
                         try {
+                            console.log('🎯 MoveManager exists, re-initializing...');
                             window.moveManager.setupEventListeners();
                             window.moveManager.renderMoves();
                             window.moveManager.updateMoveStats();
@@ -223,9 +250,10 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dance-style-management':
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
                     if (window.danceStyleManager) {
                         console.log('🔄 Re-initializing existing DanceStyleManager...');
-                        await new Promise(resolve => setTimeout(resolve, 100));
                         try {
                             window.danceStyleManager.setupEventListeners();
                             window.danceStyleManager.renderDanceStyles();
@@ -247,6 +275,8 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dashboard':
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
                     if (window.DancifyDashboard && window.apiClient) {
                         if (!window.dashboardManager) {
                             window.dashboardManager = new window.DancifyDashboard(window.apiClient);
@@ -261,6 +291,8 @@ class DancifySectionLoader {
                     break;
                     
                 case 'users':
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
                     if (window.UserManager && window.apiClient) {
                         if (!window.userManager) {
                             window.userManager = new window.UserManager(window.apiClient);
