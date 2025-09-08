@@ -52,13 +52,13 @@ class DancifySectionLoader {
                 return true;
             }
             
-            // Prevent duplicate loading of the same section
+            // Check if already loading to prevent race conditions
             if (this.loadingPromises.has(sectionName)) {
                 console.log(`⏳ Section ${sectionName} already loading, waiting...`);
                 return await this.loadingPromises.get(sectionName);
             }
             
-            // Create loading promise
+            // Start loading process
             const loadingPromise = this.performSectionLoad(sectionName);
             this.loadingPromises.set(sectionName, loadingPromise);
             
@@ -79,15 +79,10 @@ class DancifySectionLoader {
 
     async performSectionLoad(sectionName) {
         const config = this.sectionConfig[sectionName];
-        
-        // Only load HTML if section doesn't exist or hasn't been loaded
-        if (!this.loadedSections.has(sectionName)) {
-            await this.loadSectionHTML(sectionName, config.htmlFile);
-            this.loadedSections.add(sectionName);
-        }
-        
+        await this.loadSectionHTML(sectionName, config.htmlFile);
         await this.initializeSectionFunctionality(sectionName);
         this.activateSection(sectionName);
+        this.loadedSections.add(sectionName);
         
         console.log(`✅ Section ${sectionName} loaded`);
         return true;
@@ -107,6 +102,7 @@ class DancifySectionLoader {
             
         } catch (error) {
             console.error(`❌ Failed to load HTML for ${sectionName}:`, error);
+            throw error;
         }
     }
 
@@ -114,7 +110,8 @@ class DancifySectionLoader {
         // CRITICAL FIX: Remove any existing duplicate sections first
         const existingSections = document.querySelectorAll(`#${sectionName}`);
         if (existingSections.length > 1) {
-            console.log(`🗑️ Removing ${existingSections.length - 1} duplicate sections for ${sectionName}`);
+            console.log(`🔧 Removing ${existingSections.length - 1} duplicate sections for ${sectionName}`);
+            // Keep only the first section, remove duplicates
             for (let i = 1; i < existingSections.length; i++) {
                 existingSections[i].remove();
             }
@@ -123,7 +120,7 @@ class DancifySectionLoader {
         let sectionElement = document.getElementById(sectionName);
         
         if (!sectionElement) {
-            // Only create if it doesn't exist
+            console.log(`📄 Created new section: ${sectionName}`);
             sectionElement = document.createElement('section');
             sectionElement.id = sectionName;
             sectionElement.className = 'content-section';
@@ -132,9 +129,6 @@ class DancifySectionLoader {
             if (contentContainer) {
                 contentContainer.appendChild(sectionElement);
             }
-            console.log(`📄 Created new section: ${sectionName}`);
-        } else {
-            console.log(`📄 Reusing existing section: ${sectionName}`);
         }
         
         // Always update the HTML content
@@ -146,6 +140,14 @@ class DancifySectionLoader {
         try {
             console.log(`🔧 Initializing: ${sectionName}`);
             
+            // Track initialization attempts to prevent infinite loops
+            const attempts = this.initializationAttempts.get(sectionName) || 0;
+            if (attempts >= this.maxAttempts) {
+                console.warn(`⚠️ Max initialization attempts reached for ${sectionName}`);
+                return;
+            }
+            this.initializationAttempts.set(sectionName, attempts + 1);
+            
             switch (sectionName) {
                 case 'move-management':
                     if (window.MoveManager && window.apiClient) {
@@ -155,6 +157,8 @@ class DancifySectionLoader {
                         if (typeof window.moveManager.init === 'function') {
                             await window.moveManager.init();
                         }
+                    } else {
+                        console.warn('⚠️ MoveManager or apiClient not available');
                     }
                     break;
                     
@@ -166,6 +170,8 @@ class DancifySectionLoader {
                         if (typeof window.danceStyleManager.init === 'function') {
                             await window.danceStyleManager.init();
                         }
+                    } else {
+                        console.warn('⚠️ DanceStyleManager or apiClient not available');
                     }
                     break;
                     
@@ -177,9 +183,11 @@ class DancifySectionLoader {
                         if (typeof window.dashboardManager.init === 'function') {
                             await window.dashboardManager.init();
                         }
+                    } else {
+                        console.warn('⚠️ DancifyDashboard or apiClient not available');
                     }
                     break;
-
+                    
                 case 'users':
                     if (window.UserManager && window.apiClient) {
                         if (!window.userManager) {
@@ -188,31 +196,58 @@ class DancifySectionLoader {
                         if (typeof window.userManager.init === 'function') {
                             await window.userManager.init();
                         }
+                    } else {
+                        console.warn('⚠️ UserManager or apiClient not available');
                     }
+                    break;
+                    
+                default:
+                    console.log(`ℹ️ No specific initialization for ${sectionName}`);
                     break;
             }
             
+            // Reset initialization attempts on success
+            this.initializationAttempts.delete(sectionName);
+            
         } catch (error) {
             console.error(`❌ Init failed for ${sectionName}:`, error);
+            // Don't throw - allow section to load even if initialization fails
         }
     }
 
     activateSection(sectionName) {
-        // Hide ALL sections first - this prevents duplicate active sections
+        // Hide all sections first
         const allSections = document.querySelectorAll('.content-section');
         allSections.forEach(section => {
             section.classList.remove('active');
             section.style.display = 'none';
         });
         
-        // Show only the target section
+        // Show target section
         const targetSection = document.getElementById(sectionName);
         if (targetSection) {
             targetSection.classList.add('active');
             targetSection.style.display = 'block';
             this.activeSection = sectionName;
             console.log(`📂 Activated section: ${sectionName}`);
+            
+            // Update navigation state
+            this.updateNavigationState(sectionName);
+        } else {
+            console.error(`❌ Section ${sectionName} not found for activation`);
         }
+    }
+
+    updateNavigationState(sectionName) {
+        // Update navigation item states
+        const navItems = document.querySelectorAll('[data-section]');
+        navItems.forEach(item => {
+            if (item.dataset.section === sectionName) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
     }
 
     setupEventListeners() {
@@ -221,8 +256,49 @@ class DancifySectionLoader {
             if (sectionLink) {
                 e.preventDefault();
                 const sectionName = sectionLink.dataset.section;
+                console.log(`🔗 Navigation clicked: ${sectionName}`);
                 this.loadSection(sectionName);
             }
+        });
+    }
+
+    // Utility methods
+    isLoading(sectionName) {
+        return this.loadingPromises.has(sectionName);
+    }
+
+    isLoaded(sectionName) {
+        return this.loadedSections.has(sectionName);
+    }
+
+    getCurrentSection() {
+        return this.activeSection;
+    }
+
+    // Clear section cache and force reload
+    reloadSection(sectionName) {
+        this.loadedSections.delete(sectionName);
+        this.initializationAttempts.delete(sectionName);
+        
+        const existingSection = document.getElementById(sectionName);
+        if (existingSection) {
+            existingSection.remove();
+        }
+        
+        return this.loadSection(sectionName);
+    }
+
+    // Debug method to check section states
+    debugSectionStates() {
+        console.log('=== SECTION DEBUG INFO ===');
+        console.log('Active section:', this.activeSection);
+        console.log('Loaded sections:', Array.from(this.loadedSections));
+        console.log('Loading promises:', Array.from(this.loadingPromises.keys()));
+        console.log('DOM sections:');
+        
+        document.querySelectorAll('.content-section').forEach(section => {
+            const rect = section.getBoundingClientRect();
+            console.log(`  ${section.id}: display=${getComputedStyle(section).display}, active=${section.classList.contains('active')}, rect=${rect.width}x${rect.height}`);
         });
     }
 }
