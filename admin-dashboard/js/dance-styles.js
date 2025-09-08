@@ -18,6 +18,9 @@ class DanceStyleManager {
         try {
             console.log('🎭 Initializing Dance Style Management...');
             
+            // CRITICAL: Wait for DOM elements to be available
+            await this.waitForDOMReady();
+            
             await this.loadDanceStyles();
             this.setupEventListeners();
             this.setupFilters();
@@ -28,6 +31,32 @@ class DanceStyleManager {
             console.error('❌ Failed to initialize Dance Style Management:', error);
             this.showErrorMessage('Failed to initialize dance style management: ' + error.message);
         }
+    }
+
+    // 🎯 Wait for DOM elements to be ready
+    async waitForDOMReady() {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+            
+            const checkDOM = () => {
+                attempts++;
+                const stylesContainer = document.getElementById('danceStylesGrid');
+                
+                if (stylesContainer) {
+                    console.log('✅ DOM ready - danceStylesGrid found after', attempts, 'attempts');
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.error('❌ DOM timeout - danceStylesGrid not found after', attempts, 'attempts');
+                    resolve(); // Continue anyway
+                } else {
+                    console.log('⏳ Waiting for DOM... attempt', attempts, '- danceStylesGrid not found yet');
+                    setTimeout(checkDOM, 100); // Check every 100ms
+                }
+            };
+            
+            checkDOM();
+        });
     }
 
     // 📊 Load dance styles from API
