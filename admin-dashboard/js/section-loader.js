@@ -1,5 +1,5 @@
 // 💃 Dancify Admin Dashboard - Section Loader
-// Dynamic section loading with proper initialization
+// Dynamic section loading with proper initialization - UPDATED VERSION
 
 class DancifySectionLoader {
     constructor() {
@@ -193,32 +193,57 @@ class DancifySectionLoader {
             
             switch (sectionName) {
                 case 'move-management':
-                    if (window.MoveManager && window.apiClient) {
-                        if (!window.moveManager) {
-                            window.moveManager = new window.MoveManager(window.apiClient);
-                        }
-                        if (typeof window.moveManager.init === 'function') {
+                    // CRITICAL FIX: Re-initialize the existing MoveManager with the new DOM
+                    if (window.moveManager) {
+                        console.log('🔄 Re-initializing existing MoveManager with new DOM...');
+                        
+                        // Wait a moment for DOM to be fully ready
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                        // Re-setup event listeners and re-render with new DOM elements
+                        try {
+                            window.moveManager.setupEventListeners();
+                            window.moveManager.renderMoves();
+                            window.moveManager.updateMoveStats();
+                            console.log('✅ MoveManager re-initialized successfully');
+                        } catch (error) {
+                            console.error('❌ Error re-initializing MoveManager:', error);
+                            // Fallback: create new instance
+                            window.moveManager = new window.MoveManager();
                             await window.moveManager.init();
                         }
+                    } else if (window.MoveManager) {
+                        console.log('🆕 Creating new MoveManager instance...');
+                        window.moveManager = new window.MoveManager();
+                        await window.moveManager.init();
+                        console.log('✅ New MoveManager instance created');
                     } else {
-                        console.warn('⚠️ MoveManager or apiClient not available');
+                        console.warn('⚠️ MoveManager class not available');
                     }
                     break;
                     
                 case 'dance-style-management':
-                    // Add slight delay to ensure DOM is ready
-                    setTimeout(async () => {
-                        if (window.DanceStyleManager && window.apiClient) {
-                            if (!window.danceStyleManager) {
-                                window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
-                            }
-                            if (typeof window.danceStyleManager.init === 'function') {
-                                await window.danceStyleManager.init();
-                            }
-                        } else {
-                            console.warn('⚠️ DanceStyleManager or apiClient not available');
+                    if (window.danceStyleManager) {
+                        console.log('🔄 Re-initializing existing DanceStyleManager...');
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        try {
+                            window.danceStyleManager.setupEventListeners();
+                            window.danceStyleManager.renderDanceStyles();
+                            window.danceStyleManager.updateStyleStats();
+                            console.log('✅ DanceStyleManager re-initialized successfully');
+                        } catch (error) {
+                            console.error('❌ Error re-initializing DanceStyleManager:', error);
+                            window.danceStyleManager = new window.DanceStyleManager();
+                            await window.danceStyleManager.init();
                         }
-                    }, 100); // 100ms delay to ensure DOM is parsed
+                    } else if (window.DanceStyleManager) {
+                        console.log('🆕 Creating new DanceStyleManager instance...');
+                        window.danceStyleManager = new window.DanceStyleManager();
+                        await window.danceStyleManager.init();
+                        console.log('✅ New DanceStyleManager instance created');
+                    } else {
+                        console.warn('⚠️ DanceStyleManager class not available');
+                    }
                     break;
                     
                 case 'dashboard':
@@ -228,6 +253,7 @@ class DancifySectionLoader {
                         }
                         if (typeof window.dashboardManager.init === 'function') {
                             await window.dashboardManager.init();
+                            console.log('✅ Dashboard initialized successfully');
                         }
                     } else {
                         console.warn('⚠️ DancifyDashboard or apiClient not available');
@@ -241,12 +267,13 @@ class DancifySectionLoader {
                         }
                         if (typeof window.userManager.init === 'function') {
                             await window.userManager.init();
+                            console.log('✅ User manager initialized successfully');
                         }
                     } else {
                         console.warn('⚠️ UserManager or apiClient not available');
                     }
                     break;
-        
+
                 default:
                     console.log(`ℹ️ No specific initialization for ${sectionName}`);
                     break;

@@ -1,5 +1,5 @@
-// 🕺 Move Management System - Complete Implementation
-// Handles all move CRUD operations with enhanced validation and UI feedback
+// 🕺 Move Management System - Section Loading Compatible
+// Enhanced to work with dynamic section loading - UPDATED VERSION
 
 class MoveManager {
     constructor() {
@@ -9,16 +9,22 @@ class MoveManager {
         this.movesPerPage = 12;
         this.totalPages = 1;
         this.currentFilters = {};
-        this.api = window.api || null;
+        this.api = window.apiClient || null;
+        this.isInitialized = false;
         
         console.log('🎯 MoveManager initialized');
-        this.init();
     }
 
     // 🚀 Initialize the move management system
     async init() {
         try {
             console.log('🔄 Initializing Move Management...');
+            
+            // Wait for DOM to be ready
+            if (!this.waitForDOM()) {
+                console.log('⏳ DOM not ready, waiting...');
+                await this.waitForDOMReady();
+            }
             
             // Load moves from API or localStorage
             await this.loadMoves();
@@ -30,6 +36,7 @@ class MoveManager {
             this.renderMoves();
             this.updateMoveStats();
             
+            this.isInitialized = true;
             console.log('✅ Move Management initialized successfully');
         } catch (error) {
             console.error('❌ Failed to initialize Move Management:', error);
@@ -37,27 +44,70 @@ class MoveManager {
         }
     }
 
-    // 🔗 Setup event listeners
+    // 🔍 Check if required DOM elements are available
+    waitForDOM() {
+        const requiredElements = [
+            'movesGrid',
+            'createMoveBtn',
+            'moveSearchInput'
+        ];
+        
+        return requiredElements.every(id => document.getElementById(id) !== null);
+    }
+
+    // ⏳ Wait for DOM to be ready
+    async waitForDOMReady(maxWait = 5000) {
+        const startTime = Date.now();
+        
+        while (!this.waitForDOM() && (Date.now() - startTime) < maxWait) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (!this.waitForDOM()) {
+            console.warn('⚠️ Required DOM elements not found after waiting');
+            return false;
+        }
+        
+        console.log('✅ DOM elements ready');
+        return true;
+    }
+
+    // 🔗 Setup event listeners (can be called multiple times safely)
     setupEventListeners() {
+        console.log('🔗 Setting up event listeners...');
+        
+        // Remove existing listeners to prevent duplicates
+        this.removeEventListeners();
+        
         // Create move button
         const createMoveBtn = document.getElementById('createMoveBtn');
         if (createMoveBtn) {
-            createMoveBtn.addEventListener('click', () => this.showCreateMoveModal());
+            this.createMoveBtnHandler = () => this.showCreateMoveModal();
+            createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
+            console.log('✅ Create move button listener added');
+        } else {
+            console.warn('⚠️ Create move button not found');
         }
 
         // Refresh button
         const refreshBtn = document.getElementById('refreshMovesBtn');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadMoves(1));
+            this.refreshBtnHandler = () => this.loadMoves(1);
+            refreshBtn.addEventListener('click', this.refreshBtnHandler);
+            console.log('✅ Refresh button listener added');
         }
 
         // Search input
         const searchInput = document.getElementById('moveSearchInput');
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
+            this.searchInputHandler = (e) => {
                 this.currentFilters.search = e.target.value.trim();
                 this.applyFilters();
-            });
+            };
+            searchInput.addEventListener('input', this.searchInputHandler);
+            console.log('✅ Search input listener added');
+        } else {
+            console.warn('⚠️ Search input not found');
         }
 
         // Filter dropdowns
@@ -70,20 +120,59 @@ class MoveManager {
         filterElements.forEach(filterId => {
             const element = document.getElementById(filterId);
             if (element) {
-                element.addEventListener('change', (e) => {
+                const handler = (e) => {
                     this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
                     this.applyFilters();
-                });
+                };
+                
+                // Store handler reference for cleanup
+                this[`${filterId}Handler`] = handler;
+                element.addEventListener('change', handler);
+                console.log(`✅ ${filterId} listener added`);
             }
         });
 
         // Bulk delete button
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
         if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener('click', () => this.bulkDeleteMoves());
+            this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
+            bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
+            console.log('✅ Bulk delete button listener added');
         }
 
         console.log('🔗 Event listeners setup complete');
+    }
+
+    // 🧹 Remove event listeners to prevent duplicates
+    removeEventListeners() {
+        const createMoveBtn = document.getElementById('createMoveBtn');
+        if (createMoveBtn && this.createMoveBtnHandler) {
+            createMoveBtn.removeEventListener('click', this.createMoveBtnHandler);
+        }
+
+        const refreshBtn = document.getElementById('refreshMovesBtn');
+        if (refreshBtn && this.refreshBtnHandler) {
+            refreshBtn.removeEventListener('click', this.refreshBtnHandler);
+        }
+
+        const searchInput = document.getElementById('moveSearchInput');
+        if (searchInput && this.searchInputHandler) {
+            searchInput.removeEventListener('input', this.searchInputHandler);
+        }
+
+        const filterElements = ['danceStyleFilter', 'sectionFilter', 'difficultyFilter'];
+        filterElements.forEach(filterId => {
+            const element = document.getElementById(filterId);
+            const handler = this[`${filterId}Handler`];
+            if (element && handler) {
+                element.removeEventListener('change', handler);
+            }
+        });
+
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        if (bulkDeleteBtn && this.bulkDeleteBtnHandler) {
+            bulkDeleteBtn.removeEventListener('click', this.bulkDeleteBtnHandler);
+        }
     }
 
     // 📥 Load moves from API or localStorage
@@ -96,28 +185,34 @@ class MoveManager {
             // Try API first
             if (this.api && typeof this.api.getMoves === 'function') {
                 console.log('🌐 Loading moves via API...');
-                const response = await this.api.getMoves(page, filters);
                 
-                if (response && response.success) {
-                    this.moves = response.data || [];
-                    this.totalPages = response.totalPages || 1;
-                    console.log(`✅ Loaded ${this.moves.length} moves via API`);
-                } else {
-                    throw new Error(response?.error || 'API request failed');
+                try {
+                    const response = await this.api.getMoves(page, filters);
+                    
+                    if (response && response.success) {
+                        this.moves = response.data || [];
+                        this.totalPages = response.totalPages || 1;
+                        console.log(`✅ Loaded ${this.moves.length} moves via API`);
+                        return;
+                    } else {
+                        throw new Error(response?.error || 'API request failed');
+                    }
+                } catch (apiError) {
+                    console.warn('⚠️ API failed, falling back to localStorage:', apiError.message);
                 }
-            } else {
-                console.log('💾 Loading moves from localStorage...');
-                // Load from localStorage for development/demo
-                const storedMoves = localStorage.getItem('dancify_moves');
-                if (storedMoves) {
-                    this.moves = JSON.parse(storedMoves);
-                } else {
-                    // Initialize with sample data
-                    this.moves = this.generateSampleMoves();
-                    localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
-                }
-                console.log(`✅ Loaded ${this.moves.length} moves from localStorage`);
             }
+            
+            // Fallback to localStorage
+            console.log('💾 Loading moves from localStorage...');
+            const storedMoves = localStorage.getItem('dancify_moves');
+            if (storedMoves) {
+                this.moves = JSON.parse(storedMoves);
+            } else {
+                // Initialize with sample data
+                this.moves = this.generateSampleMoves();
+                localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
+            }
+            console.log(`✅ Loaded ${this.moves.length} moves from localStorage`);
 
         } catch (error) {
             console.error('❌ Failed to load moves:', error);
@@ -168,6 +263,63 @@ class MoveManager {
                 is_active: true,
                 created_at: '2024-01-16T14:30:00Z',
                 updated_at: '2024-01-16T14:30:00Z'
+            },
+            {
+                id: 'move-sample-3',
+                name: 'Windmill',
+                description: 'Advanced breakdancing power move',
+                detailed_instructions: 'Start in freeze position, sweep leg around while spinning on back/shoulders. Requires core strength and momentum.',
+                dance_style: 'breakdance',
+                section: 'Power Moves',
+                subsection: '',
+                difficulty: 'expert',
+                xp_reward: 150,
+                video_url: 'https://youtube.com/watch?v=example3',
+                thumbnail_url: 'https://img.youtube.com/vi/example3/maxresdefault.jpg',
+                view_count: 2340,
+                rating: 4.9,
+                rating_count: 156,
+                is_active: true,
+                created_at: '2024-01-17T09:15:00Z',
+                updated_at: '2024-01-17T09:15:00Z'
+            },
+            {
+                id: 'move-sample-4',
+                name: 'Jazz Square',
+                description: 'Classic jazz dance combination move',
+                detailed_instructions: 'Cross right foot over left, step back on left, step right foot to side, bring left foot together. Add arms and style.',
+                dance_style: 'jazz',
+                section: 'Basic Steps',
+                subsection: 'Travel Steps',
+                difficulty: 'beginner',
+                xp_reward: 30,
+                video_url: 'https://youtube.com/watch?v=example4',
+                thumbnail_url: 'https://img.youtube.com/vi/example4/maxresdefault.jpg',
+                view_count: 567,
+                rating: 4.2,
+                rating_count: 23,
+                is_active: true,
+                created_at: '2024-01-18T11:30:00Z',
+                updated_at: '2024-01-18T11:30:00Z'
+            },
+            {
+                id: 'move-sample-5',
+                name: 'Moonwalk',
+                description: 'Iconic sliding backward dance move',
+                detailed_instructions: 'Lift right heel while sliding left foot backward. Switch quickly and repeat. Practice on smooth surface.',
+                dance_style: 'hip-hop',
+                section: 'Advanced Combos',
+                subsection: 'Slides',
+                difficulty: 'advanced',
+                xp_reward: 100,
+                video_url: 'https://youtube.com/watch?v=example5',
+                thumbnail_url: 'https://img.youtube.com/vi/example5/maxresdefault.jpg',
+                view_count: 3421,
+                rating: 4.7,
+                rating_count: 298,
+                is_active: true,
+                created_at: '2024-01-19T16:45:00Z',
+                updated_at: '2024-01-19T16:45:00Z'
             }
         ];
     }
@@ -176,7 +328,7 @@ class MoveManager {
     renderMoves() {
         const movesContainer = document.getElementById('movesGrid');
         if (!movesContainer) {
-            console.error('❌ Moves container not found');
+            console.warn('❌ Moves container not found - DOM may not be ready');
             return;
         }
 
@@ -255,6 +407,64 @@ class MoveManager {
                 </div>
             </div>
         `;
+    }
+
+    // 📊 Enhanced move statistics calculation
+    updateMoveStats() {
+        try {
+            const totalMovesEl = document.getElementById('totalMoves');
+            const difficultyBreakdownEl = document.getElementById('difficultyBreakdown');
+            const totalViewsEl = document.getElementById('totalViews');
+            const averageRatingEl = document.getElementById('averageRating');
+            
+            if (!this.moves || this.moves.length === 0) {
+                if (totalMovesEl) totalMovesEl.textContent = '0';
+                if (difficultyBreakdownEl) difficultyBreakdownEl.textContent = 'No moves';
+                if (totalViewsEl) totalViewsEl.textContent = '0';
+                if (averageRatingEl) averageRatingEl.textContent = '0.0';
+                return;
+            }
+            
+            // Total moves
+            if (totalMovesEl) {
+                totalMovesEl.textContent = this.moves.length.toLocaleString();
+            }
+            
+            // Difficulty breakdown
+            if (difficultyBreakdownEl) {
+                const difficulties = {};
+                this.moves.forEach(move => {
+                    const diff = move.difficulty || 'unknown';
+                    difficulties[diff] = (difficulties[diff] || 0) + 1;
+                });
+                
+                const breakdown = Object.entries(difficulties)
+                    .map(([diff, count]) => `${diff}: ${count}`)
+                    .join(', ');
+                difficultyBreakdownEl.textContent = breakdown;
+            }
+            
+            // Total views
+            if (totalViewsEl) {
+                const totalViews = this.moves.reduce((sum, move) => sum + (move.view_count || 0), 0);
+                totalViewsEl.textContent = totalViews.toLocaleString();
+            }
+            
+            // Average rating
+            if (averageRatingEl) {
+                const ratedMoves = this.moves.filter(move => move.rating && move.rating > 0);
+                if (ratedMoves.length > 0) {
+                    const avgRating = ratedMoves.reduce((sum, move) => sum + move.rating, 0) / ratedMoves.length;
+                    averageRatingEl.textContent = avgRating.toFixed(1);
+                } else {
+                    averageRatingEl.textContent = '0.0';
+                }
+            }
+            
+            console.log('📊 Move statistics updated');
+        } catch (error) {
+            console.error('❌ Error updating move statistics:', error);
+        }
     }
 
     // ➕ Show create move modal
@@ -389,13 +599,11 @@ class MoveManager {
         const form = modal.querySelector('#moveForm');
         
         if (form) {
-            // Handle form submission
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.saveMove(move?.id || null);
             });
             
-            // Real-time validation for required fields
             const requiredFields = ['moveName', 'moveDescription', 'detailedInstructions', 'danceStyle', 'difficulty'];
             requiredFields.forEach(fieldId => {
                 const field = modal.querySelector(`#${fieldId}`);
@@ -405,7 +613,6 @@ class MoveManager {
                 }
             });
             
-            // Auto-generate section from dance style if not provided
             const danceStyleSelect = modal.querySelector('#danceStyle');
             const sectionInput = modal.querySelector('#section');
             if (danceStyleSelect && sectionInput) {
@@ -417,7 +624,6 @@ class MoveManager {
             }
         }
         
-        // Close on overlay click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 if (confirm('Close without saving? Any changes will be lost.')) {
@@ -426,7 +632,6 @@ class MoveManager {
             }
         });
         
-        // Close on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal.parentNode) {
                 if (confirm('Close without saving? Any changes will be lost.')) {
@@ -436,10 +641,9 @@ class MoveManager {
         }, { once: true });
     }
 
-    // 💾 Save move - COMPLETE IMPLEMENTATION with full functionality
+    // 💾 Save move implementation
     async saveMove(moveId) {
         try {
-            // Get form elements and validate they exist
             const nameEl = document.getElementById('moveName');
             const descEl = document.getElementById('moveDescription');
             const instructionsEl = document.getElementById('detailedInstructions');
@@ -453,7 +657,6 @@ class MoveManager {
                 throw new Error('Form elements not found. Please refresh and try again.');
             }
 
-            // Collect form data
             const moveData = {
                 name: nameEl.value.trim(),
                 description: descEl.value.trim(),
@@ -466,7 +669,6 @@ class MoveManager {
                 video_url: videoEl?.value?.trim() || ''
             };
             
-            // Enhanced validation with specific error messages
             const validationErrors = [];
             if (!moveData.name) validationErrors.push('Move name is required');
             if (!moveData.description) validationErrors.push('Description is required');
@@ -480,14 +682,12 @@ class MoveManager {
             
             console.log('💾 Saving move:', moveId ? 'UPDATE' : 'CREATE', moveData);
             
-            // Show loading state
             const saveButton = document.querySelector('.modal-footer .btn-primary');
             const originalText = saveButton.textContent;
             saveButton.textContent = '⏳ Saving...';
             saveButton.disabled = true;
             
             try {
-                // Try API call first
                 if (this.api && (moveId ? this.api.updateMove : this.api.createMove)) {
                     const response = moveId ? 
                         await this.api.updateMove(moveId, moveData) :
@@ -496,14 +696,12 @@ class MoveManager {
                     if (response && response.success) {
                         console.log('✅ Move saved via API');
                         
-                        // Update local data with API response
                         if (moveId) {
                             const moveIndex = this.moves.findIndex(m => m.id === moveId);
                             if (moveIndex !== -1) {
                                 this.moves[moveIndex] = { ...this.moves[moveIndex], ...moveData, updated_at: new Date().toISOString() };
                             }
                         } else if (response.data) {
-                            // Add new move from API response
                             this.moves.push(response.data);
                         }
                     } else {
@@ -512,9 +710,7 @@ class MoveManager {
                 } else {
                     console.warn('⚠️ API not available, saving locally');
                     
-                    // Local save implementation for development/demo
                     if (moveId) {
-                        // Update existing move
                         const moveIndex = this.moves.findIndex(m => m.id === moveId);
                         if (moveIndex !== -1) {
                             this.moves[moveIndex] = { 
@@ -527,7 +723,6 @@ class MoveManager {
                             throw new Error('Move not found for update');
                         }
                     } else {
-                        // Create new move
                         const newMove = {
                             id: `move-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                             ...moveData,
@@ -537,15 +732,13 @@ class MoveManager {
                             rating: 0,
                             rating_count: 0,
                             is_active: true,
-                            // Generate thumbnail from video URL if provided
                             thumbnail_url: moveData.video_url ? this.generateThumbnailUrl(moveData.video_url) : null
                         };
                         
-                        this.moves.unshift(newMove); // Add to beginning of array
+                        this.moves.unshift(newMove);
                         console.log('✅ New move created locally:', newMove.id);
                     }
                     
-                    // Save to localStorage for persistence across page reloads
                     try {
                         localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
                         console.log('💾 Moves saved to localStorage');
@@ -554,21 +747,17 @@ class MoveManager {
                     }
                 }
                 
-                // Success feedback
                 const action = moveId ? 'updated' : 'created';
                 this.showSuccessMessage(`Move "${moveData.name}" ${action} successfully! 🎉`);
                 
-                // Close modal
                 const modal = document.querySelector('.modal-overlay');
                 if (modal) {
                     modal.remove();
                 }
                 
-                // Refresh the UI
                 await this.refreshMovesDisplay();
                 
             } finally {
-                // Restore button state
                 if (saveButton) {
                     saveButton.textContent = originalText;
                     saveButton.disabled = false;
@@ -579,7 +768,6 @@ class MoveManager {
             console.error('❌ Failed to save move:', error);
             this.showErrorMessage('Failed to save move: ' + error.message);
             
-            // Restore button state on error
             const saveButton = document.querySelector('.modal-footer .btn-primary');
             if (saveButton) {
                 saveButton.disabled = false;
@@ -590,43 +778,30 @@ class MoveManager {
         }
     }
 
-    // 🔄 Refresh moves display after save
+    // Additional helper methods
     async refreshMovesDisplay() {
         try {
-            // Re-render moves grid
             this.renderMoves();
-            
-            // Update statistics
             this.updateMoveStats();
-            
-            // Apply current filters if any
             if (this.currentFilters && Object.keys(this.currentFilters).length > 0) {
                 this.applyFilters();
             }
-            
             console.log('✅ Moves display refreshed');
         } catch (error) {
             console.error('❌ Error refreshing moves display:', error);
         }
     }
 
-    // 🖼️ Generate thumbnail URL from video URL
     generateThumbnailUrl(videoUrl) {
         if (!videoUrl) return null;
-        
-        // Extract YouTube video ID
         const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
         const match = videoUrl.match(youtubeRegex);
-        
         if (match && match[1]) {
             return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
         }
-        
-        // Default placeholder
         return 'https://via.placeholder.com/300x200?text=Dance+Move';
     }
 
-    // ✅ Field validation helper
     validateField(field) {
         const value = field.value.trim();
         const isRequired = field.hasAttribute('required');
@@ -636,7 +811,6 @@ class MoveManager {
             return false;
         }
         
-        // Specific validations
         if (field.type === 'url' && value && !this.isValidUrl(value)) {
             this.showFieldError(field, 'Please enter a valid URL');
             return false;
@@ -661,22 +835,18 @@ class MoveManager {
         return true;
     }
 
-    // ❌ Show field error
     showFieldError(field, message) {
         this.clearFieldError(field);
-        
         const errorDiv = document.createElement('div');
         errorDiv.className = 'field-error';
         errorDiv.textContent = message;
         errorDiv.style.color = '#dc3545';
         errorDiv.style.fontSize = '0.875rem';
         errorDiv.style.marginTop = '0.25rem';
-        
         field.style.borderColor = '#dc3545';
         field.parentNode.appendChild(errorDiv);
     }
 
-    // ✨ Clear field error
     clearFieldError(field) {
         const existingError = field.parentNode.querySelector('.field-error');
         if (existingError) {
@@ -685,7 +855,6 @@ class MoveManager {
         field.style.borderColor = '';
     }
 
-    // 🔗 URL validation helper
     isValidUrl(string) {
         try {
             new URL(string);
@@ -695,7 +864,46 @@ class MoveManager {
         }
     }
 
-    // 🗑️ Delete move
+    // Filter and search functionality
+    applyFilters() {
+        let filteredMoves = [...this.moves];
+        
+        if (this.currentFilters.search) {
+            const searchTerm = this.currentFilters.search.toLowerCase();
+            filteredMoves = filteredMoves.filter(move => 
+                move.name.toLowerCase().includes(searchTerm) ||
+                move.description.toLowerCase().includes(searchTerm) ||
+                move.dance_style.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        if (this.currentFilters.danceStyle) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.dance_style === this.currentFilters.danceStyle
+            );
+        }
+        
+        if (this.currentFilters.section) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.section === this.currentFilters.section
+            );
+        }
+        
+        if (this.currentFilters.difficulty) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.difficulty === this.currentFilters.difficulty
+            );
+        }
+        
+        const originalMoves = this.moves;
+        this.moves = filteredMoves;
+        this.renderMoves();
+        this.moves = originalMoves;
+        
+        console.log(`🔍 Applied filters, showing ${filteredMoves.length} of ${originalMoves.length} moves`);
+    }
+
+    // Move management functions
     async deleteMove(moveId) {
         const move = this.moves.find(m => m.id === moveId);
         if (!move) {
@@ -709,10 +917,8 @@ class MoveManager {
         try {
             console.log('🗑️ Deleting move:', moveId);
             
-            // Try API call first
             if (this.api && typeof this.api.deleteMove === 'function') {
                 const response = await this.api.deleteMove(moveId);
-                
                 if (response && response.success) {
                     console.log('✅ Move deleted via API');
                 } else {
@@ -722,11 +928,9 @@ class MoveManager {
                 console.warn('⚠️ API not available, simulating deletion');
             }
             
-            // Remove from local array
             this.moves = this.moves.filter(m => m.id !== moveId);
             this.selectedMoves.delete(moveId);
             
-            // Update localStorage
             try {
                 localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
             } catch (storageError) {
@@ -744,121 +948,15 @@ class MoveManager {
         }
     }
 
-    // 📊 Enhanced move statistics calculation
-    updateMoveStats() {
-        try {
-            const totalMovesEl = document.getElementById('totalMoves');
-            const difficultyBreakdownEl = document.getElementById('difficultyBreakdown');
-            const totalViewsEl = document.getElementById('totalViews');
-            const averageRatingEl = document.getElementById('averageRating');
-            
-            if (!this.moves || this.moves.length === 0) {
-                if (totalMovesEl) totalMovesEl.textContent = '0';
-                if (difficultyBreakdownEl) difficultyBreakdownEl.textContent = 'No moves';
-                if (totalViewsEl) totalViewsEl.textContent = '0';
-                if (averageRatingEl) averageRatingEl.textContent = '0.0';
-                return;
-            }
-            
-            // Total moves
-            if (totalMovesEl) {
-                totalMovesEl.textContent = this.moves.length.toLocaleString();
-            }
-            
-            // Difficulty breakdown
-            if (difficultyBreakdownEl) {
-                const difficulties = {};
-                this.moves.forEach(move => {
-                    const diff = move.difficulty || 'unknown';
-                    difficulties[diff] = (difficulties[diff] || 0) + 1;
-                });
-                
-                const breakdown = Object.entries(difficulties)
-                    .map(([diff, count]) => `${diff}: ${count}`)
-                    .join(', ');
-                difficultyBreakdownEl.textContent = breakdown;
-            }
-            
-            // Total views
-            if (totalViewsEl) {
-                const totalViews = this.moves.reduce((sum, move) => sum + (move.view_count || 0), 0);
-                totalViewsEl.textContent = totalViews.toLocaleString();
-            }
-            
-            // Average rating
-            if (averageRatingEl) {
-                const ratedMoves = this.moves.filter(move => move.rating && move.rating > 0);
-                if (ratedMoves.length > 0) {
-                    const avgRating = ratedMoves.reduce((sum, move) => sum + move.rating, 0) / ratedMoves.length;
-                    averageRatingEl.textContent = avgRating.toFixed(1);
-                } else {
-                    averageRatingEl.textContent = '0.0';
-                }
-            }
-            
-            console.log('📊 Move statistics updated');
-        } catch (error) {
-            console.error('❌ Error updating move statistics:', error);
-        }
-    }
-
-    // 🔍 Apply filters
-    applyFilters() {
-        let filteredMoves = [...this.moves];
-        
-        // Search filter
-        if (this.currentFilters.search) {
-            const searchTerm = this.currentFilters.search.toLowerCase();
-            filteredMoves = filteredMoves.filter(move => 
-                move.name.toLowerCase().includes(searchTerm) ||
-                move.description.toLowerCase().includes(searchTerm) ||
-                move.dance_style.toLowerCase().includes(searchTerm)
-            );
-        }
-        
-        // Dance style filter
-        if (this.currentFilters.danceStyle) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.dance_style === this.currentFilters.danceStyle
-            );
-        }
-        
-        // Section filter
-        if (this.currentFilters.section) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.section === this.currentFilters.section
-            );
-        }
-        
-        // Difficulty filter
-        if (this.currentFilters.difficulty) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.difficulty === this.currentFilters.difficulty
-            );
-        }
-        
-        // Temporarily store original moves and use filtered moves for rendering
-        const originalMoves = this.moves;
-        this.moves = filteredMoves;
-        this.renderMoves();
-        this.moves = originalMoves;
-        
-        console.log(`🔍 Applied filters, showing ${filteredMoves.length} of ${originalMoves.length} moves`);
-    }
-
-    // ☑️ Toggle move selection
     toggleMoveSelection(moveId) {
         if (this.selectedMoves.has(moveId)) {
             this.selectedMoves.delete(moveId);
         } else {
             this.selectedMoves.add(moveId);
         }
-        
         this.updateBulkActionButtons();
-        console.log(`☑️ Move ${moveId} ${this.selectedMoves.has(moveId) ? 'selected' : 'deselected'}`);
     }
 
-    // 🎯 Update bulk action buttons
     updateBulkActionButtons() {
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
         const hasSelection = this.selectedMoves.size > 0;
@@ -871,7 +969,6 @@ class MoveManager {
         }
     }
 
-    // 🗑️ Bulk delete moves
     async bulkDeleteMoves() {
         if (this.selectedMoves.size === 0) {
             this.showErrorMessage('No moves selected for deletion');
@@ -895,17 +992,15 @@ class MoveManager {
         }
     }
 
-    // 💬 Show success message
+    // Message system
     showSuccessMessage(message) {
         this.showMessage(message, 'success');
     }
 
-    // ❌ Show error message
     showErrorMessage(message) {
         this.showMessage(message, 'error');
     }
 
-    // 💬 Show message
     showMessage(message, type = 'info') {
         const messageContainer = document.getElementById('messageContainer') || document.body;
         
@@ -916,7 +1011,6 @@ class MoveManager {
             <button class="message-close" onclick="this.parentElement.remove()">✕</button>
         `;
         
-        // Add styles
         messageDiv.style.cssText = `
             position: fixed;
             top: 20px;
@@ -937,7 +1031,6 @@ class MoveManager {
         
         messageContainer.appendChild(messageDiv);
         
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             if (messageDiv.parentNode) {
                 messageDiv.remove();
@@ -948,8 +1041,11 @@ class MoveManager {
 
 // 🚀 Initialize the Move Manager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.moveManager = new MoveManager();
-    console.log('🎯 Move Manager ready');
+    if (!window.moveManager) {
+        window.moveManager = new MoveManager();
+        window.moveManager.init();
+        console.log('🎯 Move Manager ready');
+    }
 });
 
 // 🔧 Export for module usage if needed
