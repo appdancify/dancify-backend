@@ -6,6 +6,7 @@ class DancifySectionLoader {
         this.loadingPromises = new Map();
         this.initializationAttempts = new Map();
         this.maxAttempts = 3;
+        this.isProcessingClick = false; // Prevent rapid clicks
         
         this.sectionConfig = {
             'dashboard': {
@@ -34,15 +35,41 @@ class DancifySectionLoader {
     init() {
         console.log('📂 Section Loader initialized');
         this.setupEventListeners();
+        this.cleanupExistingDuplicates(); // Clean up any existing duplicates
+    }
+
+    // Clean up any existing duplicate sections on initialization
+    cleanupExistingDuplicates() {
+        const sectionIds = Object.keys(this.sectionConfig);
+        sectionIds.forEach(sectionId => {
+            const sections = document.querySelectorAll(`#${sectionId}`);
+            if (sections.length > 1) {
+                console.log(`🧹 Cleaning up ${sections.length - 1} duplicate sections for ${sectionId}`);
+                // Remove all but the first section
+                for (let i = 1; i < sections.length; i++) {
+                    sections[i].remove();
+                }
+            }
+        });
     }
 
     async loadSection(sectionName) {
+        // Prevent rapid clicking from creating issues
+        if (this.isProcessingClick) {
+            console.log(`⏳ Already processing a section load, ignoring ${sectionName}`);
+            return false;
+        }
+
         try {
+            this.isProcessingClick = true;
             console.log(`📂 Loading section: ${sectionName}`);
             
             if (!this.sectionConfig[sectionName]) {
                 throw new Error(`Unknown section: ${sectionName}`);
             }
+            
+            // CRITICAL: Always clean up duplicates before proceeding
+            this.removeDuplicateSections(sectionName);
             
             // Check if section already exists and is already initialized
             const existingSection = document.getElementById(sectionName);
@@ -74,6 +101,21 @@ class DancifySectionLoader {
         } catch (error) {
             console.error(`❌ Failed to load section ${sectionName}:`, error);
             return false;
+        } finally {
+            this.isProcessingClick = false;
+        }
+    }
+
+    // CRITICAL: Remove duplicate sections before any operation
+    removeDuplicateSections(sectionName) {
+        const sections = document.querySelectorAll(`#${sectionName}`);
+        if (sections.length > 1) {
+            console.log(`🧹 Found ${sections.length} duplicate sections for ${sectionName}, removing extras`);
+            
+            // Keep the first section, remove the rest
+            for (let i = 1; i < sections.length; i++) {
+                sections[i].remove();
+            }
         }
     }
 
@@ -107,15 +149,8 @@ class DancifySectionLoader {
     }
 
     injectSectionHTML(sectionName, html) {
-        // CRITICAL FIX: Remove any existing duplicate sections first
-        const existingSections = document.querySelectorAll(`#${sectionName}`);
-        if (existingSections.length > 1) {
-            console.log(`🔧 Removing ${existingSections.length - 1} duplicate sections for ${sectionName}`);
-            // Keep only the first section, remove duplicates
-            for (let i = 1; i < existingSections.length; i++) {
-                existingSections[i].remove();
-            }
-        }
+        // CRITICAL: Always ensure no duplicates exist before injection
+        this.removeDuplicateSections(sectionName);
         
         let sectionElement = document.getElementById(sectionName);
         
@@ -134,6 +169,11 @@ class DancifySectionLoader {
         // Always update the HTML content
         sectionElement.innerHTML = html;
         console.log(`📄 HTML injected for section: ${sectionName}`);
+        
+        // CRITICAL: Final duplicate check after injection
+        setTimeout(() => {
+            this.removeDuplicateSections(sectionName);
+        }, 100);
     }
 
     async initializeSectionFunctionality(sectionName) {
@@ -216,6 +256,9 @@ class DancifySectionLoader {
     }
 
     activateSection(sectionName) {
+        // CRITICAL: Final cleanup before activation
+        this.removeDuplicateSections(sectionName);
+        
         // Hide all sections first
         const allSections = document.querySelectorAll('.content-section');
         allSections.forEach(section => {
@@ -251,15 +294,18 @@ class DancifySectionLoader {
     }
 
     setupEventListeners() {
+        // Use a more specific event listener with debouncing
         document.addEventListener('click', (e) => {
             const sectionLink = e.target.closest('[data-section]');
-            if (sectionLink) {
+            if (sectionLink && !this.isProcessingClick) {
                 e.preventDefault();
+                e.stopPropagation(); // Prevent event bubbling
+                
                 const sectionName = sectionLink.dataset.section;
                 console.log(`🔗 Navigation clicked: ${sectionName}`);
                 this.loadSection(sectionName);
             }
-        });
+        }, true); // Use capture phase to catch events early
     }
 
     // Utility methods
@@ -280,12 +326,27 @@ class DancifySectionLoader {
         this.loadedSections.delete(sectionName);
         this.initializationAttempts.delete(sectionName);
         
-        const existingSection = document.getElementById(sectionName);
-        if (existingSection) {
-            existingSection.remove();
-        }
+        // Remove all instances of this section
+        const sections = document.querySelectorAll(`#${sectionName}`);
+        sections.forEach(section => section.remove());
         
         return this.loadSection(sectionName);
+    }
+
+    // Emergency cleanup method
+    emergencyCleanup() {
+        console.log('🚨 Running emergency cleanup...');
+        
+        // Remove all duplicate sections
+        Object.keys(this.sectionConfig).forEach(sectionId => {
+            this.removeDuplicateSections(sectionId);
+        });
+        
+        // Reset all state
+        this.loadingPromises.clear();
+        this.isProcessingClick = false;
+        
+        console.log('🧹 Emergency cleanup completed');
     }
 
     // Debug method to check section states
@@ -294,11 +355,19 @@ class DancifySectionLoader {
         console.log('Active section:', this.activeSection);
         console.log('Loaded sections:', Array.from(this.loadedSections));
         console.log('Loading promises:', Array.from(this.loadingPromises.keys()));
+        console.log('Processing click:', this.isProcessingClick);
         console.log('DOM sections:');
         
-        document.querySelectorAll('.content-section').forEach(section => {
-            const rect = section.getBoundingClientRect();
-            console.log(`  ${section.id}: display=${getComputedStyle(section).display}, active=${section.classList.contains('active')}, rect=${rect.width}x${rect.height}`);
+        Object.keys(this.sectionConfig).forEach(sectionId => {
+            const sections = document.querySelectorAll(`#${sectionId}`);
+            console.log(`  ${sectionId}: ${sections.length} instances`);
+            
+            sections.forEach((section, index) => {
+                const rect = section.getBoundingClientRect();
+                const display = getComputedStyle(section).display;
+                const active = section.classList.contains('active');
+                console.log(`    [${index}] display=${display}, active=${active}, rect=${rect.width}x${rect.height}`);
+            });
         });
     }
 }

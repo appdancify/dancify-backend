@@ -217,23 +217,9 @@ class DancifyAdmin {
     setupGlobalEventListeners() {
         console.log('🔧 Setting up global event listeners...');
         
-        document.addEventListener('click', async (e) => {
-            const sectionLink = e.target.closest('[data-section]');
-            if (sectionLink) {
-                e.preventDefault();
-                const sectionName = sectionLink.dataset.section;
-                console.log(`🔗 Navigation clicked: ${sectionName}`);
-                
-                this.updateNavigationState(sectionName);
-                
-                if (this.components.sectionLoader) {
-                    await this.components.sectionLoader.loadSection(sectionName);
-                } else {
-                    await this.fallbackLoadSection(sectionName);
-                }
-                return;
-            }
-        });
+        // REMOVED: Duplicate navigation event listener
+        // The section loader already handles navigation clicks
+        // This was causing duplicate sections to be created
         
         console.log('✅ Global event listeners setup completed');
     }
