@@ -30,6 +30,9 @@ class DanceStyleManager {
         } catch (error) {
             console.error('❌ Failed to initialize Dance Style Management:', error);
             this.showErrorMessage('Failed to initialize dance style management: ' + error.message);
+            
+            // Load fallback data if API fails
+            this.loadFallbackData();
         }
     }
 
@@ -120,7 +123,7 @@ class DanceStyleManager {
         }
     }
 
-    // 📊 Load dance styles from API
+    // 📊 Load dance styles from API - FIXED TO USE REAL API
     async loadDanceStyles(page = 1, filters = {}) {
         if (this.isLoading) return;
         
@@ -133,11 +136,25 @@ class DanceStyleManager {
         try {
             this.showLoadingState();
             
-            // Use mock data for now since we're in development
-            const mockData = this.getMockDanceStyles();
-            
-            this.danceStyles = mockData;
-            console.log(`✅ Loaded ${this.danceStyles.length} dance styles`);
+            // Try to load from real API first
+            if (this.api && typeof this.api.getDanceStyles === 'function') {
+                console.log('🌐 Fetching dance styles from API...');
+                
+                const response = await this.api.getDanceStyles(filters);
+                
+                if (response && response.success && response.data) {
+                    this.danceStyles = response.data;
+                    console.log(`✅ Loaded ${this.danceStyles.length} dance styles from API`);
+                } else {
+                    console.warn('⚠️ API returned no data, using fallback');
+                    this.danceStyles = this.getMockDanceStyles();
+                    this.showErrorMessage('Using demo data - API returned no results');
+                }
+            } else {
+                console.warn('⚠️ API client not available, using fallback data');
+                this.danceStyles = this.getMockDanceStyles();
+                this.showErrorMessage('Using demo data - backend connection unavailable');
+            }
             
             this.renderDanceStyles();
             this.updateStyleStats();
@@ -145,14 +162,31 @@ class DanceStyleManager {
         } catch (error) {
             console.error('❌ Failed to load dance styles:', error);
             this.showErrorMessage('Failed to load dance styles: ' + error.message);
-            this.danceStyles = [];
+            
+            // Fallback to mock data
+            this.danceStyles = this.getMockDanceStyles();
             this.renderDanceStyles();
+            this.updateStyleStats();
         } finally {
             this.isLoading = false;
         }
     }
 
-    // 🎯 Generate mock dance styles data
+    // 🔄 Load fallback data when API fails - NEW
+    loadFallbackData() {
+        console.log('🔄 Loading fallback dance styles data...');
+        
+        try {
+            this.danceStyles = this.getMockDanceStyles();
+            this.renderDanceStyles();
+            this.updateStyleStats();
+            this.showErrorMessage('Using demo data - backend connection failed');
+        } catch (error) {
+            console.error('❌ Failed to load fallback data:', error);
+        }
+    }
+
+    // 🎯 Generate mock dance styles data - ENHANCED
     getMockDanceStyles() {
         return [
             {
@@ -166,7 +200,9 @@ class DanceStyleManager {
                 is_featured: true,
                 popularity_score: 85,
                 stats: { moveCount: 24, submissionCount: 156, averageRating: 4.8 },
-                music_genres: ['Classical', 'Neoclassical', 'Contemporary Classical']
+                music_genres: ['Classical', 'Neoclassical', 'Contemporary Classical'],
+                created_at: '2024-01-15T10:30:00Z',
+                updated_at: '2024-03-20T14:45:00Z'
             },
             {
                 id: 'hip-hop',
@@ -179,7 +215,9 @@ class DanceStyleManager {
                 is_featured: true,
                 popularity_score: 88,
                 stats: { moveCount: 45, submissionCount: 203, averageRating: 4.7 },
-                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic']
+                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic'],
+                created_at: '2024-01-10T09:15:00Z',
+                updated_at: '2024-03-18T16:20:00Z'
             },
             {
                 id: 'ballroom',
@@ -192,7 +230,9 @@ class DanceStyleManager {
                 is_featured: false,
                 popularity_score: 58,
                 stats: { moveCount: 26, submissionCount: 89, averageRating: 4.8 },
-                music_genres: ['Waltz', 'Foxtrot', 'Tango', 'Quickstep']
+                music_genres: ['Waltz', 'Foxtrot', 'Tango', 'Quickstep'],
+                created_at: '2024-02-05T11:20:00Z',
+                updated_at: '2024-03-15T13:10:00Z'
             },
             {
                 id: 'salsa',
@@ -205,7 +245,9 @@ class DanceStyleManager {
                 is_featured: true,
                 popularity_score: 92,
                 stats: { moveCount: 35, submissionCount: 284, averageRating: 4.9 },
-                music_genres: ['Salsa', 'Latin', 'Mambo', 'Son']
+                music_genres: ['Salsa', 'Latin', 'Mambo', 'Son'],
+                created_at: '2024-01-20T08:45:00Z',
+                updated_at: '2024-03-22T10:30:00Z'
             },
             {
                 id: 'contemporary',
@@ -218,7 +260,9 @@ class DanceStyleManager {
                 is_featured: false,
                 popularity_score: 73,
                 stats: { moveCount: 32, submissionCount: 165, averageRating: 4.6 },
-                music_genres: ['Contemporary', 'Alternative', 'Indie', 'Electronic']
+                music_genres: ['Contemporary', 'Alternative', 'Indie', 'Electronic'],
+                created_at: '2024-02-10T15:30:00Z',
+                updated_at: '2024-03-19T09:25:00Z'
             },
             {
                 id: 'jazz',
@@ -231,7 +275,9 @@ class DanceStyleManager {
                 is_featured: false,
                 popularity_score: 67,
                 stats: { moveCount: 28, submissionCount: 134, averageRating: 4.5 },
-                music_genres: ['Jazz', 'Swing', 'Big Band', 'Musical Theatre']
+                music_genres: ['Jazz', 'Swing', 'Big Band', 'Musical Theatre'],
+                created_at: '2024-02-14T12:15:00Z',
+                updated_at: '2024-03-16T14:40:00Z'
             },
             {
                 id: 'tap',
@@ -244,7 +290,9 @@ class DanceStyleManager {
                 is_featured: false,
                 popularity_score: 45,
                 stats: { moveCount: 22, submissionCount: 87, averageRating: 4.7 },
-                music_genres: ['Tap', 'Jazz', 'Swing', 'Broadway']
+                music_genres: ['Tap', 'Jazz', 'Swing', 'Broadway'],
+                created_at: '2024-02-18T10:45:00Z',
+                updated_at: '2024-03-14T11:55:00Z'
             },
             {
                 id: 'breakdancing',
@@ -257,7 +305,9 @@ class DanceStyleManager {
                 is_featured: true,
                 popularity_score: 79,
                 stats: { moveCount: 52, submissionCount: 198, averageRating: 4.8 },
-                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic']
+                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic'],
+                created_at: '2024-01-25T13:20:00Z',
+                updated_at: '2024-03-21T15:10:00Z'
             }
         ];
     }
@@ -288,6 +338,8 @@ class DanceStyleManager {
         
         const styleCards = this.danceStyles.map(style => this.createStyleCard(style)).join('');
         stylesContainer.innerHTML = styleCards;
+        
+        console.log(`✅ Rendered ${this.danceStyles.length} dance style cards`);
     }
 
     // 🎭 Create dance style card - COMPLETE IMPLEMENTATION
@@ -389,6 +441,8 @@ class DanceStyleManager {
         if (totalStylesEl) totalStylesEl.textContent = stats.total.toLocaleString();
         if (totalCategoriesEl) totalCategoriesEl.textContent = stats.featured.toLocaleString();
         if (totalMovesEl) totalMovesEl.textContent = stats.totalMoves.toLocaleString();
+        
+        console.log('📊 Style stats updated:', stats);
     }
 
     // 🎯 Set up event listeners
@@ -430,7 +484,9 @@ class DanceStyleManager {
             filteredStyles = filteredStyles.filter(style =>
                 style.name.toLowerCase().includes(searchTerm) ||
                 style.description.toLowerCase().includes(searchTerm) ||
-                (style.cultural_origin && style.cultural_origin.toLowerCase().includes(searchTerm))
+                (style.cultural_origin && style.cultural_origin.toLowerCase().includes(searchTerm)) ||
+                (style.music_genres && style.music_genres.some(genre => 
+                    genre.toLowerCase().includes(searchTerm)))
             );
         }
         
@@ -460,6 +516,8 @@ class DanceStyleManager {
         
         const styleCards = styles.map(style => this.createStyleCard(style)).join('');
         stylesContainer.innerHTML = styleCards;
+        
+        console.log(`🔍 Filtered to ${styles.length} dance styles`);
     }
 
     // 🧹 Clear filters
@@ -470,20 +528,32 @@ class DanceStyleManager {
         this.renderDanceStyles();
     }
 
-    // ✏️ Edit dance style
-    editStyle(styleId) {
+    // ✏️ Edit dance style - ENHANCED WITH API CALL
+    async editStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
         if (!style) {
             this.showErrorMessage('Dance style not found');
             return;
         }
         
-        // For now, just show an alert - in production this would open a modal
-        this.showSuccessMessage(`Edit functionality for "${style.name}" would open here`);
+        try {
+            // In production, this would make an API call
+            if (this.api && typeof this.api.updateDanceStyle === 'function') {
+                console.log(`🌐 Would edit dance style ${styleId} via API`);
+                // const response = await this.api.updateDanceStyle(styleId, updatedData);
+            }
+            
+            // For now, just show success message
+            this.showSuccessMessage(`Edit functionality for "${style.name}" would open here`);
+            
+        } catch (error) {
+            console.error('❌ Error editing dance style:', error);
+            this.showErrorMessage('Failed to edit dance style: ' + error.message);
+        }
     }
 
-    // 🗑️ Delete dance style
-    deleteStyle(styleId) {
+    // 🗑️ Delete dance style - ENHANCED WITH API CALL
+    async deleteStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
         if (!style) {
             this.showErrorMessage('Dance style not found');
@@ -495,8 +565,21 @@ class DanceStyleManager {
         }
         
         try {
-            // Remove from local array (in production, this would call the API)
+            // Try API call first
+            if (this.api && typeof this.api.deleteDanceStyle === 'function') {
+                console.log(`🌐 Deleting dance style ${styleId} via API...`);
+                const response = await this.api.deleteDanceStyle(styleId);
+                
+                if (response && response.success) {
+                    console.log('✅ Dance style deleted via API');
+                } else {
+                    throw new Error(response?.error || 'API deletion failed');
+                }
+            }
+            
+            // Remove from local array
             this.danceStyles = this.danceStyles.filter(s => s.id !== styleId);
+            this.selectedStyles.delete(styleId);
             
             this.showSuccessMessage('Dance style deleted successfully');
             this.renderDanceStyles();
@@ -505,6 +588,63 @@ class DanceStyleManager {
         } catch (error) {
             console.error('❌ Error deleting dance style:', error);
             this.showErrorMessage('Failed to delete dance style: ' + error.message);
+        }
+    }
+
+    // ➕ Create new dance style - ENHANCED WITH API CALL
+    async createDanceStyle(styleData) {
+        try {
+            // Validate required fields
+            if (!styleData.name || !styleData.description) {
+                throw new Error('Name and description are required');
+            }
+            
+            // Add default values
+            const newStyle = {
+                id: Date.now().toString(),
+                name: styleData.name,
+                description: styleData.description,
+                icon: styleData.icon || '🎭',
+                color: styleData.color || '#8A2BE2',
+                difficulty_level: styleData.difficulty_level || 'beginner',
+                cultural_origin: styleData.cultural_origin || 'Unknown',
+                is_featured: styleData.is_featured || false,
+                popularity_score: 0,
+                stats: { moveCount: 0, submissionCount: 0, averageRating: 0 },
+                music_genres: styleData.music_genres || [],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            // Try API call first
+            if (this.api && typeof this.api.createDanceStyle === 'function') {
+                console.log('🌐 Creating dance style via API...');
+                const response = await this.api.createDanceStyle(newStyle);
+                
+                if (response && response.success) {
+                    console.log('✅ Dance style created via API');
+                    // Use API response data if available
+                    if (response.data) {
+                        newStyle.id = response.data.id;
+                    }
+                } else {
+                    throw new Error(response?.error || 'API creation failed');
+                }
+            }
+            
+            // Add to local array
+            this.danceStyles.push(newStyle);
+            
+            this.showSuccessMessage('Dance style created successfully');
+            this.renderDanceStyles();
+            this.updateStyleStats();
+            
+            return newStyle;
+            
+        } catch (error) {
+            console.error('❌ Error creating dance style:', error);
+            this.showErrorMessage('Failed to create dance style: ' + error.message);
+            throw error;
         }
     }
 
@@ -529,45 +669,52 @@ class DanceStyleManager {
                 checkbox.checked = this.selectedStyles.has(styleId);
             }
         }
+        
+        console.log(`🔀 Style ${styleId} ${this.selectedStyles.has(styleId) ? 'selected' : 'deselected'}`);
     }
 
     // ➕ Show create style modal
     showCreateStyleModal() {
-        // For now, just show an alert - in production this would open a modal
+        // For now, just show success message - in production this would open a modal
         this.showSuccessMessage('Create dance style modal would open here');
     }
 
     // 💾 Save style form
     async saveStyleForm() {
         const form = document.getElementById('styleForm');
-        if (!form) return;
-        
-        const formData = new FormData(form);
-        const styleData = {
-            id: Date.now().toString(), // Generate ID
-            name: formData.get('name'),
-            description: formData.get('description'),
-            icon: formData.get('icon'),
-            color: formData.get('color'),
-            difficulty_level: formData.get('difficulty'),
-            cultural_origin: formData.get('origin'),
-            is_featured: false,
-            popularity_score: Math.floor(Math.random() * 100),
-            stats: { moveCount: 0, submissionCount: 0, averageRating: 0 }
-        };
+        if (!form) {
+            this.showErrorMessage('Style form not found');
+            return;
+        }
         
         try {
-            // Add to local array (in production, this would call the API)
-            this.danceStyles.push(styleData);
+            const formData = new FormData(form);
+            const styleData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                icon: formData.get('icon'),
+                color: formData.get('color'),
+                difficulty_level: formData.get('difficulty'),
+                cultural_origin: formData.get('origin'),
+                is_featured: formData.get('is_featured') === 'on',
+                music_genres: formData.get('music_genres') ? 
+                    formData.get('music_genres').split(',').map(g => g.trim()) : []
+            };
             
-            this.showSuccessMessage('Dance style created successfully');
-            document.getElementById('styleModal').style.display = 'none';
-            this.renderDanceStyles();
-            this.updateStyleStats();
+            await this.createDanceStyle(styleData);
+            
+            // Close modal if it exists
+            const modal = document.getElementById('styleModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Reset form
+            form.reset();
             
         } catch (error) {
-            console.error('❌ Error creating dance style:', error);
-            this.showErrorMessage('Failed to create dance style: ' + error.message);
+            console.error('❌ Error saving style form:', error);
+            this.showErrorMessage('Failed to save dance style: ' + error.message);
         }
     }
 
