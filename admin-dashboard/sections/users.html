@@ -1,499 +1,506 @@
 <!-- 💃 Dancify Admin Dashboard - User Management Section -->
-<!-- Comprehensive user management with analytics and moderation tools -->
+<!-- Complete user management with filters, stats, and grid -->
 
 <section id="users" class="content-section">
     <!-- Section Header -->
     <div class="section-header">
         <div class="header-content">
             <h1>👥 User Management</h1>
-            <p>Manage users, track progress, and handle support requests</p>
+            <p>Manage user accounts, permissions, and platform engagement</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary" onclick="userManager?.showCreateUserModal()">
+            <button class="btn btn-secondary" id="refreshUsersBtn">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-primary" id="createUserBtn">
                 ➕ Add User
             </button>
-            <button class="btn btn-secondary" onclick="userManager?.exportUsers()">
-                📊 Export Data
-            </button>
         </div>
     </div>
 
-    <!-- User Statistics -->
-    <div class="user-stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">👥</div>
-            <div class="stat-info">
-                <h3>Total Users</h3>
-                <div class="stat-value" id="totalUsersCount">1,250</div>
-                <div class="stat-change">+45 this week</div>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">💃</div>
-            <div class="stat-info">
-                <h3>Active Dancers</h3>
-                <div class="stat-value" id="activeDancersCount">987</div>
-                <div class="stat-change">+23 today</div>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">🎓</div>
-            <div class="stat-info">
-                <h3>Instructors</h3>
-                <div class="stat-value" id="instructorCount">34</div>
-                <div class="stat-change">5 pending</div>
-            </div>
-        </div>
-        
-        <div class="stat-card">
-            <div class="stat-icon">⭐</div>
-            <div class="stat-info">
-                <h3>Premium Users</h3>
-                <div class="stat-value" id="premiumUsersCount">156</div>
-                <div class="stat-change">+8 this month</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Search and Filters -->
-    <div class="user-controls">
+    <!-- Management Controls -->
+    <div class="management-controls">
         <div class="search-section">
-            <input type="text" id="userSearch" placeholder="🔍 Search users..." class="form-control">
+            <input type="text" id="userSearchInput" placeholder="🔍 Search users..." class="form-control">
         </div>
         
         <div class="filter-section">
-            <select id="userTypeFilter" class="form-control form-select">
-                <option value="">All User Types</option>
-                <option value="student">👤 Students</option>
-                <option value="instructor">🎓 Instructors</option>
-                <option value="admin">⚙️ Admins</option>
+            <select id="userRoleFilter" class="form-control">
+                <option value="">All Roles</option>
+                <option value="user">Regular User</option>
+                <option value="instructor">Instructor</option>
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
             </select>
             
-            <select id="userStatusFilter" class="form-control form-select">
+            <select id="userStatusFilter" class="form-control">
                 <option value="">All Status</option>
-                <option value="active">✅ Active</option>
-                <option value="inactive">⏸️ Inactive</option>
-                <option value="suspended">🚫 Suspended</option>
-                <option value="pending">⏳ Pending</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+                <option value="pending">Pending</option>
             </select>
             
-            <select id="subscriptionFilter" class="form-control form-select">
-                <option value="">All Subscriptions</option>
-                <option value="free">🆓 Free</option>
-                <option value="premium">⭐ Premium</option>
-                <option value="instructor">🎓 Instructor</option>
+            <select id="verificationFilter" class="form-control">
+                <option value="">All Verification</option>
+                <option value="verified">Verified</option>
+                <option value="unverified">Unverified</option>
             </select>
-            
-            <button class="btn btn-secondary" onclick="userManager?.applyFilters()">
-                🔍 Filter
+        </div>
+        
+        <div class="bulk-actions">
+            <button class="btn btn-ghost" id="bulkDeleteUsersBtn" disabled>
+                🗑️ Delete Selected
             </button>
-            
-            <button class="btn btn-ghost" onclick="userManager?.clearFilters()">
-                🔄 Clear
+            <button class="btn btn-ghost" id="bulkSuspendBtn" disabled>
+                ⏸️ Suspend Selected
             </button>
         </div>
     </div>
 
-    <!-- Users Table -->
-    <div class="table-container">
-        <div class="table-header">
-            <h3>User Directory</h3>
-            <div class="table-actions">
-                <button class="btn btn-sm btn-secondary" onclick="userManager?.bulkActions()">
-                    ⚡ Bulk Actions
-                </button>
-                <button class="btn btn-sm btn-ghost" onclick="userManager?.refreshUsers()">
-                    🔄 Refresh
-                </button>
-            </div>
+    <!-- User Statistics Summary -->
+    <div class="stats-summary">
+        <div class="stat-item">
+            <span class="stat-label">Total Users</span>
+            <span class="stat-value" id="totalUsersCount">0</span>
         </div>
-        
-        <div class="table-wrapper">
-            <table class="table" id="usersTable">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" id="selectAllUsers"></th>
-                        <th>User</th>
-                        <th>Email</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Subscription</th>
-                        <th>Progress</th>
-                        <th>Joined</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTableBody">
-                    <!-- Sample Users -->
-                    <tr>
-                        <td><input type="checkbox" class="user-checkbox" data-user-id="user1"></td>
-                        <td>
-                            <div class="user-cell">
-                                <img src="https://via.placeholder.com/40x40/8A2BE2/FFFFFF?text=ER" alt="Emma Rodriguez" class="user-avatar">
-                                <div class="user-info">
-                                    <strong>Emma Rodriguez</strong>
-                                    <span class="user-id">#USER001</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td>emma.rodriguez@email.com</td>
-                        <td><span class="type-badge student">👤 Student</span></td>
-                        <td><span class="status-badge active">✅ Active</span></td>
-                        <td><span class="subscription-badge premium">⭐ Premium</span></td>
-                        <td>
-                            <div class="progress-info">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 75%"></div>
-                                </div>
-                                <span class="progress-text">Level 8 • 75%</span>
-                            </div>
-                        </td>
-                        <td>Mar 15, 2024</td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-ghost" onclick="userManager?.viewUser('user1')">👁️</button>
-                                <button class="btn btn-sm btn-primary" onclick="userManager?.editUser('user1')">✏️</button>
-                                <button class="btn btn-sm btn-warning" onclick="userManager?.suspendUser('user1')">⏸️</button>
-                            </div>
-                        </td>
-                    </tr>
-                    
-                    <tr>
-                        <td><input type="checkbox" class="user-checkbox" data-user-id="user2"></td>
-                        <td>
-                            <div class="user-cell">
-                                <img src="https://via.placeholder.com/40x40/FF69B4/FFFFFF?text=MJ" alt="Marcus Johnson" class="user-avatar">
-                                <div class="user-info">
-                                    <strong>Marcus Johnson</strong>
-                                    <span class="user-id">#USER002</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td>marcus.johnson@email.com</td>
-                        <td><span class="type-badge instructor">🎓 Instructor</span></td>
-                        <td><span class="status-badge active">✅ Active</span></td>
-                        <td><span class="subscription-badge instructor">🎓 Instructor</span></td>
-                        <td>
-                            <div class="instructor-stats">
-                                <span>25 students</span>
-                                <span>4.8⭐ rating</span>
-                            </div>
-                        </td>
-                        <td>Jan 10, 2024</td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-ghost" onclick="userManager?.viewUser('user2')">👁️</button>
-                                <button class="btn btn-sm btn-primary" onclick="userManager?.editUser('user2')">✏️</button>
-                                <button class="btn btn-sm btn-secondary" onclick="userManager?.viewInstructorStats('user2')">📊</button>
-                            </div>
-                        </td>
-                    </tr>
-                    
-                    <tr>
-                        <td><input type="checkbox" class="user-checkbox" data-user-id="user3"></td>
-                        <td>
-                            <div class="user-cell">
-                                <img src="https://via.placeholder.com/40x40/9370DB/FFFFFF?text=SC" alt="Sofia Chen" class="user-avatar">
-                                <div class="user-info">
-                                    <strong>Sofia Chen</strong>
-                                    <span class="user-id">#USER003</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td>sofia.chen@email.com</td>
-                        <td><span class="type-badge student">👤 Student</span></td>
-                        <td><span class="status-badge inactive">⏸️ Inactive</span></td>
-                        <td><span class="subscription-badge free">🆓 Free</span></td>
-                        <td>
-                            <div class="progress-info">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: 25%"></div>
-                                </div>
-                                <span class="progress-text">Level 2 • 25%</span>
-                            </div>
-                        </td>
-                        <td>May 8, 2024</td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-ghost" onclick="userManager?.viewUser('user3')">👁️</button>
-                                <button class="btn btn-sm btn-primary" onclick="userManager?.editUser('user3')">✏️</button>
-                                <button class="btn btn-sm btn-success" onclick="userManager?.activateUser('user3')">▶️</button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="stat-item">
+            <span class="stat-label">Active Users</span>
+            <span class="stat-value" id="activeUsersCount">0</span>
         </div>
-        
-        <!-- Pagination -->
-        <div id="usersPagination" class="pagination-container">
-            <button class="pagination-item">← Previous</button>
-            <button class="pagination-item active">1</button>
-            <button class="pagination-item">2</button>
-            <button class="pagination-item">3</button>
-            <button class="pagination-item">Next →</button>
+        <div class="stat-item">
+            <span class="stat-label">Verified Users</span>
+            <span class="stat-value" id="verifiedUsersCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Instructors</span>
+            <span class="stat-value" id="instructorsCount">0</span>
         </div>
     </div>
+
+    <!-- Users Grid Container -->
+    <div class="users-container">
+        <div id="usersGrid" class="users-grid">
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading users...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-container" id="usersPagination" style="display: none;">
+        <!-- Pagination will be dynamically generated -->
+    </div>
+
+    <!-- Message Container -->
+    <div id="messageContainer" class="message-container"></div>
 </section>
 
 <style>
-/* User Management Styles */
-.user-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.stat-card {
-    background: var(--bg-secondary);
-    padding: 25px;
-    border-radius: var(--radius-large);
-    box-shadow: var(--shadow-light);
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    transition: all var(--transition-fast);
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-medium);
-}
-
-.stat-icon {
-    font-size: 2.5rem;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, var(--primary-purple), var(--primary-pink));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-}
-
-.stat-info h3 {
-    margin: 0 0 8px 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary-purple);
-    margin-bottom: 5px;
-}
-
-.stat-change {
-    font-size: 0.85rem;
-    color: var(--success);
-    font-weight: 500;
-}
-
-.user-controls {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 20px;
-    margin-bottom: 25px;
-    align-items: center;
+/* User Management Specific Styles */
+.management-controls {
+    display: grid !important;
+    grid-template-columns: 1fr auto auto !important;
+    gap: 20px !important;
+    align-items: center !important;
+    margin-bottom: 25px !important;
+    padding: 20px !important;
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-large) !important;
+    box-shadow: var(--shadow-light) !important;
 }
 
 .search-section {
-    display: flex;
+    display: flex !important;
+    gap: 10px !important;
 }
 
 .filter-section {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+    display: flex !important;
+    gap: 10px !important;
 }
 
-.filter-section select {
-    min-width: 140px;
+.bulk-actions {
+    display: flex !important;
+    gap: 10px !important;
 }
 
-.table-wrapper {
-    overflow-x: auto;
+.stats-summary {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 20px !important;
+    margin-bottom: 25px !important;
+    padding: 20px !important;
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-large) !important;
+    box-shadow: var(--shadow-light) !important;
 }
 
-.user-cell {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.stat-item {
+    text-align: center !important;
+    padding: 15px !important;
+    background: var(--bg-tertiary) !important;
+    border-radius: var(--radius-medium) !important;
+}
+
+.stat-label {
+    display: block !important;
+    font-size: 0.85rem !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 8px !important;
+    font-weight: 600 !important;
+}
+
+.stat-value {
+    display: block !important;
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+    color: var(--primary-purple) !important;
+}
+
+.users-container {
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-large) !important;
+    padding: 25px !important;
+    min-height: 300px !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+.users-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+    gap: 20px !important;
+}
+
+/* User Card Styles */
+.user-card {
+    background: white !important;
+    border-radius: var(--radius-medium) !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border: 2px solid transparent !important;
+    padding: 20px !important;
+}
+
+.user-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 25px rgba(138, 43, 226, 0.15) !important;
+    border-color: var(--primary-purple) !important;
+}
+
+.user-card.selected {
+    border-color: var(--primary-purple) !important;
+    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.2) !important;
+}
+
+.user-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 15px !important;
+}
+
+.user-checkbox {
+    cursor: pointer !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.user-actions {
+    display: flex !important;
+    gap: 5px !important;
+}
+
+.action-btn {
+    background: none !important;
+    border: none !important;
+    padding: 5px !important;
+    border-radius: var(--radius-small) !important;
+    cursor: pointer !important;
+    font-size: 1rem !important;
+    transition: background var(--transition-fast) !important;
+}
+
+.action-btn:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.user-avatar-section {
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
+    margin-bottom: 15px !important;
 }
 
 .user-avatar {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-pink)) !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+}
+
+.user-basic-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.user-name {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    margin: 0 0 5px 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.user-email {
+    font-size: 0.9rem !important;
+    color: var(--text-secondary) !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.user-meta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-bottom: 15px !important;
+}
+
+.role-badge {
+    padding: 4px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.role-user { background: #E3F2FD; color: #1976D2; }
+.role-instructor { background: #F3E5F5; color: #7B1FA2; }
+.role-admin { background: #FFEBEE; color: #C62828; }
+.role-moderator { background: #E8F5E8; color: #2E7D32; }
+
+.status-badge {
+    padding: 4px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.status-active { background: #E8F5E8; color: #2E7D32; }
+.status-inactive { background: #FFF3E0; color: #F57C00; }
+.status-suspended { background: #FFEBEE; color: #C62828; }
+.status-pending { background: #F3E5F5; color: #7B1FA2; }
+
+.verification-badge {
+    padding: 4px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.verified { background: #E8F5E8; color: #2E7D32; }
+.unverified { background: #FFF3E0; color: #F57C00; }
+
+.user-stats {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 15px !important;
+}
+
+.user-stat {
+    text-align: center !important;
+    padding: 8px !important;
+    background: var(--bg-tertiary) !important;
+    border-radius: var(--radius-small) !important;
+}
+
+.user-stat-value {
+    display: block !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 2px !important;
+}
+
+.user-stat-label {
+    display: block !important;
+    font-size: 0.7rem !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.user-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding-top: 15px !important;
+    border-top: 1px solid var(--bg-tertiary) !important;
+    font-size: 0.8rem !important;
+    color: var(--text-secondary) !important;
+}
+
+.join-date {
+    font-weight: 500 !important;
+}
+
+.last-active {
+    font-weight: 500 !important;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center !important;
+    padding: 60px 20px !important;
+    color: var(--text-secondary) !important;
+}
+
+.empty-icon {
+    font-size: 4rem !important;
+    opacity: 0.6 !important;
+    margin-bottom: 20px !important;
+}
+
+.empty-title {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 10px !important;
+}
+
+.empty-description {
+    font-size: 1rem !important;
+    margin-bottom: 30px !important;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 15px !important;
+    padding: 60px 20px !important;
+    color: var(--text-secondary) !important;
+}
+
+.loading-spinner {
     width: 40px;
     height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-purple);
     border-radius: 50%;
-    object-fit: cover;
+    animation: spin 1s linear infinite;
 }
 
-.user-info strong {
-    display: block;
-    color: var(--text-primary);
-    font-weight: 600;
+.loading-text {
+    font-size: 1rem;
+    font-weight: 500;
 }
 
-.user-id {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+/* Pagination Styles */
+.pagination-container {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 30px !important;
+    padding: 20px !important;
 }
 
-.type-badge, .status-badge, .subscription-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+.pagination-item {
+    padding: 8px 12px !important;
+    border: 1px solid var(--bg-tertiary) !important;
+    background: white !important;
+    color: var(--text-primary) !important;
+    text-decoration: none !important;
+    border-radius: var(--radius-small) !important;
+    transition: all var(--transition-fast) !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
 }
 
-.type-badge.student {
-    background: rgba(138, 43, 226, 0.1);
-    color: var(--primary-purple);
+.pagination-item:hover {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--primary-purple) !important;
 }
 
-.type-badge.instructor {
-    background: rgba(255, 193, 7, 0.1);
-    color: #FFC107;
+.pagination-item.active {
+    background: var(--primary-purple) !important;
+    color: white !important;
+    border-color: var(--primary-purple) !important;
 }
 
-.type-badge.admin {
-    background: rgba(220, 53, 69, 0.1);
-    color: var(--danger);
-}
-
-.status-badge.active {
-    background: rgba(40, 167, 69, 0.1);
-    color: var(--success);
-}
-
-.status-badge.inactive {
-    background: rgba(108, 117, 125, 0.1);
-    color: var(--text-secondary);
-}
-
-.status-badge.suspended {
-    background: rgba(220, 53, 69, 0.1);
-    color: var(--danger);
-}
-
-.status-badge.pending {
-    background: rgba(255, 193, 7, 0.1);
-    color: var(--warning);
-}
-
-.subscription-badge.free {
-    background: rgba(108, 117, 125, 0.1);
-    color: var(--text-secondary);
-}
-
-.subscription-badge.premium {
-    background: rgba(255, 215, 0, 0.1);
-    color: #FFD700;
-}
-
-.subscription-badge.instructor {
-    background: rgba(255, 193, 7, 0.1);
-    color: #FFC107;
-}
-
-.progress-info {
-    min-width: 120px;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 6px;
-    background: #E9ECEF;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 5px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary-purple), var(--primary-pink));
-    border-radius: 10px;
-    transition: width var(--transition-medium);
-}
-
-.progress-text {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.instructor-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.action-buttons {
-    display: flex;
-    gap: 5px;
+.pagination-item:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
-    .user-stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .user-controls {
-        grid-template-columns: 1fr;
+@media (max-width: 1024px) {
+    .management-controls {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
     }
     
     .filter-section {
-        flex-direction: column;
-        align-items: stretch;
+        justify-content: center !important;
     }
     
-    .filter-section select {
-        min-width: unset;
+    .users-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-summary {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
     
-    .user-cell {
-        flex-direction: column;
-        text-align: center;
-        gap: 8px;
+    .filter-section {
+        flex-direction: column !important;
     }
     
-    .action-buttons {
-        flex-direction: column;
-        gap: 5px;
+    .users-grid {
+        grid-template-columns: 1fr !important;
     }
     
-    .table th:nth-child(3),
-    .table td:nth-child(3),
-    .table th:nth-child(7),
-    .table td:nth-child(7) {
-        display: none;
+    .user-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 }
 
 @media (max-width: 480px) {
-    .stat-card {
-        flex-direction: column;
-        text-align: center;
+    .stats-summary {
+        grid-template-columns: 1fr !important;
     }
     
-    .table th:nth-child(4),
-    .table td:nth-child(4),
-    .table th:nth-child(6),
-    .table td:nth-child(6) {
-        display: none;
+    .user-avatar-section {
+        flex-direction: column !important;
+        text-align: center !important;
+    }
+    
+    .user-footer {
+        flex-direction: column !important;
+        gap: 5px !important;
+        text-align: center !important;
     }
 }
 </style>
