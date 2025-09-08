@@ -1,5 +1,5 @@
 // 💃 Dancify Admin Dashboard - Section Loader
-// Dynamic section loading with proper initialization - FIXED DOM TIMING
+// Dynamic section loading with proper initialization - FINAL FIXED VERSION
 
 class DancifySectionLoader {
     constructor() {
@@ -193,23 +193,27 @@ class DancifySectionLoader {
             
             switch (sectionName) {
                 case 'move-management':
-                    // CRITICAL FIX: Wait longer for DOM to be fully ready
+                    // CRITICAL FIX: Wait longer for DOM to be fully ready AND duplicates removed
                     console.log('🔄 Re-initializing existing MoveManager with new DOM...');
                     
                     // Wait longer for DOM to be fully injected and rendered
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay
+                    
+                    // Remove duplicates FIRST before checking for elements
+                    this.removeDuplicateSections(sectionName);
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     // Verify DOM elements exist before proceeding
                     const requiredElements = ['createMoveBtn', 'moveSearchInput', 'movesGrid'];
                     let elementsReady = false;
                     let retries = 0;
-                    const maxRetries = 10;
+                    const maxRetries = 15; // Increased retries
                     
                     while (!elementsReady && retries < maxRetries) {
                         elementsReady = requiredElements.every(id => {
                             const element = document.getElementById(id);
                             if (!element) {
-                                console.log(`⏳ Waiting for element: ${id}`);
+                                console.log(`⏳ Waiting for element: ${id} (attempt ${retries + 1})`);
                                 return false;
                             }
                             return true;
@@ -217,18 +221,29 @@ class DancifySectionLoader {
                         
                         if (!elementsReady) {
                             retries++;
-                            await new Promise(resolve => setTimeout(resolve, 100));
+                            await new Promise(resolve => setTimeout(resolve, 150)); // Longer wait between retries
                         }
                     }
                     
                     if (!elementsReady) {
                         console.error('❌ Required DOM elements not found after waiting');
-                        // Still try to proceed with initialization
+                        // Check what elements we actually have
+                        console.log('🔍 Available elements:', {
+                            createMoveBtn: !!document.getElementById('createMoveBtn'),
+                            moveSearchInput: !!document.getElementById('moveSearchInput'),
+                            movesGrid: !!document.getElementById('movesGrid'),
+                            allButtons: document.querySelectorAll('button').length,
+                            allInputs: document.querySelectorAll('input').length
+                        });
                     }
                     
                     if (window.moveManager) {
                         try {
                             console.log('🎯 MoveManager exists, re-initializing...');
+                            
+                            // Wait a bit more before setting up event listeners
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                            
                             window.moveManager.setupEventListeners();
                             window.moveManager.renderMoves();
                             window.moveManager.updateMoveStats();
@@ -250,11 +265,14 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dance-style-management':
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    this.removeDuplicateSections(sectionName);
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     if (window.danceStyleManager) {
                         console.log('🔄 Re-initializing existing DanceStyleManager...');
                         try {
+                            await new Promise(resolve => setTimeout(resolve, 200));
                             window.danceStyleManager.setupEventListeners();
                             window.danceStyleManager.renderDanceStyles();
                             window.danceStyleManager.updateStyleStats();
@@ -275,7 +293,9 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dashboard':
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    this.removeDuplicateSections(sectionName);
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     if (window.DancifyDashboard && window.apiClient) {
                         if (!window.dashboardManager) {
@@ -291,7 +311,9 @@ class DancifySectionLoader {
                     break;
                     
                 case 'users':
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    this.removeDuplicateSections(sectionName);
+                    await new Promise(resolve => setTimeout(resolve, 100));
                     
                     if (window.UserManager && window.apiClient) {
                         if (!window.userManager) {
@@ -321,9 +343,6 @@ class DancifySectionLoader {
     }
 
     activateSection(sectionName) {
-        // CRITICAL: Final cleanup before activation
-        this.removeDuplicateSections(sectionName);
-        
         // Hide all sections first
         const allSections = document.querySelectorAll('.content-section');
         allSections.forEach(section => {

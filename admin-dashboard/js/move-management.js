@@ -1,5 +1,5 @@
-// 🕺 Move Management System - Complete Fixed Version
-// Enhanced DOM handling, section loading compatibility, and robust error handling
+// 🕺 Move Management System - Complete Final Fixed Version
+// Enhanced DOM handling, timing fixes, and robust error handling
 
 class MoveManager {
     constructor() {
@@ -88,34 +88,54 @@ class MoveManager {
         return true;
     }
 
-    // 🔗 Setup event listeners (can be called multiple times safely)
+    // 🔗 Setup event listeners (can be called multiple times safely) - FINAL FIXED VERSION
     setupEventListeners() {
         console.log('🔗 Setting up event listeners...');
         
         // Remove existing listeners to prevent duplicates
         this.removeEventListeners();
         
-        // Wait a moment for elements to be available
+        // Wait longer for elements to be available and settled
         setTimeout(() => {
-            // Create move button
-            const createMoveBtn = document.getElementById('createMoveBtn');
+            console.log('🎯 Attempting to find elements after delay...');
+            
+            // Debug: Log what elements we can find
+            const allButtons = document.querySelectorAll('button');
+            const allInputs = document.querySelectorAll('input');
+            const allSelects = document.querySelectorAll('select');
+            console.log(`🔍 Found ${allButtons.length} buttons, ${allInputs.length} inputs, ${allSelects.length} selects`);
+            
+            // Create move button - try multiple approaches
+            let createMoveBtn = document.getElementById('createMoveBtn');
+            if (!createMoveBtn) {
+                // Try alternative selectors
+                createMoveBtn = document.querySelector('.btn[onclick*="create"], button[title*="Create"], .header-actions .btn-primary');
+                if (createMoveBtn) {
+                    console.log('🔍 Found create button via alternative selector');
+                }
+            }
+            
             if (createMoveBtn) {
-                this.createMoveBtnHandler = () => this.showCreateMoveModal();
+                this.createMoveBtnHandler = (e) => {
+                    e.preventDefault();
+                    this.showCreateMoveModal();
+                };
                 createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
                 console.log('✅ Create move button listener added');
             } else {
                 console.warn('⚠️ Create move button not found');
-                // Try to find it with a more general selector
-                const altBtn = document.querySelector('[id*="create"], .btn[onclick*="create"], .create-move-btn');
-                if (altBtn) {
-                    console.log('🔍 Found alternative create button');
-                    this.createMoveBtnHandler = () => this.showCreateMoveModal();
-                    altBtn.addEventListener('click', this.createMoveBtnHandler);
-                }
+                // List all buttons for debugging
+                allButtons.forEach((btn, i) => {
+                    console.log(`Button ${i}: id="${btn.id}", class="${btn.className}", text="${btn.textContent.trim()}"`);
+                });
             }
 
             // Refresh button
-            const refreshBtn = document.getElementById('refreshMovesBtn');
+            let refreshBtn = document.getElementById('refreshMovesBtn');
+            if (!refreshBtn) {
+                refreshBtn = document.querySelector('.btn[onclick*="refresh"], button[title*="Refresh"]');
+            }
+            
             if (refreshBtn) {
                 this.refreshBtnHandler = () => this.loadMoves(1);
                 refreshBtn.addEventListener('click', this.refreshBtnHandler);
@@ -125,7 +145,11 @@ class MoveManager {
             }
 
             // Search input
-            const searchInput = document.getElementById('moveSearchInput');
+            let searchInput = document.getElementById('moveSearchInput');
+            if (!searchInput) {
+                searchInput = document.querySelector('input[placeholder*="search"], input[placeholder*="Search"]');
+            }
+            
             if (searchInput) {
                 this.searchInputHandler = (e) => {
                     this.currentFilters.search = e.target.value.trim();
@@ -135,16 +159,10 @@ class MoveManager {
                 console.log('✅ Search input listener added');
             } else {
                 console.warn('⚠️ Search input not found');
-                // Try alternative selector
-                const altSearch = document.querySelector('input[placeholder*="search"], input[id*="search"]');
-                if (altSearch) {
-                    console.log('🔍 Found alternative search input');
-                    this.searchInputHandler = (e) => {
-                        this.currentFilters.search = e.target.value.trim();
-                        this.applyFilters();
-                    };
-                    altSearch.addEventListener('input', this.searchInputHandler);
-                }
+                // List all inputs for debugging
+                allInputs.forEach((input, i) => {
+                    console.log(`Input ${i}: id="${input.id}", placeholder="${input.placeholder}", type="${input.type}"`);
+                });
             }
 
             // Filter dropdowns
@@ -155,7 +173,12 @@ class MoveManager {
             ];
 
             filterElements.forEach(filterId => {
-                const element = document.getElementById(filterId);
+                let element = document.getElementById(filterId);
+                if (!element) {
+                    // Try to find by partial match
+                    element = document.querySelector(`select[id*="${filterId.replace('Filter', '')}"]`);
+                }
+                
                 if (element) {
                     const handler = (e) => {
                         this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
@@ -172,7 +195,11 @@ class MoveManager {
             });
 
             // Bulk delete button
-            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            let bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            if (!bulkDeleteBtn) {
+                bulkDeleteBtn = document.querySelector('.btn[onclick*="delete"], button[title*="Delete"]');
+            }
+            
             if (bulkDeleteBtn) {
                 this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
                 bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
@@ -182,7 +209,26 @@ class MoveManager {
             }
 
             console.log('🔗 Event listeners setup complete');
-        }, 100); // Small delay to ensure DOM is ready
+            
+            // Verify at least one critical element was found
+            const criticalElements = [createMoveBtn, refreshBtn, searchInput].filter(Boolean);
+            if (criticalElements.length === 0) {
+                console.error('❌ No critical elements found, event listeners may not work');
+                
+                // Final fallback: try to add a click listener to the whole section
+                const section = document.getElementById('move-management');
+                if (section) {
+                    console.log('🔧 Adding fallback click listener to section');
+                    section.addEventListener('click', (e) => {
+                        if (e.target.textContent.includes('Create Move') || e.target.textContent.includes('➕')) {
+                            console.log('🎯 Fallback create move click detected');
+                            this.showCreateMoveModal();
+                        }
+                    });
+                }
+            }
+            
+        }, 300); // Increased delay to 300ms
     }
 
     // 🧹 Remove event listeners to prevent duplicates
