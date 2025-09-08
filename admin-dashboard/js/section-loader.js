@@ -1,3 +1,6 @@
+// 💃 Dancify Admin Dashboard - Section Loader
+// Dynamic section loading with proper initialization
+
 class DancifySectionLoader {
     constructor() {
         this.loadedSections = new Set();
@@ -67,7 +70,7 @@ class DancifySectionLoader {
             if (!this.sectionConfig[sectionName]) {
                 throw new Error(`Unknown section: ${sectionName}`);
             }
-            
+          
             // CRITICAL: Always clean up duplicates before proceeding
             this.removeDuplicateSections(sectionName);
             
@@ -203,16 +206,19 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dance-style-management':
-                    if (window.DanceStyleManager && window.apiClient) {
-                        if (!window.danceStyleManager) {
-                            window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
+                    // CRITICAL FIX: Add delay to ensure DOM is ready
+                    setTimeout(async () => {
+                        if (window.DanceStyleManager && window.apiClient) {
+                            if (!window.danceStyleManager) {
+                                window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
+                            }
+                            if (typeof window.danceStyleManager.init === 'function') {
+                                await window.danceStyleManager.init();
+                            }
+                        } else {
+                            console.warn('⚠️ DanceStyleManager or apiClient not available');
                         }
-                        if (typeof window.danceStyleManager.init === 'function') {
-                            await window.danceStyleManager.init();
-                        }
-                    } else {
-                        console.warn('⚠️ DanceStyleManager or apiClient not available');
-                    }
+                    }, 200); // 200ms delay to ensure DOM is fully parsed
                     break;
                     
                 case 'dashboard':
@@ -240,7 +246,7 @@ class DancifySectionLoader {
                         console.warn('⚠️ UserManager or apiClient not available');
                     }
                     break;
-                    
+        
                 default:
                     console.log(`ℹ️ No specific initialization for ${sectionName}`);
                     break;
@@ -304,6 +310,7 @@ class DancifySectionLoader {
                 const sectionName = sectionLink.dataset.section;
                 console.log(`🔗 Navigation clicked: ${sectionName}`);
                 this.loadSection(sectionName);
+
             }
         }, true); // Use capture phase to catch events early
     }
