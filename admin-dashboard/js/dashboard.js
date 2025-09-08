@@ -36,13 +36,10 @@ class DancifyDashboard {
         } catch (error) {
             console.error('❌ Dashboard initialization failed:', error);
             this.showErrorMessage('Failed to initialize dashboard: ' + error.message);
-            
-            // Load fallback mock data if API fails
-            this.loadFallbackData();
         }
     }
 
-    // ⏳ Wait for API client to be available - FIXED
+    // ⏳ Wait for API client to be available
     async waitForAPI() {
         return new Promise((resolve, reject) => {
             const maxWait = 10000; // 10 seconds
@@ -50,10 +47,9 @@ class DancifyDashboard {
             let elapsed = 0;
             
             const checkAPI = () => {
-                // FIXED: Use the correct global API client reference
-                const api = window.apiClient;
+                const api = window.DancifyAPI ? new window.DancifyAPI() : null;
                 
-                if (api && typeof api.getDashboardStats === 'function') {
+                if (api) {
                     console.log('✅ API client found and connected');
                     resolve(api);
                     return;
@@ -82,22 +78,15 @@ class DancifyDashboard {
             this.showLoadingState();
             
             // Load data in parallel for better performance
-            const [statsData, chartsData, activityData] = await Promise.allSettled([
+            const [statsData, chartsData, activityData] = await Promise.all([
                 this.loadStats(),
                 this.loadCharts(),
                 this.loadRecentActivity()
             ]);
             
-            // Process results (some may fail)
-            if (statsData.status === 'fulfilled' && statsData.value) {
-                this.updateStats(statsData.value);
-            }
-            if (chartsData.status === 'fulfilled' && chartsData.value) {
-                this.updateCharts(chartsData.value);
-            }
-            if (activityData.status === 'fulfilled' && activityData.value) {
-                this.updateRecentActivity(activityData.value);
-            }
+            if (statsData) this.updateStats(statsData);
+            if (chartsData) this.updateCharts(chartsData);
+            if (activityData) this.updateRecentActivity(activityData);
             
             this.hideLoadingState();
             this.lastUpdate = new Date();
@@ -105,55 +94,28 @@ class DancifyDashboard {
         } catch (error) {
             console.error('❌ Failed to load dashboard data:', error);
             this.showErrorMessage('Failed to load dashboard data: ' + error.message);
-            this.loadFallbackData();
         } finally {
             this.isLoading = false;
         }
     }
 
-    // 📈 Load dashboard statistics - FIXED
+    // 📈 Load dashboard statistics
     async loadStats() {
         try {
             if (!this.api || typeof this.api.getDashboardStats !== 'function') {
-                console.warn('⚠️ API client not available for stats, using fallback');
-                return this.getMockStats();
+                throw new Error('API client not available for stats');
             }
             
             const response = await this.api.getDashboardStats();
-            
-            if (response && response.success) {
-                return response.data;
-            } else {
-                console.warn('⚠️ API returned unsuccessful response, using fallback');
-                return this.getMockStats();
-            }
+            return response.success ? response.data : null;
         } catch (error) {
             console.error('❌ Failed to load stats:', error);
-            // Return mock data as fallback
-            return this.getMockStats();
+            throw error;
         }
     }
 
-    // 📊 Mock stats fallback - NEW
-    getMockStats() {
-        return {
-            stats: {
-                totalUsers: 1250,
-                newUsersThisMonth: 84,
-                totalMoves: 156,
-                newMovesThisMonth: 12,
-                totalSubmissions: 892,
-                pendingSubmissions: 23,
-                totalDanceStyles: 8,
-                activeDanceStyles: 8
-            }
-        };
-    }
-
-    // 📊 Update statistics display - ENHANCED
+    // 📊 Update statistics display
     updateStats(data) {
-        console.log('📊 Updating stats with data:', data);
-        
         const stats = {
             totalUsers: data.stats?.totalUsers || 0,
             usersChange: data.stats?.newUsersThisMonth || 0,
@@ -161,8 +123,8 @@ class DancifyDashboard {
             movesChange: data.stats?.newMovesThisMonth || 0,
             totalSubmissions: data.stats?.totalSubmissions || 0,
             submissionsChange: data.stats?.pendingSubmissions || 0,
-            totalDanceStyles: data.stats?.totalDanceStyles || data.stats?.activeDanceStyles || 0,
-            stylesChange: data.stats?.activeDanceStyles || 0
+            totalDanceStyles: data.stats?.totalDanceStyles || 0,
+            stylesChange: data.stats?.totalDanceStyles || 0
         };
 
         // Update stat cards with animation
@@ -170,28 +132,21 @@ class DancifyDashboard {
         this.updateStatCard('totalMoves', stats.totalMoves, this.formatChange(stats.movesChange, 'new this month'));
         this.updateStatCard('totalSubmissions', stats.totalSubmissions, this.formatChange(stats.submissionsChange, 'pending'));
         this.updateStatCard('totalDanceStyles', stats.totalDanceStyles, this.formatChange(stats.stylesChange, 'active'));
-        
-        console.log('✅ Stats updated successfully');
     }
 
-    // 🎯 Update individual stat card - ENHANCED
+    // 🎯 Update individual stat card
     updateStatCard(elementId, value, change) {
         const valueElement = document.getElementById(elementId);
         const changeElement = document.getElementById(elementId.replace('total', '') + 'Change');
         
         if (valueElement) {
             // Animate number change
-            const currentValue = parseInt(valueElement.textContent.replace(/,/g, '')) || 0;
-            this.animateValue(valueElement, currentValue, value, 1000);
-        } else {
-            console.warn(`⚠️ Stat element not found: ${elementId}`);
+            this.animateValue(valueElement, parseInt(valueElement.textContent) || 0, value, 1000);
         }
         
         if (changeElement) {
             changeElement.textContent = change;
-            changeElement.className = 'change ' + (change.includes('+') ? 'positive' : change.includes('-') ? 'negative' : '');
-        } else {
-            console.warn(`⚠️ Change element not found: ${elementId.replace('total', '') + 'Change'}`);
+            changeElement.className = 'change ' + (change.includes('+') ? 'positive' : '');
         }
     }
 
@@ -225,60 +180,23 @@ class DancifyDashboard {
         requestAnimationFrame(step);
     }
 
-    // 📊 Load and update charts - FIXED
+    // 📊 Load and update charts
     async loadCharts() {
         try {
             if (!this.api || typeof this.api.getDashboardCharts !== 'function') {
-                console.warn('⚠️ API client not available for charts, using fallback');
-                return this.getMockChartData();
+                throw new Error('API client not available for charts');
             }
             
             const response = await this.api.getDashboardCharts();
-            
-            if (response && response.success) {
-                return response.data;
-            } else {
-                console.warn('⚠️ Charts API returned unsuccessful response, using fallback');
-                return this.getMockChartData();
-            }
+            return response.success ? response.data : null;
         } catch (error) {
             console.error('❌ Failed to load charts:', error);
-            return this.getMockChartData();
+            throw error;
         }
-    }
-
-    // 📊 Mock chart data fallback - NEW
-    getMockChartData() {
-        return {
-            userGrowth: [
-                { month: 'Jan', users: 45 },
-                { month: 'Feb', users: 67 },
-                { month: 'Mar', users: 89 },
-                { month: 'Apr', users: 102 },
-                { month: 'May', users: 124 },
-                { month: 'Jun', users: 147 }
-            ],
-            popularMoves: [
-                { name: 'Moonwalk', view_count: 1250 },
-                { name: 'Spin Turn', view_count: 980 },
-                { name: 'Body Wave', view_count: 876 },
-                { name: 'Pirouette', view_count: 654 },
-                { name: 'Box Step', view_count: 543 }
-            ],
-            stylePopularity: [
-                { name: 'Hip-Hop', move_count: 45 },
-                { name: 'Ballet', move_count: 24 },
-                { name: 'Salsa', move_count: 35 },
-                { name: 'Contemporary', move_count: 32 },
-                { name: 'Jazz', move_count: 28 }
-            ]
-        };
     }
 
     // 📈 Update chart displays
     updateCharts(data) {
-        console.log('📈 Updating charts with data:', data);
-        
         if (data.userGrowth) {
             this.updateUserGrowthChart(data.userGrowth);
         }
@@ -290,8 +208,6 @@ class DancifyDashboard {
         if (data.stylePopularity) {
             this.updateStylePopularityChart(data.stylePopularity);
         }
-        
-        console.log('✅ Charts updated successfully');
     }
 
     // 📈 Update user growth chart
@@ -355,10 +271,7 @@ class DancifyDashboard {
     // 📊 Update popular moves chart
     updatePopularMovesChart(data) {
         const ctx = document.getElementById('popularMovesChart');
-        if (!ctx) {
-            console.warn('⚠️ Popular moves chart canvas not found');
-            return;
-        }
+        if (!ctx) return;
         
         if (typeof Chart === 'undefined') {
             ctx.parentElement.innerHTML = '<p>📊 Chart.js loading...</p>';
@@ -403,10 +316,7 @@ class DancifyDashboard {
     // 🎭 Update style popularity chart
     updateStylePopularityChart(data) {
         const ctx = document.getElementById('stylePopularityChart');
-        if (!ctx) {
-            console.warn('⚠️ Style popularity chart canvas not found');
-            return;
-        }
+        if (!ctx) return;
         
         if (typeof Chart === 'undefined') {
             ctx.parentElement.innerHTML = '<p>📊 Chart.js loading...</p>';
@@ -442,53 +352,19 @@ class DancifyDashboard {
         });
     }
 
-    // 📢 Load recent activity - FIXED
+    // 📢 Load recent activity
     async loadRecentActivity() {
         try {
             if (!this.api || typeof this.api.getRecentActivity !== 'function') {
-                console.warn('⚠️ API client not available for activity, using fallback');
-                return this.getMockActivity();
+                throw new Error('API client not available for activity');
             }
             
             const response = await this.api.getRecentActivity();
-            
-            if (response && response.success) {
-                return response.data.recentActivity || response.data;
-            } else {
-                console.warn('⚠️ Activity API returned unsuccessful response, using fallback');
-                return this.getMockActivity();
-            }
+            return response.success ? response.data.recentActivity : null;
         } catch (error) {
             console.error('❌ Failed to load activity:', error);
-            return this.getMockActivity();
+            throw error;
         }
-    }
-
-    // 📢 Mock activity data fallback - NEW
-    getMockActivity() {
-        const now = new Date();
-        return [
-            {
-                activity_type: 'user_registered',
-                description: 'New user Sarah joined the platform',
-                created_at: new Date(now - 5 * 60 * 1000).toISOString() // 5 min ago
-            },
-            {
-                activity_type: 'move_submitted',
-                description: 'Alex submitted a new Hip-Hop move "Wave Break"',
-                created_at: new Date(now - 15 * 60 * 1000).toISOString() // 15 min ago
-            },
-            {
-                activity_type: 'move_approved',
-                description: 'Move "Pirouette Combo" was approved by instructor',
-                created_at: new Date(now - 45 * 60 * 1000).toISOString() // 45 min ago
-            },
-            {
-                activity_type: 'user_verified',
-                description: 'Maria became a verified instructor',
-                created_at: new Date(now - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
-            }
-        ];
     }
 
     // 📢 Update recent activity display
@@ -520,7 +396,6 @@ class DancifyDashboard {
         }).join('');
         
         container.innerHTML = activityHTML;
-        console.log('✅ Activity updated successfully');
     }
 
     // 🎭 Get activity type icon
@@ -548,27 +423,6 @@ class DancifyDashboard {
         if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
         
         return date.toLocaleDateString();
-    }
-
-    // 🔄 Load fallback data when API fails - NEW
-    loadFallbackData() {
-        console.log('🔄 Loading fallback data...');
-        
-        try {
-            const mockStats = this.getMockStats();
-            const mockCharts = this.getMockChartData();
-            const mockActivity = this.getMockActivity();
-            
-            this.updateStats(mockStats);
-            this.updateCharts(mockCharts);
-            this.updateRecentActivity(mockActivity);
-            
-            this.hideLoadingState();
-            this.showErrorMessage('Using demo data - backend connection failed');
-            
-        } catch (error) {
-            console.error('❌ Failed to load fallback data:', error);
-        }
     }
 
     // 🔄 Set up auto-refresh
@@ -665,19 +519,7 @@ class DancifyDashboard {
         
         const messageEl = document.createElement('div');
         messageEl.className = `message message-${type}`;
-        
-        const iconMap = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        
-        messageEl.innerHTML = `
-            <span class="message-icon">${iconMap[type] || iconMap.info}</span>
-            <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">✕</button>
-        `;
+        messageEl.textContent = message;
         
         messageContainer.appendChild(messageEl);
         

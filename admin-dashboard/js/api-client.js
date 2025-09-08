@@ -22,14 +22,10 @@ class DancifyAPI {
         this.requestInterceptors = [];
         this.responseInterceptors = [];
         
-        // Connection state
-        this.isConnected = false;
-        this.lastHealthCheck = null;
-        
         console.log(`🔗 API Client configured for: ${this.baseURL}`);
     }
 
-    // 🔍 Auto-detect the correct backend URL - ENHANCED
+    // 🔍 Auto-detect the correct backend URL
     detectBackendURL() {
         const currentHost = window.location.hostname;
         
@@ -44,10 +40,10 @@ class DancifyAPI {
         }
         
         // Fallback to environment variable or default
-        return window.DANCIFY_API_URL || 'https://dancify-backend.onrender.com/api';
+        return window.DANCIFY_API_URL || window.location.origin + '/api';
     }
 
-    // 🚀 Initialize API client - ENHANCED
+    // 🚀 Initialize API client
     async init() {
         try {
             console.log('🔗 Initializing Dancify API client...');
@@ -55,34 +51,24 @@ class DancifyAPI {
             // Load stored auth tokens
             this.loadAuthTokens();
             
-            // Test connection with fallback
-            try {
-                await this.ping();
-                this.isConnected = true;
-                console.log('✅ API client initialized successfully');
-            } catch (error) {
-                console.warn('⚠️ Backend connection failed, API client will work in offline mode');
-                this.isConnected = false;
-                // Don't throw error - allow app to work in demo mode
-            }
+            // Test connection
+            await this.ping();
+            console.log('✅ API client initialized successfully');
             
         } catch (error) {
             console.error('❌ API client initialization failed:', error);
-            this.isConnected = false;
-            // Don't throw error - allow fallback to demo mode
+            throw new Error('Failed to initialize API client: ' + error.message);
         }
     }
 
-    // 🏓 Test connection to backend - ENHANCED
+    // 🏓 Test connection to backend
     async ping() {
         try {
             const response = await this.request('GET', '/health');
-            this.lastHealthCheck = new Date();
             console.log('✅ Backend connection successful');
             return response;
         } catch (error) {
             console.error('❌ Backend connection failed:', error);
-            this.isConnected = false;
             throw error;
         }
     }
@@ -124,7 +110,7 @@ class DancifyAPI {
         }
     }
 
-    // 🌐 Core HTTP request method - ENHANCED
+    // 🌐 Core HTTP request method
     async request(method, endpoint, data = null, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
         const cacheKey = `${method}:${endpoint}`;
@@ -161,19 +147,10 @@ class DancifyAPI {
                 this.setCachedResponse(cacheKey, result);
             }
             
-            // Update connection status on successful request
-            this.isConnected = true;
-            
             return result;
             
         } catch (error) {
             console.error(`❌ API request failed: ${method} ${endpoint}`, error);
-            
-            // Update connection status on failed request
-            if (error.status === 0 || error.status >= 500) {
-                this.isConnected = false;
-            }
-            
             throw error;
         }
     }
@@ -295,23 +272,6 @@ class DancifyAPI {
         this.cache.clear();
     }
 
-    // 🔍 Connection status
-    isHealthy() {
-        return this.isConnected && (
-            !this.lastHealthCheck || 
-            Date.now() - this.lastHealthCheck.getTime() < 5 * 60 * 1000 // 5 minutes
-        );
-    }
-
-    async checkHealth() {
-        try {
-            await this.ping();
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
     // 📊 Dashboard API methods
     async getDashboardStats() {
         return this.request('GET', '/admin/dashboard');
@@ -371,7 +331,7 @@ class DancifyAPI {
         return this.request('DELETE', `/admin/moves/${moveId}`);
     }
 
-    // 🎭 Dance style API methods
+    // 🎭 Dance style API methods - FIXED to use correct endpoints
     async getDanceStyles(filters = {}) {
         const queryParams = new URLSearchParams(filters).toString();
         const endpoint = queryParams ? `/dance-styles?${queryParams}` : '/dance-styles';
@@ -514,60 +474,10 @@ class APIError extends Error {
     }
 }
 
-// CRITICAL FIX: Initialize global API client instance immediately
-let apiClient = null;
-
-// Initialize API client and make it globally available
-async function initializeAPIClient() {
-    try {
-        console.log('🚀 Initializing global API client...');
-        
-        // Create API client instance
-        apiClient = new DancifyAPI();
-        
-        // Initialize the client
-        await apiClient.init();
-        
-        // Make it globally available with the correct reference name
-        window.apiClient = apiClient;
-        window.DancifyAPI = DancifyAPI; // Keep class available too
-        
-        console.log('✅ Global API client initialized and available as window.apiClient');
-        
-        // Dispatch event to notify components that API is ready
-        window.dispatchEvent(new CustomEvent('api:ready', { 
-            detail: { apiClient } 
-        }));
-        
-        return apiClient;
-        
-    } catch (error) {
-        console.error('❌ Failed to initialize global API client:', error);
-        
-        // Create API client anyway for fallback mode
-        apiClient = new DancifyAPI();
-        window.apiClient = apiClient;
-        window.DancifyAPI = DancifyAPI;
-        
-        // Dispatch event even if initialization failed
-        window.dispatchEvent(new CustomEvent('api:ready', { 
-            detail: { apiClient, error } 
-        }));
-        
-        return apiClient;
-    }
-}
+// Initialize global API client
+window.DancifyAPI = DancifyAPI;
 
 // Auto-initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     console.log('🔗 Dancify API client loaded');
-    await initializeAPIClient();
 });
-
-// Also initialize immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-    // DOM is still loading, wait for DOMContentLoaded
-} else {
-    // DOM is already loaded
-    initializeAPIClient();
-}

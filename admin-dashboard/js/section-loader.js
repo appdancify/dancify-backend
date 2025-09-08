@@ -1,5 +1,5 @@
 // 💃 Dancify Admin Dashboard - Section Loader
-// Dynamic section loading with proper initialization - FINAL FIXED VERSION
+// Dynamic section loading with proper initialization
 
 class DancifySectionLoader {
     constructor() {
@@ -193,117 +193,41 @@ class DancifySectionLoader {
             
             switch (sectionName) {
                 case 'move-management':
-                    // CRITICAL FIX: Wait longer for DOM to be fully ready AND duplicates removed
-                    console.log('🔄 Re-initializing existing MoveManager with new DOM...');
-                    
-                    // Wait longer for DOM to be fully injected and rendered
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay
-                    
-                    // Remove duplicates FIRST before checking for elements
-                    this.removeDuplicateSections(sectionName);
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    // Verify DOM elements exist before proceeding
-                    const requiredElements = ['createMoveBtn', 'moveSearchInput', 'movesGrid'];
-                    let elementsReady = false;
-                    let retries = 0;
-                    const maxRetries = 15; // Increased retries
-                    
-                    while (!elementsReady && retries < maxRetries) {
-                        elementsReady = requiredElements.every(id => {
-                            const element = document.getElementById(id);
-                            if (!element) {
-                                console.log(`⏳ Waiting for element: ${id} (attempt ${retries + 1})`);
-                                return false;
-                            }
-                            return true;
-                        });
-                        
-                        if (!elementsReady) {
-                            retries++;
-                            await new Promise(resolve => setTimeout(resolve, 150)); // Longer wait between retries
+                    if (window.MoveManager && window.apiClient) {
+                        if (!window.moveManager) {
+                            window.moveManager = new window.MoveManager(window.apiClient);
                         }
-                    }
-                    
-                    if (!elementsReady) {
-                        console.error('❌ Required DOM elements not found after waiting');
-                        // Check what elements we actually have
-                        console.log('🔍 Available elements:', {
-                            createMoveBtn: !!document.getElementById('createMoveBtn'),
-                            moveSearchInput: !!document.getElementById('moveSearchInput'),
-                            movesGrid: !!document.getElementById('movesGrid'),
-                            allButtons: document.querySelectorAll('button').length,
-                            allInputs: document.querySelectorAll('input').length
-                        });
-                    }
-                    
-                    if (window.moveManager) {
-                        try {
-                            console.log('🎯 MoveManager exists, re-initializing...');
-                            
-                            // Wait a bit more before setting up event listeners
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                            
-                            window.moveManager.setupEventListeners();
-                            window.moveManager.renderMoves();
-                            window.moveManager.updateMoveStats();
-                            console.log('✅ MoveManager re-initialized successfully');
-                        } catch (error) {
-                            console.error('❌ Error re-initializing MoveManager:', error);
-                            // Fallback: create new instance
-                            window.moveManager = new window.MoveManager();
+                        if (typeof window.moveManager.init === 'function') {
                             await window.moveManager.init();
                         }
-                    } else if (window.MoveManager) {
-                        console.log('🆕 Creating new MoveManager instance...');
-                        window.moveManager = new window.MoveManager();
-                        await window.moveManager.init();
-                        console.log('✅ New MoveManager instance created');
                     } else {
-                        console.warn('⚠️ MoveManager class not available');
+                        console.warn('⚠️ MoveManager or apiClient not available');
                     }
                     break;
                     
                 case 'dance-style-management':
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    this.removeDuplicateSections(sectionName);
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    if (window.danceStyleManager) {
-                        console.log('🔄 Re-initializing existing DanceStyleManager...');
-                        try {
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                            window.danceStyleManager.setupEventListeners();
-                            window.danceStyleManager.renderDanceStyles();
-                            window.danceStyleManager.updateStyleStats();
-                            console.log('✅ DanceStyleManager re-initialized successfully');
-                        } catch (error) {
-                            console.error('❌ Error re-initializing DanceStyleManager:', error);
-                            window.danceStyleManager = new window.DanceStyleManager();
-                            await window.danceStyleManager.init();
+                    // Add slight delay to ensure DOM is ready
+                    setTimeout(async () => {
+                        if (window.DanceStyleManager && window.apiClient) {
+                            if (!window.danceStyleManager) {
+                                window.danceStyleManager = new window.DanceStyleManager(window.apiClient);
+                            }
+                            if (typeof window.danceStyleManager.init === 'function') {
+                                await window.danceStyleManager.init();
+                            }
+                        } else {
+                            console.warn('⚠️ DanceStyleManager or apiClient not available');
                         }
-                    } else if (window.DanceStyleManager) {
-                        console.log('🆕 Creating new DanceStyleManager instance...');
-                        window.danceStyleManager = new window.DanceStyleManager();
-                        await window.danceStyleManager.init();
-                        console.log('✅ New DanceStyleManager instance created');
-                    } else {
-                        console.warn('⚠️ DanceStyleManager class not available');
-                    }
+                    }, 100); // 100ms delay to ensure DOM is parsed
                     break;
                     
                 case 'dashboard':
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    this.removeDuplicateSections(sectionName);
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
                     if (window.DancifyDashboard && window.apiClient) {
                         if (!window.dashboardManager) {
                             window.dashboardManager = new window.DancifyDashboard(window.apiClient);
                         }
                         if (typeof window.dashboardManager.init === 'function') {
                             await window.dashboardManager.init();
-                            console.log('✅ Dashboard initialized successfully');
                         }
                     } else {
                         console.warn('⚠️ DancifyDashboard or apiClient not available');
@@ -311,23 +235,18 @@ class DancifySectionLoader {
                     break;
                     
                 case 'users':
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    this.removeDuplicateSections(sectionName);
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
                     if (window.UserManager && window.apiClient) {
                         if (!window.userManager) {
                             window.userManager = new window.UserManager(window.apiClient);
                         }
                         if (typeof window.userManager.init === 'function') {
                             await window.userManager.init();
-                            console.log('✅ User manager initialized successfully');
                         }
                     } else {
                         console.warn('⚠️ UserManager or apiClient not available');
                     }
                     break;
-
+        
                 default:
                     console.log(`ℹ️ No specific initialization for ${sectionName}`);
                     break;
@@ -343,6 +262,9 @@ class DancifySectionLoader {
     }
 
     activateSection(sectionName) {
+        // CRITICAL: Final cleanup before activation
+        this.removeDuplicateSections(sectionName);
+        
         // Hide all sections first
         const allSections = document.querySelectorAll('.content-section');
         allSections.forEach(section => {
