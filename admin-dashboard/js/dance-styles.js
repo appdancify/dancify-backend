@@ -18,7 +18,7 @@ class DanceStyleManager {
         try {
             console.log('🎭 Initializing Dance Style Management...');
             
-            // CRITICAL: Wait for DOM elements to be available
+            // CRITICAL: Wait for DOM elements to be available with improved logic
             await this.waitForDOMReady();
             
             await this.loadDanceStyles();
@@ -33,30 +33,91 @@ class DanceStyleManager {
         }
     }
 
-    // 🎯 Wait for DOM elements to be ready
+    // 🎯 Wait for DOM elements to be ready - ENHANCED VERSION
     async waitForDOMReady() {
         return new Promise((resolve) => {
             let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max
+            const maxAttempts = 50;
             
             const checkDOM = () => {
                 attempts++;
-                const stylesContainer = document.getElementById('danceStylesGrid');
+                
+                // Check for multiple possible containers
+                const stylesContainer = document.getElementById('danceStylesGrid') || 
+                                      document.querySelector('.styles-grid') ||
+                                      document.querySelector('#dance-style-management .styles-container');
                 
                 if (stylesContainer) {
-                    console.log('✅ DOM ready - danceStylesGrid found after', attempts, 'attempts');
+                    console.log('✅ DOM ready - dance styles container found after', attempts, 'attempts');
+                    
+                    // If we found a different container, ensure it has the right ID
+                    if (!stylesContainer.id) {
+                        stylesContainer.id = 'danceStylesGrid';
+                        console.log('🔧 Added missing ID to styles container');
+                    }
+                    
                     resolve();
                 } else if (attempts >= maxAttempts) {
-                    console.error('❌ DOM timeout - danceStylesGrid not found after', attempts, 'attempts');
-                    resolve(); // Continue anyway
+                    console.error('❌ DOM timeout - no suitable container found after', attempts, 'attempts');
+                    
+                    // Create the container if it doesn't exist
+                    this.createMissingContainer();
+                    resolve();
                 } else {
-                    console.log('⏳ Waiting for DOM... attempt', attempts, '- danceStylesGrid not found yet');
-                    setTimeout(checkDOM, 100); // Check every 100ms
+                    console.log('⏳ Waiting for DOM... attempt', attempts, '- container not found yet');
+                    setTimeout(checkDOM, 100);
                 }
             };
             
             checkDOM();
         });
+    }
+
+    // 🔧 Method to create missing container
+    createMissingContainer() {
+        console.log('🔧 Creating missing danceStylesGrid container');
+        
+        const section = document.getElementById('dance-style-management');
+        if (section) {
+            // Find or create styles container
+            let stylesContainer = section.querySelector('.styles-container');
+            if (!stylesContainer) {
+                stylesContainer = document.createElement('div');
+                stylesContainer.className = 'styles-container';
+                stylesContainer.style.cssText = `
+                    background: var(--bg-secondary);
+                    border-radius: var(--radius-large);
+                    padding: 25px;
+                    min-height: 200px;
+                    box-shadow: var(--shadow-light);
+                `;
+                section.appendChild(stylesContainer);
+            }
+            
+            // Create the grid container
+            const gridContainer = document.createElement('div');
+            gridContainer.id = 'danceStylesGrid';
+            gridContainer.className = 'styles-grid';
+            gridContainer.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 20px;
+                margin-bottom: 25px;
+            `;
+            
+            // Add loading placeholder
+            gridContainer.innerHTML = `
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading dance styles...</div>
+                </div>
+            `;
+            
+            stylesContainer.appendChild(gridContainer);
+            console.log('✅ Created missing danceStylesGrid container');
+        } else {
+            console.error('❌ Could not find dance-style-management section');
+        }
     }
 
     // 📊 Load dance styles from API

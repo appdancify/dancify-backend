@@ -1,15 +1,24 @@
+<!-- 💃 Dancify Admin Dashboard - Dance Style Management Section -->
+<!-- Comprehensive dance style management with visual cards and statistics -->
+
 <section id="dance-style-management" class="content-section">
+    <!-- Section Header -->
     <div class="section-header">
         <div class="header-content">
             <h1>🎭 Dance Style Management</h1>
             <p>Manage dance styles, categories, and hierarchical organization</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-secondary" id="refreshStylesBtn">🔄 Refresh</button>
-            <button class="btn btn-primary">➕ Create Dance Style</button>
+            <button class="btn btn-secondary" id="refreshStylesBtn">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-primary" onclick="window.danceStyleManager?.showCreateStyleModal()">
+                ➕ Create Dance Style
+            </button>
         </div>
     </div>
 
+    <!-- Management Controls -->
     <div class="management-controls">
         <div class="search-section">
             <input type="text" id="styleSearch" placeholder="🔍 Search dance styles..." class="form-control">
@@ -30,12 +39,336 @@
         </div>
     </div>
 
+    <!-- Dance Styles Container -->
     <div class="styles-container">
+        <!-- CRITICAL FIX: Added the missing ID that JavaScript is looking for -->
         <div id="danceStylesGrid" class="styles-grid">
-            <div class="loading-placeholder">
+            <div class="loading-state">
                 <div class="loading-spinner"></div>
-                <p>Loading dance styles...</p>
+                <div class="loading-text">Loading dance styles...</div>
             </div>
         </div>
     </div>
+
+    <!-- Message Container for notifications -->
+    <div id="messageContainer" class="message-container"></div>
 </section>
+
+<style>
+/* Dance Style Management Specific Styles */
+.management-controls {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    gap: 20px !important;
+    align-items: center !important;
+    margin-bottom: 25px !important;
+    padding: 20px !important;
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-large) !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+.search-section {
+    display: flex !important;
+    gap: 10px !important;
+}
+
+.quick-stats {
+    display: flex !important;
+    gap: 20px !important;
+}
+
+.quick-stat {
+    text-align: center !important;
+    padding: 15px 20px !important;
+    background: var(--bg-tertiary) !important;
+    border-radius: var(--radius-medium) !important;
+    min-width: 80px !important;
+}
+
+.stat-number {
+    display: block !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: var(--primary-purple) !important;
+}
+
+.stat-label {
+    font-size: 0.85rem !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.styles-container {
+    background: var(--bg-secondary) !important;
+    border-radius: var(--radius-large) !important;
+    padding: 25px !important;
+    min-height: 200px !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+/* CRITICAL FIX - The main grid styles */
+.styles-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+    gap: 20px !important;
+    margin-bottom: 25px !important;
+}
+
+/* Dance Style Card Styles */
+.style-card {
+    background: white !important;
+    border-radius: var(--radius-medium) !important;
+    border: 2px solid transparent !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    padding: 20px !important;
+    min-height: 200px !important;
+}
+
+.style-card:hover {
+    border-color: var(--primary-purple) !important;
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 25px rgba(138, 43, 226, 0.15) !important;
+}
+
+.style-card.selected {
+    border-color: var(--primary-purple) !important;
+    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.2) !important;
+}
+
+.style-card.featured {
+    position: relative !important;
+}
+
+.style-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 15px !important;
+}
+
+.style-checkbox {
+    cursor: pointer !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.style-actions {
+    display: flex !important;
+    gap: 5px !important;
+}
+
+.action-btn {
+    background: none !important;
+    border: none !important;
+    padding: 5px !important;
+    border-radius: var(--radius-small) !important;
+    cursor: pointer !important;
+    font-size: 1rem !important;
+    transition: background var(--transition-fast) !important;
+}
+
+.action-btn:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.style-content {
+    text-align: center !important;
+}
+
+.style-icon {
+    font-size: 3rem !important;
+    margin-bottom: 15px !important;
+}
+
+.style-info {
+    margin-bottom: 15px !important;
+}
+
+.style-name {
+    font-size: 1.4rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    margin: 0 0 8px 0 !important;
+}
+
+.style-description {
+    font-size: 0.9rem !important;
+    color: var(--text-secondary) !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
+}
+
+.style-meta {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    margin-bottom: 15px !important;
+    flex-wrap: wrap !important;
+}
+
+.difficulty-badge, .featured-badge, .origin-badge {
+    padding: 4px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.difficulty-beginner { background: #28A745; color: white; }
+.difficulty-intermediate { background: #FFC107; color: #333; }
+.difficulty-advanced { background: #FF8C00; color: white; }
+.difficulty-expert { background: #DC3545; color: white; }
+
+.featured-badge {
+    background: var(--accent-gold) !important;
+    color: #333 !important;
+}
+
+.origin-badge {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.style-stats {
+    display: flex !important;
+    justify-content: space-around !important;
+    margin-bottom: 15px !important;
+}
+
+.stat {
+    text-align: center !important;
+}
+
+.stat-icon {
+    display: block !important;
+    font-size: 1.2rem !important;
+    margin-bottom: 5px !important;
+}
+
+.stat-label {
+    display: block !important;
+    font-size: 0.8rem !important;
+    color: var(--text-secondary) !important;
+    margin-bottom: 2px !important;
+}
+
+.stat-value {
+    display: block !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+}
+
+.music-genres {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    justify-content: center !important;
+}
+
+.genre-tag {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+    padding: 3px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+}
+
+.genre-more {
+    background: var(--primary-purple) !important;
+    color: white !important;
+    padding: 3px 8px !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.loading-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 15px !important;
+    padding: 40px !important;
+    color: var(--text-secondary) !important;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.no-data {
+    text-align: center !important;
+    padding: 60px 20px !important;
+}
+
+.no-data-content {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 15px !important;
+}
+
+.no-data-icon {
+    font-size: 4rem !important;
+    opacity: 0.6 !important;
+}
+
+.no-data-text {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+}
+
+.no-data-subtitle {
+    font-size: 1rem !important;
+    color: var(--text-secondary) !important;
+    margin-bottom: 20px !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .management-controls {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .quick-stats {
+        justify-content: center !important;
+    }
+    
+    .styles-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .quick-stats {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .quick-stat {
+        min-width: unset !important;
+    }
+}
+</style>
