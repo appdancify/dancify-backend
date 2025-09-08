@@ -130,6 +130,17 @@ class DancifySectionLoader {
                         }
                     }
                     break;
+
+                case 'users':
+                    if (window.UserManager && window.apiClient) {
+                        if (!window.userManager) {
+                            window.userManager = new window.UserManager(window.apiClient);
+                        }
+                        if (typeof window.userManager.init === 'function') {
+                            await window.userManager.init();
+                        }
+                    }
+                    break;
             }
             
         } catch (error) {
