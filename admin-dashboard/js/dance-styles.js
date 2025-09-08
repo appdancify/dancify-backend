@@ -8,6 +8,7 @@ class DanceStyleManager {
         this.currentPage = 1;
         this.currentFilters = {};
         this.isLoading = false;
+        this.selectedStyles = new Set();
         
         console.log('🎭 Dance Style Manager initialized');
     }
@@ -81,71 +82,6 @@ class DanceStyleManager {
                 id: 'hip-hop',
                 name: 'Hip-Hop',
                 description: 'Urban dance style featuring breaking, locking, and popping with street culture roots.',
-                icon: '🎤',
-                color: '#FF69B4',
-                difficulty_level: 'beginner',
-                cultural_origin: 'USA',
-                is_featured: true,
-                popularity_score: 92,
-                stats: { moveCount: 38, submissionCount: 284, averageRating: 4.6 },
-                music_genres: ['Hip-Hop', 'Rap', 'R&B', 'Funk']
-            },
-            {
-                id: 'salsa',
-                name: 'Salsa',
-                description: 'Passionate Latin dance with quick footwork and partner interaction.',
-                icon: '💃',
-                color: '#FF1493',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'Cuba',
-                is_featured: false,
-                popularity_score: 78,
-                stats: { moveCount: 18, submissionCount: 94, averageRating: 4.7 },
-                music_genres: ['Salsa', 'Latin', 'Mambo', 'Cha-cha']
-            },
-            {
-                id: 'contemporary',
-                name: 'Contemporary',
-                description: 'Modern dance combining ballet technique with expressive, interpretive movement.',
-                icon: '🎭',
-                color: '#9370DB',
-                difficulty_level: 'advanced',
-                cultural_origin: 'International',
-                is_featured: false,
-                popularity_score: 71,
-                stats: { moveCount: 22, submissionCount: 67, averageRating: 4.9 },
-                music_genres: ['Contemporary', 'Alternative', 'Indie', 'Electronic']
-            },
-            {
-                id: 'jazz',
-                name: 'Jazz',
-                description: 'Energetic dance style with syncopated rhythms and theatrical expression.',
-                icon: '🎺',
-                color: '#FFD700',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'USA',
-                is_featured: false,
-                popularity_score: 65,
-                stats: { moveCount: 19, submissionCount: 73, averageRating: 4.5 },
-                music_genres: ['Jazz', 'Musical Theatre', 'Swing', 'Big Band']
-            },
-            {
-                id: 'latin',
-                name: 'Latin',
-                description: 'Collection of passionate dances from Latin America with rhythmic flair.',
-                icon: '🌶️',
-                color: '#FF4500',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'Latin America',
-                is_featured: false,
-                popularity_score: 69,
-                stats: { moveCount: 31, submissionCount: 128, averageRating: 4.6 },
-                music_genres: ['Bachata', 'Merengue', 'Reggaeton', 'Tango']
-            },
-            {
-                id: 'breakdance',
-                name: 'Breakdance',
-                description: 'Athletic street dance with floor work, power moves, and creative expression.',
                 icon: '🕺',
                 color: '#32CD32',
                 difficulty_level: 'advanced',
@@ -167,6 +103,71 @@ class DanceStyleManager {
                 popularity_score: 58,
                 stats: { moveCount: 26, submissionCount: 89, averageRating: 4.8 },
                 music_genres: ['Waltz', 'Foxtrot', 'Tango', 'Quickstep']
+            },
+            {
+                id: 'salsa',
+                name: 'Salsa',
+                description: 'Passionate Latin dance with quick footwork and sensual partner movements.',
+                icon: '💃',
+                color: '#FF4500',
+                difficulty_level: 'intermediate',
+                cultural_origin: 'Cuba',
+                is_featured: true,
+                popularity_score: 92,
+                stats: { moveCount: 35, submissionCount: 284, averageRating: 4.9 },
+                music_genres: ['Salsa', 'Latin', 'Mambo', 'Son']
+            },
+            {
+                id: 'contemporary',
+                name: 'Contemporary',
+                description: 'Modern expressive dance combining elements from multiple dance styles.',
+                icon: '🌊',
+                color: '#4169E1',
+                difficulty_level: 'advanced',
+                cultural_origin: 'USA',
+                is_featured: false,
+                popularity_score: 73,
+                stats: { moveCount: 32, submissionCount: 165, averageRating: 4.6 },
+                music_genres: ['Contemporary', 'Alternative', 'Indie', 'Electronic']
+            },
+            {
+                id: 'jazz',
+                name: 'Jazz',
+                description: 'Energetic dance style with sharp movements and theatrical flair.',
+                icon: '🎷',
+                color: '#FFD700',
+                difficulty_level: 'intermediate',
+                cultural_origin: 'USA',
+                is_featured: false,
+                popularity_score: 67,
+                stats: { moveCount: 28, submissionCount: 134, averageRating: 4.5 },
+                music_genres: ['Jazz', 'Swing', 'Big Band', 'Musical Theatre']
+            },
+            {
+                id: 'tap',
+                name: 'Tap',
+                description: 'Percussive dance form creating rhythms with metal taps on shoes.',
+                icon: '👞',
+                color: '#8B4513',
+                difficulty_level: 'advanced',
+                cultural_origin: 'USA',
+                is_featured: false,
+                popularity_score: 45,
+                stats: { moveCount: 22, submissionCount: 87, averageRating: 4.7 },
+                music_genres: ['Tap', 'Jazz', 'Swing', 'Broadway']
+            },
+            {
+                id: 'breakdancing',
+                name: 'Breakdancing',
+                description: 'Athletic street dance featuring dynamic moves, freezes, and power moves.',
+                icon: '🤸',
+                color: '#FF1493',
+                difficulty_level: 'expert',
+                cultural_origin: 'USA',
+                is_featured: true,
+                popularity_score: 79,
+                stats: { moveCount: 52, submissionCount: 198, averageRating: 4.8 },
+                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic']
             }
         ];
     }
@@ -199,7 +200,7 @@ class DanceStyleManager {
         stylesContainer.innerHTML = styleCards;
     }
 
-    // 🎭 Create dance style card
+    // 🎭 Create dance style card - COMPLETE IMPLEMENTATION
     createStyleCard(style) {
         const isSelected = this.selectedStyles && this.selectedStyles.has(style.id);
         const popularityPercentage = Math.min(style.popularity_score || 0, 100);
@@ -215,40 +216,33 @@ class DanceStyleManager {
                            ${isSelected ? 'checked' : ''} 
                            onchange="window.danceStyleManager.toggleStyleSelection('${style.id}')">
                     <div class="style-actions">
-                        <button class="btn btn-sm btn-ghost" onclick="window.danceStyleManager.viewStyle('${style.id}')" title="View Details">
-                            👁️
-                        </button>
-                        <button class="btn btn-sm btn-secondary" onclick="window.danceStyleManager.editStyle('${style.id}')" title="Edit Style">
+                        <button class="action-btn edit-btn" title="Edit Style" 
+                                onclick="window.danceStyleManager.editStyle('${style.id}')">
                             ✏️
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="window.danceStyleManager.deleteStyle('${style.id}')" title="Delete Style">
+                        <button class="action-btn delete-btn" title="Delete Style" 
+                                onclick="window.danceStyleManager.deleteStyle('${style.id}')">
                             🗑️
                         </button>
                     </div>
-                    ${style.is_featured ? '<div class="featured-badge">⭐ Featured</div>' : ''}
                 </div>
                 
-                <div class="style-icon" style="background: ${style.color || '#FF6B9D'}">
-                    <span class="style-emoji">${style.icon || '💃'}</span>
-                </div>
-                
-                <div class="style-info">
-                    <h3 class="style-name">${style.name}</h3>
-                    <p class="style-description">${style.description}</p>
+                <div class="style-content">
+                    <div class="style-icon" style="color: ${style.color}; font-size: 3rem;">
+                        ${style.icon}
+                    </div>
+                    
+                    <div class="style-info">
+                        <h3 class="style-name">${style.name}</h3>
+                        <p class="style-description">${style.description}</p>
+                    </div>
                     
                     <div class="style-meta">
                         <div class="difficulty-badge difficulty-${style.difficulty_level}">
-                            ${style.difficulty_level || 'beginner'}
+                            ${style.difficulty_level}
                         </div>
-                        ${style.cultural_origin ? `<div class="origin-badge">${style.cultural_origin}</div>` : ''}
-                    </div>
-                    
-                    <div class="style-popularity">
-                        <div class="popularity-label">Popularity</div>
-                        <div class="popularity-bar">
-                            <div class="popularity-fill" style="width: ${popularityPercentage}%"></div>
-                        </div>
-                        <div class="popularity-value">${style.popularity_score || 0}%</div>
+                        ${style.is_featured ? '<div class="featured-badge">⭐ Featured</div>' : ''}
+                        <div class="origin-badge">${style.cultural_origin}</div>
                     </div>
                     
                     <div class="style-stats">
@@ -258,7 +252,7 @@ class DanceStyleManager {
                             <span class="stat-value">${moveCount}</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">📹</span>
+                            <span class="stat-icon">📝</span>
                             <span class="stat-label">Submissions</span>
                             <span class="stat-value">${submissionCount}</span>
                         </div>
@@ -267,16 +261,23 @@ class DanceStyleManager {
                             <span class="stat-label">Rating</span>
                             <span class="stat-value">${averageRating.toFixed(1)}</span>
                         </div>
+                        <div class="stat">
+                            <span class="stat-icon">🔥</span>
+                            <span class="stat-label">Popularity</span>
+                            <span class="stat-value">${popularityPercentage}%</span>
+                        </div>
                     </div>
                     
-                    ${style.music_genres && style.music_genres.length > 0 ? `
-                        <div class="music-genres">
-                            ${style.music_genres.slice(0, 3).map(genre => 
+                    <div class="music-genres">
+                        ${style.music_genres ? 
+                            style.music_genres.slice(0, 3).map(genre => 
                                 `<span class="genre-tag">${genre}</span>`
-                            ).join('')}
-                            ${style.music_genres.length > 3 ? `<span class="genre-more">+${style.music_genres.length - 3}</span>` : ''}
-                        </div>
-                    ` : ''}
+                            ).join('') : ''
+                        }
+                        ${style.music_genres && style.music_genres.length > 3 ? 
+                            `<span class="genre-more">+${style.music_genres.length - 3}</span>` : ''
+                        }
+                    </div>
                 </div>
             </div>
         `;
@@ -311,6 +312,14 @@ class DanceStyleManager {
                 searchTimeout = setTimeout(() => {
                     this.applyFilters();
                 }, 500);
+            });
+        }
+
+        // Refresh button
+        const refreshBtn = document.getElementById('refreshStylesBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadDanceStyles();
             });
         }
     }
@@ -371,58 +380,25 @@ class DanceStyleManager {
         this.renderDanceStyles();
     }
 
-    // ➕ Show create style modal
-    showCreateStyleModal() {
-        const modal = document.getElementById('styleModal');
-        if (modal) {
-            const form = modal.querySelector('#styleForm');
-            if (form) form.reset();
-            
-            const title = modal.querySelector('.modal-title');
-            if (title) title.textContent = '✨ Create Dance Style';
-            
-            modal.style.display = 'flex';
-        }
-    }
-
-    // ✏️ Edit style
+    // ✏️ Edit dance style
     editStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
-        if (!style) return;
-        
-        const modal = document.getElementById('styleModal');
-        if (modal) {
-            const form = modal.querySelector('#styleForm');
-            if (form) {
-                const inputs = form.elements;
-                if (inputs.name) inputs.name.value = style.name || '';
-                if (inputs.description) inputs.description.value = style.description || '';
-                if (inputs.icon) inputs.icon.value = style.icon || '';
-                if (inputs.color) inputs.color.value = style.color || '#FF69B4';
-                if (inputs.difficulty) inputs.difficulty.value = style.difficulty_level || 'beginner';
-                if (inputs.origin) inputs.origin.value = style.cultural_origin || '';
-            }
-            
-            const title = modal.querySelector('.modal-title');
-            if (title) title.textContent = '✏️ Edit Dance Style';
-            
-            modal.style.display = 'flex';
+        if (!style) {
+            this.showErrorMessage('Dance style not found');
+            return;
         }
-    }
-
-    // 👁️ View style details
-    viewStyle(styleId) {
-        const style = this.danceStyles.find(s => s.id === styleId);
-        if (!style) return;
         
-        console.log('Viewing style:', style);
-        this.showSuccessMessage(`Viewing ${style.name} details`);
+        // For now, just show an alert - in production this would open a modal
+        this.showSuccessMessage(`Edit functionality for "${style.name}" would open here`);
     }
 
-    // 🗑️ Delete style
-    async deleteStyle(styleId) {
+    // 🗑️ Delete dance style
+    deleteStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
-        if (!style) return;
+        if (!style) {
+            this.showErrorMessage('Dance style not found');
+            return;
+        }
         
         if (!confirm(`Are you sure you want to delete "${style.name}"? This action cannot be undone.`)) {
             return;
@@ -458,7 +434,17 @@ class DanceStyleManager {
         const card = document.querySelector(`[data-style-id="${styleId}"]`);
         if (card) {
             card.classList.toggle('selected', this.selectedStyles.has(styleId));
+            const checkbox = card.querySelector('.style-checkbox');
+            if (checkbox) {
+                checkbox.checked = this.selectedStyles.has(styleId);
+            }
         }
+    }
+
+    // ➕ Show create style modal
+    showCreateStyleModal() {
+        // For now, just show an alert - in production this would open a modal
+        this.showSuccessMessage('Create dance style modal would open here');
     }
 
     // 💾 Save style form
