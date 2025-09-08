@@ -44,18 +44,45 @@ class DancifySectionLoader {
                 throw new Error(`Unknown section: ${sectionName}`);
             }
             
-            const config = this.sectionConfig[sectionName];
-            await this.loadSectionHTML(sectionName, config.htmlFile);
-            await this.initializeSectionFunctionality(sectionName);
-            this.activateSection(sectionName);
+            // Prevent duplicate loading of the same section
+            if (this.loadingPromises.has(sectionName)) {
+                console.log(`⏳ Section ${sectionName} already loading, waiting...`);
+                return await this.loadingPromises.get(sectionName);
+            }
             
-            console.log(`✅ Section ${sectionName} loaded`);
-            return true;
+            // Create loading promise
+            const loadingPromise = this.performSectionLoad(sectionName);
+            this.loadingPromises.set(sectionName, loadingPromise);
+            
+            try {
+                const result = await loadingPromise;
+                this.loadingPromises.delete(sectionName);
+                return result;
+            } catch (error) {
+                this.loadingPromises.delete(sectionName);
+                throw error;
+            }
             
         } catch (error) {
             console.error(`❌ Failed to load section ${sectionName}:`, error);
             return false;
         }
+    }
+
+    async performSectionLoad(sectionName) {
+        const config = this.sectionConfig[sectionName];
+        
+        // Only load HTML if section doesn't exist or hasn't been loaded
+        if (!this.loadedSections.has(sectionName)) {
+            await this.loadSectionHTML(sectionName, config.htmlFile);
+            this.loadedSections.add(sectionName);
+        }
+        
+        await this.initializeSectionFunctionality(sectionName);
+        this.activateSection(sectionName);
+        
+        console.log(`✅ Section ${sectionName} loaded`);
+        return true;
     }
 
     async loadSectionHTML(sectionName, htmlFile) {
@@ -79,6 +106,7 @@ class DancifySectionLoader {
         let sectionElement = document.getElementById(sectionName);
         
         if (!sectionElement) {
+            // Only create if it doesn't exist
             sectionElement = document.createElement('section');
             sectionElement.id = sectionName;
             sectionElement.className = 'content-section';
@@ -89,6 +117,7 @@ class DancifySectionLoader {
             }
         }
         
+        // Always update the HTML content
         sectionElement.innerHTML = html;
         console.log(`📄 HTML injected for section: ${sectionName}`);
     }
@@ -149,12 +178,14 @@ class DancifySectionLoader {
     }
 
     activateSection(sectionName) {
+        // Hide ALL sections first - this prevents duplicate active sections
         const allSections = document.querySelectorAll('.content-section');
         allSections.forEach(section => {
             section.classList.remove('active');
             section.style.display = 'none';
         });
         
+        // Show only the target section
         const targetSection = document.getElementById(sectionName);
         if (targetSection) {
             targetSection.classList.add('active');
