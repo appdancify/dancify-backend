@@ -76,7 +76,7 @@ class DanceStyleManager {
                         <div class="no-data-icon">🎭</div>
                         <div class="no-data-text">No dance styles found</div>
                         <div class="no-data-subtitle">Create your first dance style to get started</div>
-                        <button class="btn btn-primary" onclick="danceStyleManager.showCreateStyleModal()">
+                        <button class="btn btn-primary" onclick="window.danceStyleManager.showCreateStyleModal()">
                             ➕ Create Dance Style
                         </button>
                     </div>
@@ -103,15 +103,15 @@ class DanceStyleManager {
                 <div class="style-card-header">
                     <input type="checkbox" class="style-checkbox" 
                            ${isSelected ? 'checked' : ''} 
-                           onchange="danceStyleManager.toggleStyleSelection('${style.id}')">
+                           onchange="window.danceStyleManager.toggleStyleSelection('${style.id}')">
                     <div class="style-actions">
-                        <button class="btn btn-sm btn-ghost" onclick="danceStyleManager.viewStyle('${style.id}')" title="View Details">
+                        <button class="btn btn-sm btn-ghost" onclick="window.danceStyleManager.viewStyle('${style.id}')" title="View Details">
                             👁️
                         </button>
-                        <button class="btn btn-sm btn-secondary" onclick="danceStyleManager.editStyle('${style.id}')" title="Edit Style">
+                        <button class="btn btn-sm btn-secondary" onclick="window.danceStyleManager.editStyle('${style.id}')" title="Edit Style">
                             ✏️
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="danceStyleManager.deleteStyle('${style.id}')" title="Delete Style">
+                        <button class="btn btn-sm btn-danger" onclick="window.danceStyleManager.deleteStyle('${style.id}')" title="Delete Style">
                             🗑️
                         </button>
                     </div>
@@ -184,7 +184,7 @@ class DanceStyleManager {
                         <div class="no-data-icon">🔍</div>
                         <div class="no-data-text">No styles match your filters</div>
                         <div class="no-data-subtitle">Try adjusting your search criteria</div>
-                        <button class="btn btn-secondary" onclick="danceStyleManager.clearFilters()">
+                        <button class="btn btn-secondary" onclick="window.danceStyleManager.clearFilters()">
                             🧹 Clear Filters
                         </button>
                     </div>
@@ -379,6 +379,11 @@ class DanceStyleManager {
             console.error('❌ Error creating dance style:', error);
             this.showErrorMessage('Failed to create dance style: ' + error.message);
         }
+    }
+
+    // 💾 Save category form
+    async saveCategoryForm() {
+        console.log('Save category form - implement this');
     }
 
     // 🎨 Show loading state
