@@ -44,6 +44,14 @@ class DancifySectionLoader {
                 throw new Error(`Unknown section: ${sectionName}`);
             }
             
+            // Check if section already exists and is already initialized
+            const existingSection = document.getElementById(sectionName);
+            if (existingSection && this.loadedSections.has(sectionName)) {
+                console.log(`📂 Section ${sectionName} already loaded, just activating...`);
+                this.activateSection(sectionName);
+                return true;
+            }
+            
             // Prevent duplicate loading of the same section
             if (this.loadingPromises.has(sectionName)) {
                 console.log(`⏳ Section ${sectionName} already loading, waiting...`);
@@ -103,6 +111,15 @@ class DancifySectionLoader {
     }
 
     injectSectionHTML(sectionName, html) {
+        // CRITICAL FIX: Remove any existing duplicate sections first
+        const existingSections = document.querySelectorAll(`#${sectionName}`);
+        if (existingSections.length > 1) {
+            console.log(`🗑️ Removing ${existingSections.length - 1} duplicate sections for ${sectionName}`);
+            for (let i = 1; i < existingSections.length; i++) {
+                existingSections[i].remove();
+            }
+        }
+        
         let sectionElement = document.getElementById(sectionName);
         
         if (!sectionElement) {
@@ -115,6 +132,9 @@ class DancifySectionLoader {
             if (contentContainer) {
                 contentContainer.appendChild(sectionElement);
             }
+            console.log(`📄 Created new section: ${sectionName}`);
+        } else {
+            console.log(`📄 Reusing existing section: ${sectionName}`);
         }
         
         // Always update the HTML content
@@ -191,6 +211,7 @@ class DancifySectionLoader {
             targetSection.classList.add('active');
             targetSection.style.display = 'block';
             this.activeSection = sectionName;
+            console.log(`📂 Activated section: ${sectionName}`);
         }
     }
 
