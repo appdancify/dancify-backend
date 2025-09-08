@@ -13,22 +13,22 @@ class DancifySectionLoader {
         
         this.sectionConfig = {
             'dashboard': {
-                htmlFile: 'sections/dashboard.html',
+                htmlFile: '/admin/sections/dashboard.html',
                 title: 'Dashboard',
                 icon: '📊'
             },
             'move-management': {
-                htmlFile: 'sections/move-management.html',
+                htmlFile: '/admin/sections/move-management.html',
                 title: 'Move Management',
                 icon: '🕺'
             },
             'dance-style-management': {
-                htmlFile: 'sections/dance-style-management.html',
+                htmlFile: '/admin/sections/dance-style-management.html',
                 title: 'Dance Style Management',
                 icon: '🎭'
             },
             'users': {
-                htmlFile: 'sections/users.html',
+                htmlFile: '/admin/sections/users.html',
                 title: 'User Management',
                 icon: '👥'
             }
@@ -206,7 +206,7 @@ class DancifySectionLoader {
                     break;
                     
                 case 'dance-style-management':
-                    // CRITICAL FIX: Add delay to ensure DOM is ready
+                    // Add slight delay to ensure DOM is ready
                     setTimeout(async () => {
                         if (window.DanceStyleManager && window.apiClient) {
                             if (!window.danceStyleManager) {
@@ -218,7 +218,7 @@ class DancifySectionLoader {
                         } else {
                             console.warn('⚠️ DanceStyleManager or apiClient not available');
                         }
-                    }, 200); // 200ms delay to ensure DOM is fully parsed
+                    }, 100); // 100ms delay to ensure DOM is parsed
                     break;
                     
                 case 'dashboard':
