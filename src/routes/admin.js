@@ -1,7 +1,6 @@
 const express = require('express');
 const AdminController = require('../controllers/adminController');
 // const { authenticateAdmin } = require('../middleware/auth'); // Uncomment when auth is ready
-
 const router = express.Router();
 
 // Dashboard & Analytics routes
@@ -20,7 +19,7 @@ router.get('/users/:id', AdminController.getUser);
 router.put('/users/:id', AdminController.updateUser);
 router.delete('/users/:id', AdminController.deleteUser);
 
-// Dance style management
+// Dance style management routes (fixed endpoint)
 router.get('/dance-styles', AdminController.getAllDanceStyles);
 router.post('/dance-styles', AdminController.createDanceStyle);
 router.put('/dance-styles/:id', AdminController.updateDanceStyle);

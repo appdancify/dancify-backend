@@ -27,7 +27,31 @@ class DanceStyle {
     return data;
   }
 
-  // Get all dance styles with optional stats
+  // Get all dance styles with optional stats (ADMIN VERSION)
+  static async findAllAdmin(options = {}) {
+    let query = supabaseAdmin
+      .from('dance_styles')
+      .select('*')
+      .order('created_at', { ascending: false }); // Admin sees all, including inactive
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Include stats if requested
+    if (options.includeStats && data) {
+      const stylesWithStats = await Promise.all(
+        data.map(async (style) => {
+          const stats = await this.getStyleStats(style.id);
+          return { ...style, stats };
+        })
+      );
+      return stylesWithStats;
+    }
+
+    return data || [];
+  }
+
+  // Get all dance styles with optional stats (PUBLIC VERSION)
   static async findAll(options = {}) {
     let query = supabase
       .from('dance_styles')
@@ -52,7 +76,26 @@ class DanceStyle {
     return data || [];
   }
 
-  // Get dance style by ID
+  // Get dance style by ID (ADMIN VERSION)
+  static async findByIdAdmin(id, options = {}) {
+    const { data, error } = await supabaseAdmin
+      .from('dance_styles')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    // Include stats if requested
+    if (options.includeStats && data) {
+      const stats = await this.getStyleStats(id);
+      return { ...data, stats };
+    }
+
+    return data;
+  }
+
+  // Get dance style by ID (PUBLIC VERSION)
   static async findById(id, options = {}) {
     const { data, error } = await supabase
       .from('dance_styles')
@@ -94,7 +137,6 @@ class DanceStyle {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .eq('is_active', true)
       .select()
       .single();
 
@@ -110,6 +152,19 @@ class DanceStyle {
         is_active: false,
         updated_at: new Date().toISOString()
       })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Hard delete dance style (admin only)
+  static async hardDelete(id) {
+    const { data, error } = await supabaseAdmin
+      .from('dance_styles')
+      .delete()
       .eq('id', id)
       .select()
       .single();
@@ -217,6 +272,61 @@ class DanceStyle {
 
     if (error) throw error;
     return data || [];
+  }
+
+  // Seed initial dance styles (for setup)
+  static async seedInitialStyles() {
+    const initialStyles = [
+      {
+        name: 'Ballet',
+        description: 'Classical dance form emphasizing grace, precision, and technique',
+        icon: '🩰',
+        color: '#FFB6C1',
+        difficulty_level: 'intermediate',
+        popularity_score: 85,
+        is_featured: true,
+        cultural_origin: 'European',
+        music_genres: ['Classical', 'Orchestral'],
+        key_characteristics: ['Grace', 'Precision', 'Technique', 'Flexibility']
+      },
+      {
+        name: 'Hip-Hop',
+        description: 'Urban dance style with street culture roots and rhythmic movement',
+        icon: '🎤',
+        color: '#FF6B35',
+        difficulty_level: 'beginner',
+        popularity_score: 95,
+        is_featured: true,
+        cultural_origin: 'African American',
+        music_genres: ['Hip-Hop', 'Rap', 'R&B'],
+        key_characteristics: ['Rhythm', 'Flow', 'Attitude', 'Creativity']
+      },
+      {
+        name: 'Salsa',
+        description: 'Energetic Latin dance with partner work and spicy rhythms',
+        icon: '💃',
+        color: '#FF4757',
+        difficulty_level: 'intermediate',
+        popularity_score: 75,
+        is_featured: true,
+        cultural_origin: 'Latin American',
+        music_genres: ['Salsa', 'Latin', 'Mambo'],
+        key_characteristics: ['Partnership', 'Rhythm', 'Passion', 'Connection']
+      }
+    ];
+
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('dance_styles')
+        .insert(initialStyles)
+        .select();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error seeding initial styles:', error);
+      throw error;
+    }
   }
 }
 

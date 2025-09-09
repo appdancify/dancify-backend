@@ -1,1009 +1,580 @@
-// Move Management System - Clean Error-Free Version
-// Enhanced DOM handling, timing fixes, and robust error handling
+const { supabase, supabaseAdmin } = require('../config/supabase');
+const DanceMove = require('../models/DanceMove');
+const DanceStyle = require('../models/DanceStyle');
+const User = require('../models/User');
 
-class MoveManager {
-    constructor() {
-        this.moves = [];
-        this.selectedMoves = new Set();
-        this.currentPage = 1;
-        this.movesPerPage = 12;
-        this.totalPages = 1;
-        this.currentFilters = {};
-        this.api = null;
-        this.isInitialized = false;
-        
-        console.log('MoveManager initialized');
+class AdminController {
+  // Dashboard & Analytics
+  static async getDashboardStats(req, res) {
+    try {
+      // Get total counts
+      const { data: moveCount, error: moveError } = await supabase
+        .from('dance_moves')
+        .select('id', { count: 'exact' })
+        .eq('is_active', true);
+
+      const { data: userCount, error: userError } = await supabase
+        .from('users')
+        .select('id', { count: 'exact' });
+
+      const { data: submissionCount, error: submissionError } = await supabase
+        .from('move_submissions')
+        .select('id', { count: 'exact' });
+
+      const { data: styleCount, error: styleError } = await supabase
+        .from('dance_styles')
+        .select('id', { count: 'exact' })
+        .eq('is_active', true);
+
+      if (moveError || userError || submissionError || styleError) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+
+      // Get recent activity
+      const { data: recentMoves, error: recentMovesError } = await supabase
+        .from('dance_moves')
+        .select('id, name, created_at, dance_style')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const { data: recentSubmissions, error: recentSubmissionsError } = await supabase
+        .from('move_submissions')
+        .select('id, title, created_at, status')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const stats = {
+        totalMoves: moveCount?.length || 0,
+        totalUsers: userCount?.length || 0,
+        totalSubmissions: submissionCount?.length || 0,
+        totalStyles: styleCount?.length || 0,
+        recentMoves: recentMoves || [],
+        recentSubmissions: recentSubmissions || []
+      };
+
+      res.json({
+        success: true,
+        data: stats
+      });
+
+    } catch (error) {
+      console.error('Dashboard stats error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Initialize the move management system
-    async init() {
-        try {
-            console.log('Initializing Move Management...');
-            
-            // Initialize API client
-            this.initializeAPI();
-            
-            // Wait for DOM to be ready
-            if (!this.waitForDOM()) {
-                console.log('DOM not ready, waiting...');
-                await this.waitForDOMReady();
-            }
-            
-            // Load moves from API or localStorage
-            await this.loadMoves();
-            
-            // Setup event listeners
-            this.setupEventListeners();
-            
-            // Initial render
-            this.renderMoves();
-            this.updateMoveStats();
-            
-            this.isInitialized = true;
-            console.log('Move Management initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize Move Management:', error);
-            this.showErrorMessage('Failed to initialize move management: ' + error.message);
+  static async getAnalytics(req, res) {
+    try {
+      // Get analytics data for charts
+      const { data: movesByStyle, error: styleError } = await supabase
+        .from('dance_moves')
+        .select('dance_style')
+        .eq('is_active', true);
+
+      const { data: submissionsByMonth, error: submissionError } = await supabase
+        .from('move_submissions')
+        .select('created_at')
+        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
+
+      // Process data for charts
+      const styleDistribution = {};
+      movesByStyle?.forEach(move => {
+        styleDistribution[move.dance_style] = (styleDistribution[move.dance_style] || 0) + 1;
+      });
+
+      const monthlySubmissions = {};
+      submissionsByMonth?.forEach(submission => {
+        const month = new Date(submission.created_at).toISOString().substring(0, 7);
+        monthlySubmissions[month] = (monthlySubmissions[month] || 0) + 1;
+      });
+
+      res.json({
+        success: true,
+        data: {
+          styleDistribution,
+          monthlySubmissions
         }
-    }
+      });
 
-    // Initialize API client
-    initializeAPI() {
-        if (window.apiClient) {
-            this.api = window.apiClient;
-            console.log('API client initialized');
-        } else if (window.APIClient) {
-            this.api = new window.APIClient();
-            console.log('API client created');
-        } else {
-            console.warn('No API client available, using localStorage fallback');
+    } catch (error) {
+      console.error('Analytics error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Dance Move Management
+  static async getAllMoves(req, res) {
+    try {
+      const { page = 1, limit = 20, dance_style, difficulty, section } = req.query;
+      
+      let query = supabaseAdmin
+        .from('dance_moves')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (dance_style) {
+        query = query.eq('dance_style', dance_style);
+      }
+      if (difficulty) {
+        query = query.eq('difficulty', difficulty);
+      }
+      if (section) {
+        query = query.eq('section', section);
+      }
+
+      const { data: moves, error } = await query
+        .range((page - 1) * limit, page * limit - 1);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: moves || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: moves?.length || 0
         }
-    }
+      });
 
-    // Check if required DOM elements are available
-    waitForDOM() {
-        const requiredElements = [
-            'movesGrid',
-            'createMoveBtn', 
-            'moveSearchInput'
-        ];
-        
-        return requiredElements.some(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                console.log(`Found required element: ${id}`);
-                return true;
-            }
-            return false;
-        });
+    } catch (error) {
+      console.error('Get moves error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Wait for DOM to be ready
-    async waitForDOMReady(maxWait = 5000) {
-        const startTime = Date.now();
-        let foundElements = 0;
-        
-        while (foundElements < 2 && (Date.now() - startTime) < maxWait) {
-            const requiredElements = ['movesGrid', 'createMoveBtn', 'moveSearchInput'];
-            foundElements = requiredElements.filter(id => document.getElementById(id) !== null).length;
-            
-            if (foundElements >= 2) {
-                console.log(`Found ${foundElements}/3 required DOM elements`);
-                return true;
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 100));
+  static async createMove(req, res) {
+    try {
+      const move = await DanceMove.create(req.body);
+      res.status(201).json({
+        success: true,
+        data: move
+      });
+    } catch (error) {
+      console.error('Create move error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  static async updateMove(req, res) {
+    try {
+      const move = await DanceMove.update(req.params.id, req.body);
+      res.json({
+        success: true,
+        data: move
+      });
+    } catch (error) {
+      console.error('Update move error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  static async deleteMove(req, res) {
+    try {
+      const move = await DanceMove.delete(req.params.id);
+      res.json({
+        success: true,
+        data: move
+      });
+    } catch (error) {
+      console.error('Delete move error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Dance Style Management - FIXED IMPLEMENTATION
+  static async getAllDanceStyles(req, res) {
+    try {
+      const { includeStats = 'true' } = req.query;
+      const styles = await DanceStyle.findAllAdmin({ 
+        includeStats: includeStats === 'true' 
+      });
+      
+      res.json({
+        success: true,
+        data: styles
+      });
+    } catch (error) {
+      console.error('Get dance styles error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  static async createDanceStyle(req, res) {
+    try {
+      const style = await DanceStyle.create(req.body);
+      res.status(201).json({
+        success: true,
+        data: style
+      });
+    } catch (error) {
+      console.error('Create dance style error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  static async updateDanceStyle(req, res) {
+    try {
+      const style = await DanceStyle.update(req.params.id, req.body);
+      res.json({
+        success: true,
+        data: style
+      });
+    } catch (error) {
+      console.error('Update dance style error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  static async deleteDanceStyle(req, res) {
+    try {
+      const style = await DanceStyle.delete(req.params.id);
+      res.json({
+        success: true,
+        data: style
+      });
+    } catch (error) {
+      console.error('Delete dance style error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // User Management
+  static async getAllUsers(req, res) {
+    try {
+      const { page = 1, limit = 20, role, status } = req.query;
+      
+      let query = supabaseAdmin
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (role) {
+        query = query.eq('role', role);
+      }
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data: users, error } = await query
+        .range((page - 1) * limit, page * limit - 1);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: users || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: users?.length || 0
         }
-        
-        if (foundElements === 0) {
-            console.warn('No required DOM elements found after waiting');
-            return false;
-        }
-        
-        console.log(`Proceeding with partial DOM readiness (${foundElements}/3 elements found)`);
-        return true;
+      });
+
+    } catch (error) {
+      console.error('Get users error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Setup event listeners
-    setupEventListeners() {
-        console.log('Setting up event listeners...');
-        
-        // Remove existing listeners to prevent duplicates
-        this.removeEventListeners();
-        
-        // Wait for elements to be available
-        setTimeout(() => {
-            console.log('Attempting to find elements after delay...');
-            
-            // Debug: Log what elements we can find
-            const allButtons = document.querySelectorAll('button');
-            const allInputs = document.querySelectorAll('input');
-            const allSelects = document.querySelectorAll('select');
-            console.log(`Found ${allButtons.length} buttons, ${allInputs.length} inputs, ${allSelects.length} selects`);
-            
-            // Create move button
-            let createMoveBtn = document.getElementById('createMoveBtn');
-            if (!createMoveBtn) {
-                createMoveBtn = document.querySelector('.btn[onclick*="create"], button[title*="Create"], .header-actions .btn-primary');
-                if (createMoveBtn) {
-                    console.log('Found create button via alternative selector');
-                }
-            }
-            
-            if (createMoveBtn) {
-                this.createMoveBtnHandler = (e) => {
-                    e.preventDefault();
-                    this.showCreateMoveModal();
-                };
-                createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
-                console.log('Create move button listener added');
-            } else {
-                console.warn('Create move button not found');
-            }
+  static async getUser(req, res) {
+    try {
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', req.params.id)
+        .single();
 
-            // Refresh button
-            let refreshBtn = document.getElementById('refreshMovesBtn');
-            if (refreshBtn) {
-                this.refreshBtnHandler = () => this.loadMoves(1);
-                refreshBtn.addEventListener('click', this.refreshBtnHandler);
-                console.log('Refresh button listener added');
-            } else {
-                console.warn('Refresh button not found');
-            }
+      if (error) throw error;
 
-            // Search input
-            let searchInput = document.getElementById('moveSearchInput');
-            if (searchInput) {
-                this.searchInputHandler = (e) => {
-                    this.currentFilters.search = e.target.value.trim();
-                    this.applyFilters();
-                };
-                searchInput.addEventListener('input', this.searchInputHandler);
-                console.log('Search input listener added');
-            } else {
-                console.warn('Search input not found');
-            }
+      res.json({
+        success: true,
+        data: user
+      });
 
-            // Filter dropdowns
-            const filterElements = [
-                'danceStyleFilter',
-                'sectionFilter', 
-                'difficultyFilter'
-            ];
-
-            filterElements.forEach(filterId => {
-                let element = document.getElementById(filterId);
-                if (element) {
-                    const handler = (e) => {
-                        this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
-                        this.applyFilters();
-                    };
-                    
-                    this[`${filterId}Handler`] = handler;
-                    element.addEventListener('change', handler);
-                    console.log(`${filterId} listener added`);
-                } else {
-                    console.warn(`${filterId} not found`);
-                }
-            });
-
-            // Bulk delete button
-            let bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-            if (bulkDeleteBtn) {
-                this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
-                bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
-                console.log('Bulk delete button listener added');
-            } else {
-                console.warn('Bulk delete button not found');
-            }
-
-            console.log('Event listeners setup complete');
-            
-            // Verify at least one critical element was found
-            const criticalElements = [createMoveBtn, refreshBtn, searchInput].filter(Boolean);
-            if (criticalElements.length === 0) {
-                console.error('No critical elements found, event listeners may not work');
-                
-                // Fallback: add click listener to section
-                const section = document.getElementById('move-management');
-                if (section) {
-                    console.log('Adding fallback click listener to section');
-                    section.addEventListener('click', (e) => {
-                        if (e.target.textContent.includes('Create Move') || e.target.textContent.includes('Create')) {
-                            console.log('Fallback create move click detected');
-                            this.showCreateMoveModal();
-                        }
-                    });
-                }
-            }
-            
-        }, 300);
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
     }
+  }
 
-    // Remove event listeners to prevent duplicates
-    removeEventListeners() {
-        const createMoveBtn = document.getElementById('createMoveBtn');
-        if (createMoveBtn && this.createMoveBtnHandler) {
-            createMoveBtn.removeEventListener('click', this.createMoveBtnHandler);
-        }
+  static async updateUser(req, res) {
+    try {
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .update({
+          ...req.body,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-        const refreshBtn = document.getElementById('refreshMovesBtn');
-        if (refreshBtn && this.refreshBtnHandler) {
-            refreshBtn.removeEventListener('click', this.refreshBtnHandler);
-        }
+      if (error) throw error;
 
-        const searchInput = document.getElementById('moveSearchInput');
-        if (searchInput && this.searchInputHandler) {
-            searchInput.removeEventListener('input', this.searchInputHandler);
-        }
+      res.json({
+        success: true,
+        data: user
+      });
 
-        const filterElements = ['danceStyleFilter', 'sectionFilter', 'difficultyFilter'];
-        filterElements.forEach(filterId => {
-            const element = document.getElementById(filterId);
-            const handler = this[`${filterId}Handler`];
-            if (element && handler) {
-                element.removeEventListener('change', handler);
-            }
-        });
-
-        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-        if (bulkDeleteBtn && this.bulkDeleteBtnHandler) {
-            bulkDeleteBtn.removeEventListener('click', this.bulkDeleteBtnHandler);
-        }
+    } catch (error) {
+      console.error('Update user error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Load moves from API or localStorage
-    async loadMoves(page = 1, filters = {}) {
-        try {
-            console.log('Loading moves...', { page, filters });
-            this.currentPage = page;
-            this.currentFilters = filters;
+  static async deleteUser(req, res) {
+    try {
+      const { data: user, error } = await supabaseAdmin
+        .from('users')
+        .update({ 
+          status: 'deleted',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-            // Try API first
-            if (this.api && typeof this.api.getMoves === 'function') {
-                console.log('Loading moves via API...');
-                
-                try {
-                    const response = await this.api.getMoves(filters);
-                    
-                    if (response && response.success) {
-                        this.moves = response.data || [];
-                        this.totalPages = response.totalPages || 1;
-                        console.log(`Loaded ${this.moves.length} moves via API`);
-                        return;
-                    } else {
-                        throw new Error(response?.error || 'API request failed');
-                    }
-                } catch (apiError) {
-                    console.warn('API failed, falling back to localStorage:', apiError.message);
-                }
-            }
-            
-            // Fallback to localStorage
-            console.log('Loading moves from localStorage...');
-            const storedMoves = localStorage.getItem('dancify_moves');
-            if (storedMoves) {
-                this.moves = JSON.parse(storedMoves);
-            } else {
-                this.moves = this.generateSampleMoves();
-                localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
-            }
-            console.log(`Loaded ${this.moves.length} moves from localStorage`);
+      if (error) throw error;
 
-        } catch (error) {
-            console.error('Failed to load moves:', error);
-            this.showErrorMessage('Failed to load moves: ' + error.message);
-            this.moves = this.generateSampleMoves();
+      res.json({
+        success: true,
+        data: user
+      });
+
+    } catch (error) {
+      console.error('Delete user error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  // Move Submission Management
+  static async getMoveSubmissions(req, res) {
+    try {
+      const { page = 1, limit = 20, status, move_id } = req.query;
+      
+      let query = supabaseAdmin
+        .from('move_submissions')
+        .select(`
+          *,
+          users (id, username, email),
+          dance_moves (id, name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+      if (move_id) {
+        query = query.eq('move_id', move_id);
+      }
+
+      const { data: submissions, error } = await query
+        .range((page - 1) * limit, page * limit - 1);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: submissions || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: submissions?.length || 0
         }
+      });
+
+    } catch (error) {
+      console.error('Get submissions error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Generate sample moves for development
-    generateSampleMoves() {
-        return [];
+  static async getMoveSubmission(req, res) {
+    try {
+      const { data: submission, error } = await supabaseAdmin
+        .from('move_submissions')
+        .select(`
+          *,
+          users (id, username, email),
+          dance_moves (id, name)
+        `)
+        .eq('id', req.params.id)
+        .single();
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: submission
+      });
+
+    } catch (error) {
+      console.error('Get submission error:', error);
+      res.status(404).json({
+        success: false,
+        error: 'Submission not found'
+      });
     }
+  }
 
-    // Render moves grid
-    renderMoves() {
-        let movesContainer = document.getElementById('movesGrid');
-        if (!movesContainer) {
-            movesContainer = document.querySelector('.moves-grid, [id*="moves"], .move-container');
-        }
-        
-        if (!movesContainer) {
-            console.warn('Moves container not found - trying to create one');
-            
-            const parentContainer = document.querySelector('.moves-container, .content-section, #move-management');
-            if (parentContainer) {
-                movesContainer = document.createElement('div');
-                movesContainer.id = 'movesGrid';
-                movesContainer.className = 'moves-grid';
-                parentContainer.appendChild(movesContainer);
-                console.log('Created moves container');
-            } else {
-                console.error('Cannot find suitable parent for moves container');
-                return;
-            }
-        }
+  static async reviewMoveSubmission(req, res) {
+    try {
+      const { rating, feedback, status } = req.body;
+      
+      const { data: submission, error } = await supabaseAdmin
+        .from('move_submissions')
+        .update({
+          status: status || 'reviewed',
+          rating,
+          feedback,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-        if (!this.moves || this.moves.length === 0) {
-            movesContainer.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">Dance Move</div>
-                    <div class="empty-title">No Dance Moves Found</div>
-                    <div class="empty-description">Create your first dance move to get started</div>
-                    <button class="btn btn-primary" onclick="window.moveManager.showCreateMoveModal()">
-                        Create Move
-                    </button>
-                </div>
-            `;
-            return;
-        }
+      if (error) throw error;
 
-        const movesHTML = this.moves.map(move => this.createMoveCard(move)).join('');
-        movesContainer.innerHTML = movesHTML;
-        
-        console.log(`Rendered ${this.moves.length} moves`);
+      res.json({
+        success: true,
+        data: submission
+      });
+
+    } catch (error) {
+      console.error('Review submission error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Create move card HTML
-    createMoveCard(move) {
-        const difficultyColors = {
-            'beginner': '#28A745',
-            'intermediate': '#FFC107', 
-            'advanced': '#DC3545',
-            'expert': '#6F42C1'
-        };
+  static async approveMoveSubmission(req, res) {
+    try {
+      const { data: submission, error } = await supabaseAdmin
+        .from('move_submissions')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-        const difficultyColor = difficultyColors[move.difficulty] || '#8A2BE2';
-        const thumbnailUrl = move.thumbnail_url || 'https://via.placeholder.com/300x200?text=No+Video';
-        const created = new Date(move.created_at).toLocaleDateString();
-        const viewCount = move.view_count || 0;
-        const rating = move.rating || 0;
+      if (error) throw error;
 
-        return `
-            <div class="move-card" data-move-id="${move.id}">
-                <div class="move-thumbnail">
-                    <img src="${thumbnailUrl}" alt="${move.name}" loading="lazy" 
-                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Video'">
-                    <div class="move-overlay">
-                        <button class="btn-icon" onclick="window.moveManager.editMove('${move.id}')" title="Edit Move">
-                            Edit
-                        </button>
-                        <button class="btn-icon" onclick="window.moveManager.deleteMove('${move.id}')" title="Delete Move">
-                            Delete
-                        </button>
-                        <button class="btn-icon" onclick="window.moveManager.toggleMoveSelection('${move.id}')" title="Select Move">
-                            Select
-                        </button>
-                    </div>
-                    ${move.video_url ? `<div class="play-button">Play</div>` : ''}
-                </div>
-                <div class="move-info">
-                    <div class="move-header">
-                        <h3 class="move-title">${move.name}</h3>
-                        <span class="difficulty-badge" style="background-color: ${difficultyColor}; color: white;">
-                            ${move.difficulty}
-                        </span>
-                    </div>
-                    <div class="move-meta">
-                        <span class="dance-style">${move.dance_style}</span>
-                        <span class="section">${move.section}</span>
-                        ${move.subsection ? `<span class="subsection">${move.subsection}</span>` : ''}
-                    </div>
-                    <div class="move-description">${move.description}</div>
-                    <div class="move-stats">
-                        <span class="views">Views: ${viewCount.toLocaleString()}</span>
-                        <span class="rating">Rating: ${rating.toFixed(1)}</span>
-                        <span class="xp">XP: ${move.xp_reward}</span>
-                        <span class="created">Created: ${created}</span>
-                    </div>
-                </div>
-            </div>
-        `;
+      res.json({
+        success: true,
+        data: submission
+      });
+
+    } catch (error) {
+      console.error('Approve submission error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Update move statistics
-    updateMoveStats() {
-        try {
-            const findElement = (id, altSelectors = []) => {
-                let element = document.getElementById(id);
-                if (!element) {
-                    for (const selector of altSelectors) {
-                        element = document.querySelector(selector);
-                        if (element) break;
-                    }
-                }
-                return element;
-            };
+  static async rejectMoveSubmission(req, res) {
+    try {
+      const { reason } = req.body;
+      
+      const { data: submission, error } = await supabaseAdmin
+        .from('move_submissions')
+        .update({
+          status: 'rejected',
+          feedback: reason,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', req.params.id)
+        .select()
+        .single();
 
-            const totalMovesEl = findElement('totalMoves', ['[data-stat="total"]']);
-            const difficultyBreakdownEl = findElement('difficultyBreakdown', ['[data-stat="difficulty"]']);
-            const totalViewsEl = findElement('totalViews', ['[data-stat="views"]']);
-            const averageRatingEl = findElement('averageRating', ['[data-stat="rating"]']);
-            
-            if (!this.moves || this.moves.length === 0) {
-                if (totalMovesEl) totalMovesEl.textContent = '0';
-                if (difficultyBreakdownEl) difficultyBreakdownEl.textContent = 'No moves';
-                if (totalViewsEl) totalViewsEl.textContent = '0';
-                if (averageRatingEl) averageRatingEl.textContent = '0.0';
-                return;
-            }
-            
-            if (totalMovesEl) {
-                totalMovesEl.textContent = this.moves.length.toLocaleString();
-            }
-            
-            if (difficultyBreakdownEl) {
-                const difficulties = {};
-                this.moves.forEach(move => {
-                    const diff = move.difficulty || 'unknown';
-                    difficulties[diff] = (difficulties[diff] || 0) + 1;
-                });
-                
-                const breakdown = Object.entries(difficulties)
-                    .map(([diff, count]) => `${diff}: ${count}`)
-                    .join(', ');
-                difficultyBreakdownEl.textContent = breakdown;
-            }
-            
-            if (totalViewsEl) {
-                const totalViews = this.moves.reduce((sum, move) => sum + (move.view_count || 0), 0);
-                totalViewsEl.textContent = totalViews.toLocaleString();
-            }
-            
-            if (averageRatingEl) {
-                const ratedMoves = this.moves.filter(move => move.rating && move.rating > 0);
-                if (ratedMoves.length > 0) {
-                    const avgRating = ratedMoves.reduce((sum, move) => sum + move.rating, 0) / ratedMoves.length;
-                    averageRatingEl.textContent = avgRating.toFixed(1);
-                } else {
-                    averageRatingEl.textContent = '0.0';
-                }
-            }
-            
-            console.log('Move statistics updated');
-        } catch (error) {
-            console.error('Error updating move statistics:', error);
-        }
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: submission
+      });
+
+    } catch (error) {
+      console.error('Reject submission error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
+  }
 
-    // Show create move modal
-    showCreateMoveModal() {
-        this.showMoveModal(null, true);
+  // Utility method to seed initial dance styles
+  static async seedDanceStyles(req, res) {
+    try {
+      const styles = await DanceStyle.seedInitialStyles();
+      res.status(201).json({
+        success: true,
+        data: styles,
+        message: 'Initial dance styles created successfully'
+      });
+    } catch (error) {
+      console.error('Seed dance styles error:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
-
-    // Edit move
-    editMove(moveId) {
-        const move = this.moves.find(m => m.id === moveId);
-        if (move) {
-            this.showMoveModal(move, false);
-        } else {
-            this.showErrorMessage('Move not found');
-        }
-    }
-
-    // Show move modal
-    showMoveModal(move, isCreateMode) {
-        const modalOverlay = document.createElement('div');
-        modalOverlay.className = 'modal-overlay show';
-        modalOverlay.innerHTML = this.createMoveModalHTML(move, isCreateMode);
-        
-        document.body.appendChild(modalOverlay);
-        
-        setTimeout(() => {
-            const firstInput = modalOverlay.querySelector('input, textarea, select');
-            if (firstInput) firstInput.focus();
-        }, 100);
-        
-        this.setupEnhancedMoveModalEvents(modalOverlay, move);
-    }
-
-    // Create move modal HTML
-    createMoveModalHTML(move, isCreateMode) {
-        return `
-            <div class="modal">
-                <div class="modal-header">
-                    <h2>${isCreateMode ? 'Create New Move' : 'Edit Move'}</h2>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
-                </div>
-                <div class="modal-body">
-                    <form class="move-form" id="moveForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="moveName">Move Name *</label>
-                                <input type="text" id="moveName" name="name" required 
-                                       value="${move?.name || ''}" placeholder="Enter move name">
-                            </div>
-                            <div class="form-group">
-                                <label for="danceStyle">Dance Style *</label>
-                                <select id="danceStyle" name="dance_style" required>
-                                    <option value="">Select style</option>
-                                    <option value="hip-hop" ${move?.dance_style === 'hip-hop' ? 'selected' : ''}>Hip Hop</option>
-                                    <option value="ballet" ${move?.dance_style === 'ballet' ? 'selected' : ''}>Ballet</option>
-                                    <option value="contemporary" ${move?.dance_style === 'contemporary' ? 'selected' : ''}>Contemporary</option>
-                                    <option value="jazz" ${move?.dance_style === 'jazz' ? 'selected' : ''}>Jazz</option>
-                                    <option value="latin" ${move?.dance_style === 'latin' ? 'selected' : ''}>Latin</option>
-                                    <option value="breakdance" ${move?.dance_style === 'breakdance' ? 'selected' : ''}>Breakdance</option>
-                                    <option value="ballroom" ${move?.dance_style === 'ballroom' ? 'selected' : ''}>Ballroom</option>
-                                    <option value="tap" ${move?.dance_style === 'tap' ? 'selected' : ''}>Tap</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="section">Section *</label>
-                                <input type="text" id="section" name="section" required 
-                                       value="${move?.section || 'Basic Steps'}" placeholder="e.g., Basic Steps">
-                            </div>
-                            <div class="form-group">
-                                <label for="subsection">Subsection</label>
-                                <input type="text" id="subsection" name="subsection" 
-                                       value="${move?.subsection || ''}" placeholder="Optional">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="difficulty">Difficulty *</label>
-                                <select id="difficulty" name="difficulty" required>
-                                    <option value="">Select difficulty</option>
-                                    <option value="beginner" ${move?.difficulty === 'beginner' ? 'selected' : ''}>Beginner</option>
-                                    <option value="intermediate" ${move?.difficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
-                                    <option value="advanced" ${move?.difficulty === 'advanced' ? 'selected' : ''}>Advanced</option>
-                                    <option value="expert" ${move?.difficulty === 'expert' ? 'selected' : ''}>Expert</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="xpReward">XP Reward</label>
-                                <input type="number" id="xpReward" name="xp_reward" min="10" max="500" 
-                                       value="${move?.xp_reward || 50}" placeholder="50">
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="videoUrl">Video URL</label>
-                            <input type="url" id="videoUrl" name="video_url" 
-                                   value="${move?.video_url || ''}" placeholder="https://youtube.com/watch?v=...">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="moveDescription">Description *</label>
-                            <textarea id="moveDescription" name="description" required rows="3" 
-                                      placeholder="Brief description">${move?.description || ''}</textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="detailedInstructions">Detailed Instructions *</label>
-                            <textarea id="detailedInstructions" name="detailed_instructions" required rows="5" 
-                                      placeholder="Step-by-step instructions">${move?.detailed_instructions || ''}</textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
-                        Cancel
-                    </button>
-                    <button class="btn btn-primary" onclick="window.moveManager.saveMove(${isCreateMode ? 'null' : `'${move?.id || ''}'`})">
-                        ${isCreateMode ? 'Create Move' : 'Save Changes'}
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    // Setup modal events
-    setupEnhancedMoveModalEvents(modal, move) {
-        const form = modal.querySelector('#moveForm');
-        
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.saveMove(move?.id || null);
-            });
-            
-            const requiredFields = ['moveName', 'moveDescription', 'detailedInstructions', 'danceStyle', 'difficulty'];
-            requiredFields.forEach(fieldId => {
-                const field = modal.querySelector(`#${fieldId}`);
-                if (field) {
-                    field.addEventListener('blur', () => this.validateField(field));
-                    field.addEventListener('input', () => this.clearFieldError(field));
-                }
-            });
-        }
-        
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                if (confirm('Close without saving? Any changes will be lost.')) {
-                    modal.remove();
-                }
-            }
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.parentNode) {
-                if (confirm('Close without saving? Any changes will be lost.')) {
-                    modal.remove();
-                }
-            }
-        }, { once: true });
-    }
-
-    // Save move
-    async saveMove(moveId) {
-        try {
-            const nameEl = document.getElementById('moveName');
-            const descEl = document.getElementById('moveDescription');
-            const instructionsEl = document.getElementById('detailedInstructions');
-            const styleEl = document.getElementById('danceStyle');
-            const sectionEl = document.getElementById('section');
-            const difficultyEl = document.getElementById('difficulty');
-            const xpEl = document.getElementById('xpReward');
-            const videoEl = document.getElementById('videoUrl');
-
-            if (!nameEl || !descEl || !instructionsEl || !styleEl || !difficultyEl) {
-                throw new Error('Form elements not found. Please refresh and try again.');
-            }
-
-            const moveData = {
-                name: nameEl.value.trim(),
-                description: descEl.value.trim(),
-                detailed_instructions: instructionsEl.value.trim(),
-                dance_style: styleEl.value,
-                section: sectionEl?.value?.trim() || 'Basic Steps',
-                subsection: document.getElementById('subsection')?.value?.trim() || '',
-                difficulty: difficultyEl.value,
-                xp_reward: parseInt(xpEl?.value) || 50,
-                video_url: videoEl?.value?.trim() || ''
-            };
-            
-            const validationErrors = [];
-            if (!moveData.name) validationErrors.push('Move name is required');
-            if (!moveData.description) validationErrors.push('Description is required');
-            if (!moveData.detailed_instructions) validationErrors.push('Detailed instructions are required');
-            if (!moveData.dance_style) validationErrors.push('Dance style must be selected');
-            if (!moveData.difficulty) validationErrors.push('Difficulty level must be selected');
-            
-            if (validationErrors.length > 0) {
-                throw new Error('Please fix the following:\n• ' + validationErrors.join('\n• '));
-            }
-            
-            console.log('Saving move:', moveId ? 'UPDATE' : 'CREATE', moveData);
-            
-            const saveButton = document.querySelector('.modal-footer .btn-primary');
-            const originalText = saveButton.textContent;
-            saveButton.textContent = 'Saving...';
-            saveButton.disabled = true;
-            
-            try {
-                if (this.api) {
-                    let response;
-                    if (moveId) {
-                        // Update existing move
-                        if (typeof this.api.updateMove === 'function') {
-                            response = await this.api.updateMove(moveId, moveData);
-                        } else if (typeof this.api.request === 'function') {
-                            response = await this.api.request('PUT', `/admin/moves/${moveId}`, moveData);
-                        } else {
-                            throw new Error('API updateMove method not available');
-                        }
-                    } else {
-                        // Create new move
-                        if (typeof this.api.createMove === 'function') {
-                            response = await this.api.createMove(moveData);
-                        } else if (typeof this.api.request === 'function') {
-                            response = await this.api.request('POST', '/admin/moves', moveData);
-                        } else {
-                            throw new Error('API createMove method not available');
-                        }
-                    }
-                    
-                    if (response && response.success) {
-                        console.log('Move saved via API');
-                        
-                        if (moveId) {
-                            const moveIndex = this.moves.findIndex(m => m.id === moveId);
-                            if (moveIndex !== -1) {
-                                this.moves[moveIndex] = { ...this.moves[moveIndex], ...moveData, updated_at: new Date().toISOString() };
-                            }
-                        } else if (response.data) {
-                            this.moves.push(response.data);
-                        }
-                    } else {
-                        throw new Error(response?.error || 'API save failed');
-                    }
-                } else {
-                    console.warn('API not available, saving locally');
-                    
-                    if (moveId) {
-                        const moveIndex = this.moves.findIndex(m => m.id === moveId);
-                        if (moveIndex !== -1) {
-                            this.moves[moveIndex] = { 
-                                ...this.moves[moveIndex], 
-                                ...moveData, 
-                                updated_at: new Date().toISOString() 
-                            };
-                            console.log('Move updated locally');
-                        } else {
-                            throw new Error('Move not found for update');
-                        }
-                    } else {
-                        const newMove = {
-                            id: `move-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                            ...moveData,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                            view_count: 0,
-                            rating: 0,
-                            rating_count: 0,
-                            is_active: true,
-                            thumbnail_url: moveData.video_url ? this.generateThumbnailUrl(moveData.video_url) : null
-                        };
-                        
-                        this.moves.unshift(newMove);
-                        console.log('New move created locally:', newMove.id);
-                    }
-                    
-                    try {
-                        localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
-                        console.log('Moves saved to localStorage');
-                    } catch (storageError) {
-                        console.warn('Could not save to localStorage:', storageError);
-                    }
-                }
-                
-                const action = moveId ? 'updated' : 'created';
-                this.showSuccessMessage(`Move "${moveData.name}" ${action} successfully!`);
-                
-                const modal = document.querySelector('.modal-overlay');
-                if (modal) {
-                    modal.remove();
-                }
-                
-                await this.refreshMovesDisplay();
-                
-            } finally {
-                if (saveButton) {
-                    saveButton.textContent = originalText;
-                    saveButton.disabled = false;
-                }
-            }
-            
-        } catch (error) {
-            console.error('Failed to save move:', error);
-            this.showErrorMessage('Failed to save move: ' + error.message);
-            
-            const saveButton = document.querySelector('.modal-footer .btn-primary');
-            if (saveButton) {
-                saveButton.disabled = false;
-                if (saveButton.textContent.includes('Saving')) {
-                    saveButton.textContent = saveButton.textContent.replace('Saving...', moveId ? 'Save Changes' : 'Create Move');
-                }
-            }
-        }
-    }
-
-    // Helper methods
-    async refreshMovesDisplay() {
-        try {
-            this.renderMoves();
-            this.updateMoveStats();
-            if (this.currentFilters && Object.keys(this.currentFilters).length > 0) {
-                this.applyFilters();
-            }
-            console.log('Moves display refreshed');
-        } catch (error) {
-            console.error('Error refreshing moves display:', error);
-        }
-    }
-
-    generateThumbnailUrl(videoUrl) {
-        if (!videoUrl) return null;
-        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const match = videoUrl.match(youtubeRegex);
-        if (match && match[1]) {
-            return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
-        }
-        return 'https://via.placeholder.com/300x200?text=Dance+Move';
-    }
-
-    validateField(field) {
-        const value = field.value.trim();
-        const isRequired = field.hasAttribute('required');
-        
-        if (isRequired && !value) {
-            this.showFieldError(field, 'This field is required');
-            return false;
-        }
-        
-        this.clearFieldError(field);
-        return true;
-    }
-
-    showFieldError(field, message) {
-        this.clearFieldError(field);
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'field-error';
-        errorDiv.textContent = message;
-        errorDiv.style.color = '#dc3545';
-        errorDiv.style.fontSize = '0.875rem';
-        errorDiv.style.marginTop = '0.25rem';
-        field.style.borderColor = '#dc3545';
-        field.parentNode.appendChild(errorDiv);
-    }
-
-    clearFieldError(field) {
-        const existingError = field.parentNode.querySelector('.field-error');
-        if (existingError) {
-            existingError.remove();
-        }
-        field.style.borderColor = '';
-    }
-
-    applyFilters() {
-        let filteredMoves = [...this.moves];
-        
-        if (this.currentFilters.search) {
-            const searchTerm = this.currentFilters.search.toLowerCase();
-            filteredMoves = filteredMoves.filter(move => 
-                move.name.toLowerCase().includes(searchTerm) ||
-                move.description.toLowerCase().includes(searchTerm) ||
-                move.dance_style.toLowerCase().includes(searchTerm)
-            );
-        }
-        
-        if (this.currentFilters.danceStyle) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.dance_style === this.currentFilters.danceStyle
-            );
-        }
-        
-        if (this.currentFilters.section) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.section === this.currentFilters.section
-            );
-        }
-        
-        if (this.currentFilters.difficulty) {
-            filteredMoves = filteredMoves.filter(move => 
-                move.difficulty === this.currentFilters.difficulty
-            );
-        }
-        
-        const originalMoves = this.moves;
-        this.moves = filteredMoves;
-        this.renderMoves();
-        this.moves = originalMoves;
-        
-        console.log(`Applied filters, showing ${filteredMoves.length} of ${originalMoves.length} moves`);
-    }
-
-    async deleteMove(moveId) {
-        const move = this.moves.find(m => m.id === moveId);
-        if (!move) {
-            this.showErrorMessage('Move not found');
-            return;
-        }
-        
-        const confirmed = confirm(`Are you sure you want to delete "${move.name}"?`);
-        if (!confirmed) return;
-        
-        try {
-            if (this.api && typeof this.api.deleteMove === 'function') {
-                const response = await this.api.deleteMove(moveId);
-                if (response && response.success) {
-                    console.log('Move deleted via API');
-                }
-            } else if (this.api && typeof this.api.request === 'function') {
-                const response = await this.api.request('DELETE', `/admin/moves/${moveId}`);
-                if (response && response.success) {
-                    console.log('Move deleted via API');
-                }
-            }
-            
-            this.moves = this.moves.filter(m => m.id !== moveId);
-            this.selectedMoves.delete(moveId);
-            
-            try {
-                localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
-            } catch (storageError) {
-                console.warn('Could not update localStorage:', storageError);
-            }
-            
-            this.showSuccessMessage('Move deleted successfully');
-            this.renderMoves();
-            this.updateMoveStats();
-            
-        } catch (error) {
-            console.error('Failed to delete move:', error);
-            this.showErrorMessage('Failed to delete move: ' + error.message);
-        }
-    }
-
-    toggleMoveSelection(moveId) {
-        if (this.selectedMoves.has(moveId)) {
-            this.selectedMoves.delete(moveId);
-        } else {
-            this.selectedMoves.add(moveId);
-        }
-    }
-
-    async bulkDeleteMoves() {
-        if (this.selectedMoves.size === 0) {
-            this.showErrorMessage('No moves selected for deletion');
-            return;
-        }
-        
-        const confirmed = confirm(`Delete ${this.selectedMoves.size} selected moves?`);
-        if (!confirmed) return;
-        
-        try {
-            const deletePromises = Array.from(this.selectedMoves).map(moveId => this.deleteMove(moveId));
-            await Promise.all(deletePromises);
-            
-            this.selectedMoves.clear();
-            this.showSuccessMessage(`Successfully deleted ${deletePromises.length} moves`);
-            
-        } catch (error) {
-            console.error('Bulk delete failed:', error);
-            this.showErrorMessage('Failed to delete some moves: ' + error.message);
-        }
-    }
-
-    showSuccessMessage(message) {
-        this.showMessage(message, 'success');
-    }
-
-    showErrorMessage(message) {
-        this.showMessage(message, 'error');
-    }
-
-    showMessage(message, type = 'info') {
-        const messageContainer = document.getElementById('messageContainer') || document.body;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message message-${type}`;
-        messageDiv.innerHTML = `
-            <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">×</button>
-        `;
-        
-        messageDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
-        `;
-        
-        messageContainer.appendChild(messageDiv);
-        
-        setTimeout(() => {
-            if (messageDiv.parentNode) {
-                messageDiv.remove();
-            }
-        }, 5000);
-    }
+  }
 }
 
-// Initialize the Move Manager when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.moveManager) {
-        window.moveManager = new MoveManager();
-        window.moveManager.init();
-        console.log('Move Manager ready');
-    }
-});
-
-// Export for global use
-window.MoveManager = MoveManager;
+module.exports = AdminController;
