@@ -13,6 +13,55 @@ class DanceStyleManager {
         console.log('Dance Style Manager initialized');
     }
 
+    forceCreateHeader() {
+        console.log('Force creating header...');
+        
+        const section = document.getElementById('dance-style-management');
+        if (!section) {
+            console.log('No dance-style-management section found');
+            return;
+        }
+        
+        // Remove any existing header
+        const existingHeader = section.querySelector('.section-header');
+        if (existingHeader) {
+            existingHeader.remove();
+        }
+        
+        // Create new header
+        const header = document.createElement('div');
+        header.className = 'section-header';
+        header.style.cssText = 'display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 20px 0 !important; margin-bottom: 20px !important; border-bottom: 1px solid #E9ECEF !important;';
+        
+        header.innerHTML = `
+            <div class="header-content" style="flex: 1;">
+                <h1 style="font-size: 2.2rem; color: #8A2BE2; margin: 0 0 5px 0; font-weight: 700;">🎭 Dance Style Management</h1>
+                <p style="color: #6C757D; margin: 0; font-size: 1rem;">Manage dance styles, categories, and hierarchical organization</p>
+            </div>
+            <div class="header-actions" style="display: flex !important; gap: 15px;">
+                <button class="btn btn-secondary" id="refreshStylesBtn" style="padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; border: 1px solid #E9ECEF; background: white; color: #2C3E50; cursor: pointer;">🔄 Refresh</button>
+                <button class="btn btn-primary" id="createStyleBtn" style="padding: 12px 24px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; border: none; background: linear-gradient(135deg, #8A2BE2, #FF69B4); color: white; cursor: pointer;">➕ Create Dance Style</button>
+            </div>
+        `;
+        
+        // Insert at the beginning of the section
+        section.insertBefore(header, section.firstChild);
+        
+        // Add event listeners
+        const refreshBtn = header.querySelector('#refreshStylesBtn');
+        const createBtn = header.querySelector('#createStyleBtn');
+        
+        if (refreshBtn) {
+            refreshBtn.onclick = () => this.loadDanceStyles();
+        }
+        
+        if (createBtn) {
+            createBtn.onclick = () => this.showCreateStyleModal();
+        }
+        
+        console.log('Header created successfully');
+    }
+
     // Initialize dance style management
     async init() {
         try {
@@ -20,6 +69,9 @@ class DanceStyleManager {
             
             // Wait for DOM elements to be available
             await this.waitForDOMReady();
+            
+            // Force create header
+            this.forceCreateHeader();
             
             await this.loadDanceStyles();
             this.setupEventListeners();
