@@ -56,7 +56,7 @@ class DanceStyle {
     let query = supabase
       .from('dance_styles')
       .select('*')
-      .eq('is_active', true)
+      .eq('is_active', true) // Only show active styles to public
       .order('popularity_score', { ascending: false });
 
     const { data, error } = await query;
@@ -76,32 +76,12 @@ class DanceStyle {
     return data || [];
   }
 
-  // Get dance style by ID (ADMIN VERSION)
-  static async findByIdAdmin(id, options = {}) {
-    const { data, error } = await supabaseAdmin
-      .from('dance_styles')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-
-    // Include stats if requested
-    if (options.includeStats && data) {
-      const stats = await this.getStyleStats(id);
-      return { ...data, stats };
-    }
-
-    return data;
-  }
-
-  // Get dance style by ID (PUBLIC VERSION)
+  // Get dance style by ID
   static async findById(id, options = {}) {
     const { data, error } = await supabase
       .from('dance_styles')
       .select('*')
       .eq('id', id)
-      .eq('is_active', true)
       .single();
 
     if (error) throw error;
@@ -112,19 +92,6 @@ class DanceStyle {
       return { ...data, stats };
     }
 
-    return data;
-  }
-
-  // Get dance style by name
-  static async findByName(name) {
-    const { data, error } = await supabase
-      .from('dance_styles')
-      .select('*')
-      .ilike('name', name)
-      .eq('is_active', true)
-      .single();
-
-    if (error) throw error;
     return data;
   }
 
@@ -132,10 +99,7 @@ class DanceStyle {
   static async update(id, updateData) {
     const { data, error } = await supabaseAdmin
       .from('dance_styles')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -144,24 +108,8 @@ class DanceStyle {
     return data;
   }
 
-  // Soft delete dance style
+  // Delete dance style
   static async delete(id) {
-    const { data, error } = await supabaseAdmin
-      .from('dance_styles')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  // Hard delete dance style (admin only)
-  static async hardDelete(id) {
     const { data, error } = await supabaseAdmin
       .from('dance_styles')
       .delete()
@@ -173,161 +121,81 @@ class DanceStyle {
     return data;
   }
 
-  // Get statistics for a dance style
+  // Get stats for a dance style
   static async getStyleStats(styleId) {
     try {
       // Get move count
-      const { data: moveCount, error: moveError } = await supabase
+      const { count: moveCount } = await supabase
         .from('dance_moves')
-        .select('id', { count: 'exact' })
-        .eq('dance_style', styleId)
-        .eq('is_active', true);
-
-      if (moveError) throw moveError;
+        .select('*', { count: 'exact', head: true })
+        .eq('dance_style_id', styleId)
+        .eq('is_published', true);
 
       // Get submission count
-      const { data: submissionCount, error: submissionError } = await supabase
+      const { count: submissionCount } = await supabase
         .from('move_submissions')
-        .select('id', { count: 'exact' })
-        .eq('dance_style', styleId);
-
-      if (submissionError) throw submissionError;
+        .select('*', { count: 'exact', head: true })
+        .eq('dance_style_id', styleId);
 
       // Get average rating
-      const { data: ratingData, error: ratingError } = await supabase
-        .rpc('get_average_style_rating', { style_id: styleId });
+      const { data: submissions } = await supabase
+        .from('move_submissions')
+        .select('rating')
+        .eq('dance_style_id', styleId)
+        .not('rating', 'is', null);
 
-      if (ratingError) console.error('Rating error:', ratingError);
+      const averageRating = submissions && submissions.length > 0
+        ? submissions.reduce((sum, sub) => sum + sub.rating, 0) / submissions.length
+        : 0;
 
       return {
-        moveCount: moveCount?.length || 0,
-        submissionCount: submissionCount?.length || 0,
-        averageRating: ratingData || 0,
-        lastUpdated: new Date().toISOString()
+        moveCount: moveCount || 0,
+        submissionCount: submissionCount || 0,
+        averageRating: Math.round(averageRating * 10) / 10
       };
     } catch (error) {
       console.error('Error getting style stats:', error);
       return {
         moveCount: 0,
         submissionCount: 0,
-        averageRating: 0,
-        lastUpdated: new Date().toISOString()
+        averageRating: 0
       };
     }
   }
 
-  // Get popular dance styles
-  static async getPopular(limit = 10) {
-    const { data, error } = await supabase
-      .from('dance_styles')
-      .select('*')
-      .eq('is_active', true)
-      .order('popularity_score', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data || [];
-  }
-
-  // Get featured dance styles
-  static async getFeatured() {
-    const { data, error } = await supabase
-      .from('dance_styles')
-      .select('*')
-      .eq('is_active', true)
-      .eq('is_featured', true)
-      .order('popularity_score', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-  }
-
-  // Update popularity score
-  static async updatePopularityScore(id, score) {
-    const { data, error } = await supabaseAdmin
-      .from('dance_styles')
-      .update({ 
-        popularity_score: score,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
   // Search dance styles
-  static async search(query, options = {}) {
-    const limit = options.limit || 20;
-    
-    const { data, error } = await supabase
+  static async search(query, filters = {}) {
+    let dbQuery = supabase
       .from('dance_styles')
       .select('*')
-      .or(`name.ilike.%${query}%, description.ilike.%${query}%, cultural_origin.ilike.%${query}%`)
-      .eq('is_active', true)
-      .order('popularity_score', { ascending: false })
-      .limit(limit);
+      .eq('is_active', true);
 
+    // Add text search
+    if (query) {
+      dbQuery = dbQuery.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+    }
+
+    // Add filters
+    if (filters.difficulty) {
+      dbQuery = dbQuery.eq('difficulty_level', filters.difficulty);
+    }
+
+    if (filters.featured !== undefined) {
+      dbQuery = dbQuery.eq('is_featured', filters.featured);
+    }
+
+    if (filters.culturalOrigin) {
+      dbQuery = dbQuery.eq('cultural_origin', filters.culturalOrigin);
+    }
+
+    const { data, error } = await dbQuery;
     if (error) throw error;
     return data || [];
   }
 
-  // Seed initial dance styles (for setup)
-  static async seedInitialStyles() {
-    const initialStyles = [
-      {
-        name: 'Ballet',
-        description: 'Classical dance form emphasizing grace, precision, and technique',
-        icon: '🩰',
-        color: '#FFB6C1',
-        difficulty_level: 'intermediate',
-        popularity_score: 85,
-        is_featured: true,
-        cultural_origin: 'European',
-        music_genres: ['Classical', 'Orchestral'],
-        key_characteristics: ['Grace', 'Precision', 'Technique', 'Flexibility']
-      },
-      {
-        name: 'Hip-Hop',
-        description: 'Urban dance style with street culture roots and rhythmic movement',
-        icon: '🎤',
-        color: '#FF6B35',
-        difficulty_level: 'beginner',
-        popularity_score: 95,
-        is_featured: true,
-        cultural_origin: 'African American',
-        music_genres: ['Hip-Hop', 'Rap', 'R&B'],
-        key_characteristics: ['Rhythm', 'Flow', 'Attitude', 'Creativity']
-      },
-      {
-        name: 'Salsa',
-        description: 'Energetic Latin dance with partner work and spicy rhythms',
-        icon: '💃',
-        color: '#FF4757',
-        difficulty_level: 'intermediate',
-        popularity_score: 75,
-        is_featured: true,
-        cultural_origin: 'Latin American',
-        music_genres: ['Salsa', 'Latin', 'Mambo'],
-        key_characteristics: ['Partnership', 'Rhythm', 'Passion', 'Connection']
-      }
-    ];
-
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('dance_styles')
-        .insert(initialStyles)
-        .select();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error seeding initial styles:', error);
-      throw error;
-    }
-  }
+  // REMOVED: No more hardcoded seed data
+  // This was causing the 3 hardcoded styles to appear in the iOS app
+  // Let the database be truly empty and require admin to create styles
 }
 
 module.exports = DanceStyle;
