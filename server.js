@@ -140,7 +140,7 @@ app.get('/api/health', async (req, res) => {
 
 // ADMIN ENDPOINTS - Direct implementation to avoid import issues
 
-// Dance Styles Admin Endpoints - SIMPLIFIED
+// Dance Styles Admin Endpoints - FIXED FOR ACTUAL DATABASE SCHEMA
 app.get('/api/admin/dance-styles', async (req, res) => {
   try {
     console.log('🎭 Fetching admin dance styles...');
@@ -151,7 +151,7 @@ app.get('/api/admin/dance-styles', async (req, res) => {
     const { data: styles, error } = await supabase
       .from('dance_styles')
       .select('*')
-      .order('display_order', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
@@ -178,7 +178,6 @@ app.get('/api/admin/dance-styles', async (req, res) => {
                 .eq('dance_style', style.name);
               submissionCount = count || 0;
             } catch (submissionError) {
-              // Submissions table might not exist yet
               console.log('Submissions table not found, setting count to 0');
             }
 
@@ -196,7 +195,6 @@ app.get('/api/admin/dance-styles', async (req, res) => {
                 averageRating = Math.round(averageRating * 10) / 10;
               }
             } catch (ratingError) {
-              // Handle case where submissions table doesn't exist
               console.log('Could not fetch ratings, setting to 0');
             }
 
@@ -243,7 +241,7 @@ app.get('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
-// SIMPLIFIED CREATE ENDPOINT - Only requires 4 essential fields
+// FIXED CREATE ENDPOINT - Only uses columns that exist in database
 app.post('/api/admin/dance-styles', async (req, res) => {
   try {
     console.log('🆕 Creating new dance style:', req.body);
@@ -259,28 +257,17 @@ app.post('/api/admin/dance-styles', async (req, res) => {
       });
     }
 
-    // Generate slug from name
-    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
-
-    // Create dance style with minimal required fields and set defaults for others
+    // Create dance style with ONLY the fields that exist in the database
     const { data, error } = await supabase
       .from('dance_styles')
       .insert([{
         name,
-        slug,
         description,
         icon,
-        color,
-        // Set default values for database fields that aren't in the form
-        difficulty_level: 'beginner',
-        display_order: 0,
-        is_featured: false,
-        is_active: true,
-        cultural_origin: 'Unknown',
-        music_genres: [],
-        key_characteristics: [],
-        estimated_duration: 30,
-        equipment_needed: []
+        color
+        // Only insert fields that actually exist in the database schema
+        // Removed: slug, origin, difficulty_level, display_order, is_featured, 
+        // cultural_origin, music_genres, key_characteristics, estimated_duration, equipment_needed
       }])
       .select()
       .single();
@@ -305,7 +292,7 @@ app.post('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
-// SIMPLIFIED UPDATE ENDPOINT - Handles simplified data
+// FIXED UPDATE ENDPOINT - Only updates fields that exist
 app.put('/api/admin/dance-styles/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -313,19 +300,17 @@ app.put('/api/admin/dance-styles/:id', async (req, res) => {
     
     console.log('📝 Updating dance style:', id);
 
-    // Prepare update data
-    const updateData = {
-      updated_at: new Date().toISOString()
-    };
+    // Prepare update data with only fields that exist in database
+    const updateData = {};
 
-    // Only update provided fields
-    if (name) {
-      updateData.name = name;
-      updateData.slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
-    }
+    // Only update provided fields that exist in the database
+    if (name) updateData.name = name;
     if (description) updateData.description = description;
     if (icon) updateData.icon = icon;
     if (color) updateData.color = color;
+
+    // Add updated_at if it exists in schema
+    updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from('dance_styles')
@@ -368,8 +353,8 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
     
     console.log('🗑️ Deleting dance style:', id);
 
-    // Soft delete by setting is_active to false
-    const { error } = await supabase
+    // Try soft delete first (if is_active column exists)
+    const { error: softDeleteError } = await supabase
       .from('dance_styles')
       .update({
         is_active: false,
@@ -377,7 +362,17 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
       })
       .eq('id', id);
 
-    if (error) throw error;
+    // If soft delete fails (column doesn't exist), do hard delete
+    if (softDeleteError) {
+      console.log('Soft delete failed, attempting hard delete:', softDeleteError.message);
+      
+      const { error: hardDeleteError } = await supabase
+        .from('dance_styles')
+        .delete()
+        .eq('id', id);
+
+      if (hardDeleteError) throw hardDeleteError;
+    }
 
     console.log('✅ Dance style deleted successfully:', id);
 
@@ -591,7 +586,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
 
     const [movesResult, stylesResult, submissionsResult] = await Promise.all([
       supabase.from('dance_moves').select('id', { count: 'exact' }).eq('is_active', true),
-      supabase.from('dance_styles').select('id', { count: 'exact' }).eq('is_active', true),
+      supabase.from('dance_styles').select('id', { count: 'exact' }),
       supabase.from('move_submissions').select('id', { count: 'exact' }).catch(() => ({ count: 0 }))
     ]);
 
