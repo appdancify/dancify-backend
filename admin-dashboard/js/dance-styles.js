@@ -1,5 +1,5 @@
-// 💃 Dancify Admin Dashboard - Dance Style Management
-// Real-time dance style management with backend integration
+// Dance Style Management System
+// Real API integration without mock data
 
 class DanceStyleManager {
     constructor(apiClient) {
@@ -10,30 +10,30 @@ class DanceStyleManager {
         this.isLoading = false;
         this.selectedStyles = new Set();
         
-        console.log('🎭 Dance Style Manager initialized');
+        console.log('Dance Style Manager initialized');
     }
 
-    // 🚀 Initialize dance style management
+    // Initialize dance style management
     async init() {
         try {
-            console.log('🎭 Initializing Dance Style Management...');
+            console.log('Initializing Dance Style Management...');
             
-            // CRITICAL: Wait for DOM elements to be available with improved logic
+            // Wait for DOM elements to be available
             await this.waitForDOMReady();
             
             await this.loadDanceStyles();
             this.setupEventListeners();
             this.setupFilters();
             
-            console.log('✅ Dance Style Management initialized successfully');
+            console.log('Dance Style Management initialized successfully');
             
         } catch (error) {
-            console.error('❌ Failed to initialize Dance Style Management:', error);
+            console.error('Failed to initialize Dance Style Management:', error);
             this.showErrorMessage('Failed to initialize dance style management: ' + error.message);
         }
     }
 
-    // 🎯 Wait for DOM elements to be ready - ENHANCED VERSION
+    // Wait for DOM elements to be ready
     async waitForDOMReady() {
         return new Promise((resolve) => {
             let attempts = 0;
@@ -48,23 +48,23 @@ class DanceStyleManager {
                                       document.querySelector('#dance-style-management .styles-container');
                 
                 if (stylesContainer) {
-                    console.log('✅ DOM ready - dance styles container found after', attempts, 'attempts');
+                    console.log('DOM ready - dance styles container found after', attempts, 'attempts');
                     
                     // If we found a different container, ensure it has the right ID
                     if (!stylesContainer.id) {
                         stylesContainer.id = 'danceStylesGrid';
-                        console.log('🔧 Added missing ID to styles container');
+                        console.log('Added missing ID to styles container');
                     }
                     
                     resolve();
                 } else if (attempts >= maxAttempts) {
-                    console.error('❌ DOM timeout - no suitable container found after', attempts, 'attempts');
+                    console.error('DOM timeout - no suitable container found after', attempts, 'attempts');
                     
                     // Create the container if it doesn't exist
                     this.createMissingContainer();
                     resolve();
                 } else {
-                    console.log('⏳ Waiting for DOM... attempt', attempts, '- container not found yet');
+                    console.log('Waiting for DOM... attempt', attempts, '- container not found yet');
                     setTimeout(checkDOM, 100);
                 }
             };
@@ -73,9 +73,9 @@ class DanceStyleManager {
         });
     }
 
-    // 🔧 Method to create missing container
+    // Method to create missing container
     createMissingContainer() {
-        console.log('🔧 Creating missing danceStylesGrid container');
+        console.log('Creating missing danceStylesGrid container');
         
         const section = document.getElementById('dance-style-management');
         if (section) {
@@ -114,13 +114,13 @@ class DanceStyleManager {
             `;
             
             stylesContainer.appendChild(gridContainer);
-            console.log('✅ Created missing danceStylesGrid container');
+            console.log('Created missing danceStylesGrid container');
         } else {
-            console.error('❌ Could not find dance-style-management section');
+            console.error('Could not find dance-style-management section');
         }
     }
 
-    // 📊 Load dance styles from API
+    // Load dance styles from API
     async loadDanceStyles(page = 1, filters = {}) {
         if (this.isLoading) return;
         
@@ -128,22 +128,43 @@ class DanceStyleManager {
         this.currentPage = page;
         this.currentFilters = filters;
         
-        console.log(`📊 Loading dance styles (page ${page})...`);
+        console.log(`Loading dance styles (page ${page})...`);
         
         try {
             this.showLoadingState();
             
-            // Use mock data for now since we're in development
-            const mockData = this.getMockDanceStyles();
-            
-            this.danceStyles = mockData;
-            console.log(`✅ Loaded ${this.danceStyles.length} dance styles`);
+            // Use real API call instead of mock data
+            if (this.api && typeof this.api.getDanceStyles === 'function') {
+                console.log('Loading dance styles via API...');
+                
+                const response = await this.api.getDanceStyles(filters);
+                
+                if (response && response.success) {
+                    this.danceStyles = response.data || [];
+                    console.log(`Loaded ${this.danceStyles.length} dance styles via API`);
+                } else {
+                    throw new Error(response?.error || 'Failed to load dance styles from API');
+                }
+            } else if (this.api && typeof this.api.request === 'function') {
+                console.log('Loading dance styles via generic API request...');
+                
+                const response = await this.api.request('GET', '/admin/dance-styles');
+                
+                if (response && response.success) {
+                    this.danceStyles = response.data || [];
+                    console.log(`Loaded ${this.danceStyles.length} dance styles via API`);
+                } else {
+                    throw new Error(response?.error || 'Failed to load dance styles from API');
+                }
+            } else {
+                throw new Error('No API client available');
+            }
             
             this.renderDanceStyles();
             this.updateStyleStats();
             
         } catch (error) {
-            console.error('❌ Failed to load dance styles:', error);
+            console.error('Failed to load dance styles:', error);
             this.showErrorMessage('Failed to load dance styles: ' + error.message);
             this.danceStyles = [];
             this.renderDanceStyles();
@@ -152,121 +173,11 @@ class DanceStyleManager {
         }
     }
 
-    // 🎯 Generate mock dance styles data
-    getMockDanceStyles() {
-        return [
-            {
-                id: 'ballet',
-                name: 'Ballet',
-                description: 'Classical dance form with graceful movements, precise technique, and artistic expression.',
-                icon: '🩰',
-                color: '#8A2BE2',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'France',
-                is_featured: true,
-                popularity_score: 85,
-                stats: { moveCount: 24, submissionCount: 156, averageRating: 4.8 },
-                music_genres: ['Classical', 'Neoclassical', 'Contemporary Classical']
-            },
-            {
-                id: 'hip-hop',
-                name: 'Hip-Hop',
-                description: 'Urban dance style featuring breaking, locking, and popping with street culture roots.',
-                icon: '🕺',
-                color: '#32CD32',
-                difficulty_level: 'advanced',
-                cultural_origin: 'USA',
-                is_featured: true,
-                popularity_score: 88,
-                stats: { moveCount: 45, submissionCount: 203, averageRating: 4.7 },
-                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic']
-            },
-            {
-                id: 'ballroom',
-                name: 'Ballroom',
-                description: 'Elegant partner dances performed in formal settings with refined technique.',
-                icon: '💫',
-                color: '#800080',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'Europe',
-                is_featured: false,
-                popularity_score: 58,
-                stats: { moveCount: 26, submissionCount: 89, averageRating: 4.8 },
-                music_genres: ['Waltz', 'Foxtrot', 'Tango', 'Quickstep']
-            },
-            {
-                id: 'salsa',
-                name: 'Salsa',
-                description: 'Passionate Latin dance with quick footwork and sensual partner movements.',
-                icon: '💃',
-                color: '#FF4500',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'Cuba',
-                is_featured: true,
-                popularity_score: 92,
-                stats: { moveCount: 35, submissionCount: 284, averageRating: 4.9 },
-                music_genres: ['Salsa', 'Latin', 'Mambo', 'Son']
-            },
-            {
-                id: 'contemporary',
-                name: 'Contemporary',
-                description: 'Modern expressive dance combining elements from multiple dance styles.',
-                icon: '🌊',
-                color: '#4169E1',
-                difficulty_level: 'advanced',
-                cultural_origin: 'USA',
-                is_featured: false,
-                popularity_score: 73,
-                stats: { moveCount: 32, submissionCount: 165, averageRating: 4.6 },
-                music_genres: ['Contemporary', 'Alternative', 'Indie', 'Electronic']
-            },
-            {
-                id: 'jazz',
-                name: 'Jazz',
-                description: 'Energetic dance style with sharp movements and theatrical flair.',
-                icon: '🎷',
-                color: '#FFD700',
-                difficulty_level: 'intermediate',
-                cultural_origin: 'USA',
-                is_featured: false,
-                popularity_score: 67,
-                stats: { moveCount: 28, submissionCount: 134, averageRating: 4.5 },
-                music_genres: ['Jazz', 'Swing', 'Big Band', 'Musical Theatre']
-            },
-            {
-                id: 'tap',
-                name: 'Tap',
-                description: 'Percussive dance form creating rhythms with metal taps on shoes.',
-                icon: '👞',
-                color: '#8B4513',
-                difficulty_level: 'advanced',
-                cultural_origin: 'USA',
-                is_featured: false,
-                popularity_score: 45,
-                stats: { moveCount: 22, submissionCount: 87, averageRating: 4.7 },
-                music_genres: ['Tap', 'Jazz', 'Swing', 'Broadway']
-            },
-            {
-                id: 'breakdancing',
-                name: 'Breakdancing',
-                description: 'Athletic street dance featuring dynamic moves, freezes, and power moves.',
-                icon: '🤸',
-                color: '#FF1493',
-                difficulty_level: 'expert',
-                cultural_origin: 'USA',
-                is_featured: true,
-                popularity_score: 79,
-                stats: { moveCount: 52, submissionCount: 198, averageRating: 4.8 },
-                music_genres: ['Breakbeat', 'Hip-Hop', 'Funk', 'Electronic']
-            }
-        ];
-    }
-
-    // 🎨 Render dance styles grid
+    // Render dance styles grid
     renderDanceStyles() {
         const stylesContainer = document.getElementById('danceStylesGrid');
         if (!stylesContainer) {
-            console.warn('⚠️ Dance styles grid container not found');
+            console.warn('Dance styles grid container not found');
             return;
         }
         
@@ -274,11 +185,11 @@ class DanceStyleManager {
             stylesContainer.innerHTML = `
                 <div class="no-data">
                     <div class="no-data-content">
-                        <div class="no-data-icon">🎭</div>
+                        <div class="no-data-icon">No Dance Styles</div>
                         <div class="no-data-text">No dance styles found</div>
                         <div class="no-data-subtitle">Create your first dance style to get started</div>
                         <button class="btn btn-primary" onclick="window.danceStyleManager.showCreateStyleModal()">
-                            ➕ Create Dance Style
+                            Create Dance Style
                         </button>
                     </div>
                 </div>
@@ -290,7 +201,7 @@ class DanceStyleManager {
         stylesContainer.innerHTML = styleCards;
     }
 
-    // 🎭 Create dance style card - COMPLETE IMPLEMENTATION
+    // Create dance style card
     createStyleCard(style) {
         const isSelected = this.selectedStyles && this.selectedStyles.has(style.id);
         const popularityPercentage = Math.min(style.popularity_score || 0, 100);
@@ -308,18 +219,18 @@ class DanceStyleManager {
                     <div class="style-actions">
                         <button class="action-btn edit-btn" title="Edit Style" 
                                 onclick="window.danceStyleManager.editStyle('${style.id}')">
-                            ✏️
+                            Edit
                         </button>
                         <button class="action-btn delete-btn" title="Delete Style" 
                                 onclick="window.danceStyleManager.deleteStyle('${style.id}')">
-                            🗑️
+                            Delete
                         </button>
                     </div>
                 </div>
                 
                 <div class="style-content">
                     <div class="style-icon" style="color: ${style.color}; font-size: 3rem;">
-                        ${style.icon}
+                        ${style.icon || 'Dance'}
                     </div>
                     
                     <div class="style-info">
@@ -331,28 +242,28 @@ class DanceStyleManager {
                         <div class="difficulty-badge difficulty-${style.difficulty_level}">
                             ${style.difficulty_level}
                         </div>
-                        ${style.is_featured ? '<div class="featured-badge">⭐ Featured</div>' : ''}
-                        <div class="origin-badge">${style.cultural_origin}</div>
+                        ${style.is_featured ? '<div class="featured-badge">Featured</div>' : ''}
+                        <div class="origin-badge">${style.cultural_origin || 'Unknown'}</div>
                     </div>
                     
                     <div class="style-stats">
                         <div class="stat">
-                            <span class="stat-icon">🕺</span>
+                            <span class="stat-icon">Moves</span>
                             <span class="stat-label">Moves</span>
                             <span class="stat-value">${moveCount}</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">📝</span>
+                            <span class="stat-icon">Submissions</span>
                             <span class="stat-label">Submissions</span>
                             <span class="stat-value">${submissionCount}</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">⭐</span>
+                            <span class="stat-icon">Rating</span>
                             <span class="stat-label">Rating</span>
                             <span class="stat-value">${averageRating.toFixed(1)}</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">🔥</span>
+                            <span class="stat-icon">Popularity</span>
                             <span class="stat-label">Popularity</span>
                             <span class="stat-value">${popularityPercentage}%</span>
                         </div>
@@ -373,7 +284,7 @@ class DanceStyleManager {
         `;
     }
 
-    // 📊 Update style statistics
+    // Update style statistics
     updateStyleStats() {
         const stats = {
             total: this.danceStyles.length,
@@ -391,7 +302,7 @@ class DanceStyleManager {
         if (totalMovesEl) totalMovesEl.textContent = stats.totalMoves.toLocaleString();
     }
 
-    // 🎯 Set up event listeners
+    // Set up event listeners
     setupEventListeners() {
         // Search input
         const searchInput = document.getElementById('styleSearch');
@@ -414,12 +325,12 @@ class DanceStyleManager {
         }
     }
 
-    // 🔍 Setup filters
+    // Setup filters
     setupFilters() {
         // Filter setup can be added here if needed
     }
 
-    // 🔍 Apply filters
+    // Apply filters
     applyFilters() {
         const searchInput = document.getElementById('styleSearch');
         const searchTerm = searchInput?.value.toLowerCase() || '';
@@ -437,7 +348,7 @@ class DanceStyleManager {
         this.renderFilteredStyles(filteredStyles);
     }
 
-    // 🎨 Render filtered styles
+    // Render filtered styles
     renderFilteredStyles(styles) {
         const stylesContainer = document.getElementById('danceStylesGrid');
         if (!stylesContainer) return;
@@ -446,11 +357,11 @@ class DanceStyleManager {
             stylesContainer.innerHTML = `
                 <div class="no-data">
                     <div class="no-data-content">
-                        <div class="no-data-icon">🔍</div>
+                        <div class="no-data-icon">No Results</div>
                         <div class="no-data-text">No styles match your filters</div>
                         <div class="no-data-subtitle">Try adjusting your search criteria</div>
                         <button class="btn btn-secondary" onclick="window.danceStyleManager.clearFilters()">
-                            🧹 Clear Filters
+                            Clear Filters
                         </button>
                     </div>
                 </div>
@@ -462,7 +373,7 @@ class DanceStyleManager {
         stylesContainer.innerHTML = styleCards;
     }
 
-    // 🧹 Clear filters
+    // Clear filters
     clearFilters() {
         const searchInput = document.getElementById('styleSearch');
         if (searchInput) searchInput.value = '';
@@ -470,20 +381,20 @@ class DanceStyleManager {
         this.renderDanceStyles();
     }
 
-    // ✏️ Edit dance style
-    editStyle(styleId) {
+    // Edit dance style
+    async editStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
         if (!style) {
             this.showErrorMessage('Dance style not found');
             return;
         }
         
-        // For now, just show an alert - in production this would open a modal
-        this.showSuccessMessage(`Edit functionality for "${style.name}" would open here`);
+        // Show edit modal (implementation needed)
+        this.showSuccessMessage(`Edit functionality for "${style.name}" - modal needed`);
     }
 
-    // 🗑️ Delete dance style
-    deleteStyle(styleId) {
+    // Delete dance style
+    async deleteStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
         if (!style) {
             this.showErrorMessage('Dance style not found');
@@ -495,20 +406,40 @@ class DanceStyleManager {
         }
         
         try {
-            // Remove from local array (in production, this would call the API)
+            // Call API to delete
+            if (this.api && typeof this.api.deleteDanceStyle === 'function') {
+                const response = await this.api.deleteDanceStyle(styleId);
+                if (response && response.success) {
+                    console.log('Dance style deleted via API');
+                } else {
+                    throw new Error(response?.error || 'Failed to delete dance style');
+                }
+            } else if (this.api && typeof this.api.request === 'function') {
+                const response = await this.api.request('DELETE', `/admin/dance-styles/${styleId}`);
+                if (response && response.success) {
+                    console.log('Dance style deleted via API');
+                } else {
+                    throw new Error(response?.error || 'Failed to delete dance style');
+                }
+            } else {
+                throw new Error('No API client available');
+            }
+            
+            // Remove from local array
             this.danceStyles = this.danceStyles.filter(s => s.id !== styleId);
+            this.selectedStyles.delete(styleId);
             
             this.showSuccessMessage('Dance style deleted successfully');
             this.renderDanceStyles();
             this.updateStyleStats();
             
         } catch (error) {
-            console.error('❌ Error deleting dance style:', error);
+            console.error('Error deleting dance style:', error);
             this.showErrorMessage('Failed to delete dance style: ' + error.message);
         }
     }
 
-    // 🔀 Toggle style selection
+    // Toggle style selection
     toggleStyleSelection(styleId) {
         if (!this.selectedStyles) {
             this.selectedStyles = new Set();
@@ -531,47 +462,64 @@ class DanceStyleManager {
         }
     }
 
-    // ➕ Show create style modal
+    // Show create style modal
     showCreateStyleModal() {
-        // For now, just show an alert - in production this would open a modal
-        this.showSuccessMessage('Create dance style modal would open here');
+        // Modal implementation needed
+        this.showSuccessMessage('Create dance style modal - implementation needed');
     }
 
-    // 💾 Save style form
+    // Save style form
     async saveStyleForm() {
         const form = document.getElementById('styleForm');
         if (!form) return;
         
         const formData = new FormData(form);
         const styleData = {
-            id: Date.now().toString(), // Generate ID
             name: formData.get('name'),
             description: formData.get('description'),
             icon: formData.get('icon'),
             color: formData.get('color'),
             difficulty_level: formData.get('difficulty'),
             cultural_origin: formData.get('origin'),
-            is_featured: false,
-            popularity_score: Math.floor(Math.random() * 100),
-            stats: { moveCount: 0, submissionCount: 0, averageRating: 0 }
+            is_featured: formData.get('featured') === 'on',
+            popularity_score: parseInt(formData.get('popularity')) || 0
         };
         
         try {
-            // Add to local array (in production, this would call the API)
-            this.danceStyles.push(styleData);
+            // Call API to create
+            if (this.api && typeof this.api.createDanceStyle === 'function') {
+                const response = await this.api.createDanceStyle(styleData);
+                if (response && response.success) {
+                    this.danceStyles.push(response.data);
+                    console.log('Dance style created via API');
+                } else {
+                    throw new Error(response?.error || 'Failed to create dance style');
+                }
+            } else if (this.api && typeof this.api.request === 'function') {
+                const response = await this.api.request('POST', '/admin/dance-styles', styleData);
+                if (response && response.success) {
+                    this.danceStyles.push(response.data);
+                    console.log('Dance style created via API');
+                } else {
+                    throw new Error(response?.error || 'Failed to create dance style');
+                }
+            } else {
+                throw new Error('No API client available');
+            }
             
             this.showSuccessMessage('Dance style created successfully');
-            document.getElementById('styleModal').style.display = 'none';
+            const modal = document.getElementById('styleModal');
+            if (modal) modal.style.display = 'none';
             this.renderDanceStyles();
             this.updateStyleStats();
             
         } catch (error) {
-            console.error('❌ Error creating dance style:', error);
+            console.error('Error creating dance style:', error);
             this.showErrorMessage('Failed to create dance style: ' + error.message);
         }
     }
 
-    // 🎨 Show loading state
+    // Show loading state
     showLoadingState() {
         const container = document.getElementById('danceStylesGrid');
         if (container) {
@@ -584,17 +532,17 @@ class DanceStyleManager {
         }
     }
 
-    // ✅ Show success message
+    // Show success message
     showSuccessMessage(message) {
         this.showMessage(message, 'success');
     }
 
-    // ❌ Show error message
+    // Show error message
     showErrorMessage(message) {
         this.showMessage(message, 'error');
     }
 
-    // 💬 Show message
+    // Show message
     showMessage(message, type = 'info') {
         const messageContainer = document.getElementById('messageContainer') || document.body;
         
@@ -602,16 +550,34 @@ class DanceStyleManager {
         messageEl.className = `message message-${type}`;
         
         const iconMap = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
+            success: 'Success',
+            error: 'Error',
+            warning: 'Warning',
+            info: 'Info'
         };
         
         messageEl.innerHTML = `
             <span class="message-icon">${iconMap[type] || iconMap.info}</span>
             <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">✕</button>
+            <button class="message-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        messageEl.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
         `;
         
         messageContainer.appendChild(messageEl);
@@ -626,4 +592,4 @@ class DanceStyleManager {
 
 // Make the class available globally
 window.DanceStyleManager = DanceStyleManager;
-console.log('🎭 Dance Style Manager loaded');
+console.log('Dance Style Manager loaded');

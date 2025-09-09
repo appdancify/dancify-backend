@@ -1,700 +1,1009 @@
-const DanceMove = require('../models/DanceMove');
-const DanceStyle = require('../models/DanceStyle');
-const Submission = require('../models/Submission');
-const User = require('../models/User');
-const { supabase } = require('../config/supabase');
+// Move Management System - Clean Error-Free Version
+// Enhanced DOM handling, timing fixes, and robust error handling
 
-class AdminController {
-  // GET /api/admin/dashboard - Get dashboard statistics
-  static async getDashboardStats(req, res) {
-    try {
-      // Get all stats in parallel
-      const [movesStats, usersStats, submissionsStats, stylesStats] = await Promise.all([
-        // Moves statistics
-        supabase
-          .from('dance_moves')
-          .select('id, is_active, created_at')
-          .eq('is_active', true),
+class MoveManager {
+    constructor() {
+        this.moves = [];
+        this.selectedMoves = new Set();
+        this.currentPage = 1;
+        this.movesPerPage = 12;
+        this.totalPages = 1;
+        this.currentFilters = {};
+        this.api = null;
+        this.isInitialized = false;
         
-        // Users statistics
-        supabase
-          .from('user_profiles')
-          .select('id, created_at, is_active')
-          .eq('is_active', true),
-        
-        // Submissions statistics
-        supabase
-          .from('move_submissions')
-          .select('id, status, created_at'),
-        
-        // Dance styles statistics
-        supabase
-          .from('dance_styles')
-          .select('id, is_active, created_at')
-          .eq('is_active', true)
-      ]);
-
-      // Calculate totals and changes
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-
-      const stats = {
-        totalUsers: usersStats.data?.length || 0,
-        totalMoves: movesStats.data?.length || 0,
-        totalSubmissions: submissionsStats.data?.length || 0,
-        totalDanceStyles: stylesStats.data?.length || 0,
-        pendingSubmissions: submissionsStats.data?.filter(s => s.status === 'pending').length || 0,
-        approvedSubmissions: submissionsStats.data?.filter(s => s.status === 'approved').length || 0,
-        rejectedSubmissions: submissionsStats.data?.filter(s => s.status === 'rejected').length || 0,
-        newUsersThisMonth: usersStats.data?.filter(u => new Date(u.created_at) > lastMonth).length || 0,
-        newMovesThisMonth: movesStats.data?.filter(m => new Date(m.created_at) > lastMonth).length || 0
-      };
-
-      // Get recent activity
-      const { data: recentActivity } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      res.json({
-        success: true,
-        data: {
-          stats,
-          recentActivity: recentActivity || []
-        },
-        message: 'Dashboard data retrieved successfully'
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch dashboard statistics',
-        message: error.message
-      });
+        console.log('MoveManager initialized');
     }
-  }
 
-  // GET /api/admin/analytics - Get analytics data
-  static async getAnalytics(req, res) {
-    try {
-      // Get user growth over last 12 months
-      const { data: userGrowth } = await supabase
-        .rpc('get_user_growth_by_month');
-
-      // Get popular moves
-      const { data: popularMoves } = await supabase
-        .from('dance_moves')
-        .select('name, view_count, submission_count')
-        .order('view_count', { ascending: false })
-        .limit(10);
-
-      // Get dance style popularity
-      const { data: stylePopularity } = await supabase
-        .from('dance_styles')
-        .select('name, (dance_moves(count))')
-        .order('dance_moves.count', { ascending: false });
-
-      // Get submission trends
-      const { data: submissionTrends } = await supabase
-        .rpc('get_submission_trends_by_week');
-
-      res.json({
-        success: true,
-        data: {
-          userGrowth: userGrowth || [],
-          popularMoves: popularMoves || [],
-          stylePopularity: stylePopularity || [],
-          submissionTrends: submissionTrends || []
-        },
-        message: 'Analytics data retrieved successfully'
-      });
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch analytics data',
-        message: error.message
-      });
-    }
-  }
-
-  // GET /api/admin/moves - Get all moves (admin view)
-  static async getAllMoves(req, res) {
-    try {
-      const filters = {
-        danceStyle: req.query.dance_style,
-        section: req.query.section,
-        difficulty: req.query.difficulty,
-        minLevel: req.query.min_level ? parseInt(req.query.min_level) : undefined,
-        maxLevel: req.query.max_level ? parseInt(req.query.max_level) : undefined,
-        includeInactive: req.query.include_inactive === 'true'
-      };
-
-      // Remove undefined filters
-      Object.keys(filters).forEach(key => {
-        if (filters[key] === undefined) delete filters[key];
-      });
-
-      const moves = await DanceMove.findAll(filters);
-
-      res.json({
-        success: true,
-        data: moves,
-        count: moves.length,
-        message: `Retrieved ${moves.length} dance moves`
-      });
-    } catch (error) {
-      console.error('Error fetching moves:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch dance moves',
-        message: error.message
-      });
-    }
-  }
-
-  // POST /api/admin/moves - Create new move
-  static async createMove(req, res) {
-    try {
-      const moveData = req.body;
-
-      // Validate required fields (using frontend field names)
-      const requiredFields = ['name', 'description', 'detailed_instructions', 'dance_style', 'section', 'difficulty'];
-      const missingFields = requiredFields.filter(field => !moveData[field]);
-
-      if (missingFields.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields',
-          missing_fields: missingFields
-        });
-      }
-
-      // Map frontend field names to backend field names
-      const mappedMoveData = {
-        name: moveData.name,
-        description: moveData.description,
-        detailedInstructions: moveData.detailed_instructions,
-        danceStyle: moveData.dance_style,
-        section: moveData.section,
-        subsection: moveData.subsection,
-        difficulty: moveData.difficulty,
-        xpReward: moveData.xp_reward || 50,
-        videoUrl: moveData.video_url,
-        levelRequired: moveData.level_required || 1,
-        estimatedDuration: moveData.estimated_duration || 10,
-        equipment: moveData.equipment || [],
-        moveType: moveData.move_type || 'time',
-        targetRepetitions: moveData.target_repetitions,
-        recordingTimeLimit: moveData.recording_time_limit,
-        keyTechniques: moveData.key_techniques || [],
-        prerequisites: moveData.prerequisites || [],
-        instructorId: moveData.instructor_id,
-        instructorName: moveData.instructor_name
-      };
-
-      // Extract and validate YouTube video
-      if (mappedMoveData.videoUrl) {
-        const videoId = DanceMove.extractYouTubeId(mappedMoveData.videoUrl);
-        if (videoId) {
-          mappedMoveData.videoId = videoId;
-          mappedMoveData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
+    // Initialize the move management system
+    async init() {
+        try {
+            console.log('Initializing Move Management...');
+            
+            // Initialize API client
+            this.initializeAPI();
+            
+            // Wait for DOM to be ready
+            if (!this.waitForDOM()) {
+                console.log('DOM not ready, waiting...');
+                await this.waitForDOMReady();
+            }
+            
+            // Load moves from API or localStorage
+            await this.loadMoves();
+            
+            // Setup event listeners
+            this.setupEventListeners();
+            
+            // Initial render
+            this.renderMoves();
+            this.updateMoveStats();
+            
+            this.isInitialized = true;
+            console.log('Move Management initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize Move Management:', error);
+            this.showErrorMessage('Failed to initialize move management: ' + error.message);
         }
-      }
-
-      const newMove = await DanceMove.create(mappedMoveData);
-
-      res.status(201).json({
-        success: true,
-        data: newMove,
-        message: 'Dance move created successfully'
-      });
-    } catch (error) {
-      console.error('Error creating move:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create dance move',
-        message: error.message
-      });
     }
-  }
 
-  // PUT /api/admin/moves/:id - Update move
-  static async updateMove(req, res) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-
-      // Map frontend field names to backend field names
-      const mappedUpdateData = {
-        name: updateData.name,
-        description: updateData.description,
-        detailedInstructions: updateData.detailed_instructions,
-        danceStyle: updateData.dance_style,
-        section: updateData.section,
-        subsection: updateData.subsection,
-        difficulty: updateData.difficulty,
-        xpReward: updateData.xp_reward,
-        videoUrl: updateData.video_url,
-        levelRequired: updateData.level_required,
-        estimatedDuration: updateData.estimated_duration,
-        equipment: updateData.equipment,
-        moveType: updateData.move_type,
-        targetRepetitions: updateData.target_repetitions,
-        recordingTimeLimit: updateData.recording_time_limit,
-        keyTechniques: updateData.key_techniques,
-        prerequisites: updateData.prerequisites,
-        instructorId: updateData.instructor_id,
-        instructorName: updateData.instructor_name
-      };
-
-      // Remove undefined values
-      Object.keys(mappedUpdateData).forEach(key => {
-        if (mappedUpdateData[key] === undefined) delete mappedUpdateData[key];
-      });
-
-      // Handle video URL updates
-      if (mappedUpdateData.videoUrl) {
-        const videoId = DanceMove.extractYouTubeId(mappedUpdateData.videoUrl);
-        if (videoId) {
-          mappedUpdateData.videoId = videoId;
-          mappedUpdateData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
+    // Initialize API client
+    initializeAPI() {
+        if (window.apiClient) {
+            this.api = window.apiClient;
+            console.log('API client initialized');
+        } else if (window.APIClient) {
+            this.api = new window.APIClient();
+            console.log('API client created');
+        } else {
+            console.warn('No API client available, using localStorage fallback');
         }
-      }
+    }
 
-      const updatedMove = await DanceMove.update(id, mappedUpdateData);
-
-      if (!updatedMove) {
-        return res.status(404).json({
-          success: false,
-          error: 'Dance move not found'
+    // Check if required DOM elements are available
+    waitForDOM() {
+        const requiredElements = [
+            'movesGrid',
+            'createMoveBtn', 
+            'moveSearchInput'
+        ];
+        
+        return requiredElements.some(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                console.log(`Found required element: ${id}`);
+                return true;
+            }
+            return false;
         });
-      }
-
-      res.json({
-        success: true,
-        data: updatedMove,
-        message: 'Dance move updated successfully'
-      });
-    } catch (error) {
-      console.error('Error updating move:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update dance move',
-        message: error.message
-      });
     }
-  }
 
-  // DELETE /api/admin/moves/:id - Delete move
-  static async deleteMove(req, res) {
-    try {
-      const { id } = req.params;
-      const deletedMove = await DanceMove.delete(id);
+    // Wait for DOM to be ready
+    async waitForDOMReady(maxWait = 5000) {
+        const startTime = Date.now();
+        let foundElements = 0;
+        
+        while (foundElements < 2 && (Date.now() - startTime) < maxWait) {
+            const requiredElements = ['movesGrid', 'createMoveBtn', 'moveSearchInput'];
+            foundElements = requiredElements.filter(id => document.getElementById(id) !== null).length;
+            
+            if (foundElements >= 2) {
+                console.log(`Found ${foundElements}/3 required DOM elements`);
+                return true;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        if (foundElements === 0) {
+            console.warn('No required DOM elements found after waiting');
+            return false;
+        }
+        
+        console.log(`Proceeding with partial DOM readiness (${foundElements}/3 elements found)`);
+        return true;
+    }
 
-      if (!deletedMove) {
-        return res.status(404).json({
-          success: false,
-          error: 'Dance move not found'
+    // Setup event listeners
+    setupEventListeners() {
+        console.log('Setting up event listeners...');
+        
+        // Remove existing listeners to prevent duplicates
+        this.removeEventListeners();
+        
+        // Wait for elements to be available
+        setTimeout(() => {
+            console.log('Attempting to find elements after delay...');
+            
+            // Debug: Log what elements we can find
+            const allButtons = document.querySelectorAll('button');
+            const allInputs = document.querySelectorAll('input');
+            const allSelects = document.querySelectorAll('select');
+            console.log(`Found ${allButtons.length} buttons, ${allInputs.length} inputs, ${allSelects.length} selects`);
+            
+            // Create move button
+            let createMoveBtn = document.getElementById('createMoveBtn');
+            if (!createMoveBtn) {
+                createMoveBtn = document.querySelector('.btn[onclick*="create"], button[title*="Create"], .header-actions .btn-primary');
+                if (createMoveBtn) {
+                    console.log('Found create button via alternative selector');
+                }
+            }
+            
+            if (createMoveBtn) {
+                this.createMoveBtnHandler = (e) => {
+                    e.preventDefault();
+                    this.showCreateMoveModal();
+                };
+                createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
+                console.log('Create move button listener added');
+            } else {
+                console.warn('Create move button not found');
+            }
+
+            // Refresh button
+            let refreshBtn = document.getElementById('refreshMovesBtn');
+            if (refreshBtn) {
+                this.refreshBtnHandler = () => this.loadMoves(1);
+                refreshBtn.addEventListener('click', this.refreshBtnHandler);
+                console.log('Refresh button listener added');
+            } else {
+                console.warn('Refresh button not found');
+            }
+
+            // Search input
+            let searchInput = document.getElementById('moveSearchInput');
+            if (searchInput) {
+                this.searchInputHandler = (e) => {
+                    this.currentFilters.search = e.target.value.trim();
+                    this.applyFilters();
+                };
+                searchInput.addEventListener('input', this.searchInputHandler);
+                console.log('Search input listener added');
+            } else {
+                console.warn('Search input not found');
+            }
+
+            // Filter dropdowns
+            const filterElements = [
+                'danceStyleFilter',
+                'sectionFilter', 
+                'difficultyFilter'
+            ];
+
+            filterElements.forEach(filterId => {
+                let element = document.getElementById(filterId);
+                if (element) {
+                    const handler = (e) => {
+                        this.currentFilters[filterId.replace('Filter', '')] = e.target.value;
+                        this.applyFilters();
+                    };
+                    
+                    this[`${filterId}Handler`] = handler;
+                    element.addEventListener('change', handler);
+                    console.log(`${filterId} listener added`);
+                } else {
+                    console.warn(`${filterId} not found`);
+                }
+            });
+
+            // Bulk delete button
+            let bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            if (bulkDeleteBtn) {
+                this.bulkDeleteBtnHandler = () => this.bulkDeleteMoves();
+                bulkDeleteBtn.addEventListener('click', this.bulkDeleteBtnHandler);
+                console.log('Bulk delete button listener added');
+            } else {
+                console.warn('Bulk delete button not found');
+            }
+
+            console.log('Event listeners setup complete');
+            
+            // Verify at least one critical element was found
+            const criticalElements = [createMoveBtn, refreshBtn, searchInput].filter(Boolean);
+            if (criticalElements.length === 0) {
+                console.error('No critical elements found, event listeners may not work');
+                
+                // Fallback: add click listener to section
+                const section = document.getElementById('move-management');
+                if (section) {
+                    console.log('Adding fallback click listener to section');
+                    section.addEventListener('click', (e) => {
+                        if (e.target.textContent.includes('Create Move') || e.target.textContent.includes('Create')) {
+                            console.log('Fallback create move click detected');
+                            this.showCreateMoveModal();
+                        }
+                    });
+                }
+            }
+            
+        }, 300);
+    }
+
+    // Remove event listeners to prevent duplicates
+    removeEventListeners() {
+        const createMoveBtn = document.getElementById('createMoveBtn');
+        if (createMoveBtn && this.createMoveBtnHandler) {
+            createMoveBtn.removeEventListener('click', this.createMoveBtnHandler);
+        }
+
+        const refreshBtn = document.getElementById('refreshMovesBtn');
+        if (refreshBtn && this.refreshBtnHandler) {
+            refreshBtn.removeEventListener('click', this.refreshBtnHandler);
+        }
+
+        const searchInput = document.getElementById('moveSearchInput');
+        if (searchInput && this.searchInputHandler) {
+            searchInput.removeEventListener('input', this.searchInputHandler);
+        }
+
+        const filterElements = ['danceStyleFilter', 'sectionFilter', 'difficultyFilter'];
+        filterElements.forEach(filterId => {
+            const element = document.getElementById(filterId);
+            const handler = this[`${filterId}Handler`];
+            if (element && handler) {
+                element.removeEventListener('change', handler);
+            }
         });
-      }
 
-      res.json({
-        success: true,
-        data: deletedMove,
-        message: 'Dance move deleted successfully'
-      });
-    } catch (error) {
-      console.error('Error deleting move:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete dance move',
-        message: error.message
-      });
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        if (bulkDeleteBtn && this.bulkDeleteBtnHandler) {
+            bulkDeleteBtn.removeEventListener('click', this.bulkDeleteBtnHandler);
+        }
     }
-  }
 
-  // GET /api/admin/users - Get all users
-  static async getAllUsers(req, res) {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 50;
-      const offset = (page - 1) * limit;
+    // Load moves from API or localStorage
+    async loadMoves(page = 1, filters = {}) {
+        try {
+            console.log('Loading moves...', { page, filters });
+            this.currentPage = page;
+            this.currentFilters = filters;
 
-      const { data: users, error, count } = await supabase
-        .from('user_profiles')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+            // Try API first
+            if (this.api && typeof this.api.getMoves === 'function') {
+                console.log('Loading moves via API...');
+                
+                try {
+                    const response = await this.api.getMoves(filters);
+                    
+                    if (response && response.success) {
+                        this.moves = response.data || [];
+                        this.totalPages = response.totalPages || 1;
+                        console.log(`Loaded ${this.moves.length} moves via API`);
+                        return;
+                    } else {
+                        throw new Error(response?.error || 'API request failed');
+                    }
+                } catch (apiError) {
+                    console.warn('API failed, falling back to localStorage:', apiError.message);
+                }
+            }
+            
+            // Fallback to localStorage
+            console.log('Loading moves from localStorage...');
+            const storedMoves = localStorage.getItem('dancify_moves');
+            if (storedMoves) {
+                this.moves = JSON.parse(storedMoves);
+            } else {
+                this.moves = this.generateSampleMoves();
+                localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
+            }
+            console.log(`Loaded ${this.moves.length} moves from localStorage`);
 
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        data: users || [],
-        pagination: {
-          page,
-          limit,
-          total: count,
-          pages: Math.ceil(count / limit)
-        },
-        message: `Retrieved ${users?.length || 0} users`
-      });
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch users',
-        message: error.message
-      });
+        } catch (error) {
+            console.error('Failed to load moves:', error);
+            this.showErrorMessage('Failed to load moves: ' + error.message);
+            this.moves = this.generateSampleMoves();
+        }
     }
-  }
 
-  // GET /api/admin/users/:id - Get specific user
-  static async getUser(req, res) {
-    try {
-      const { id } = req.params;
-      
-      const { data: user, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
+    // Generate sample moves for development
+    generateSampleMoves() {
+        return [];
+    }
 
-      if (error) throw error;
+    // Render moves grid
+    renderMoves() {
+        let movesContainer = document.getElementById('movesGrid');
+        if (!movesContainer) {
+            movesContainer = document.querySelector('.moves-grid, [id*="moves"], .move-container');
+        }
+        
+        if (!movesContainer) {
+            console.warn('Moves container not found - trying to create one');
+            
+            const parentContainer = document.querySelector('.moves-container, .content-section, #move-management');
+            if (parentContainer) {
+                movesContainer = document.createElement('div');
+                movesContainer.id = 'movesGrid';
+                movesContainer.className = 'moves-grid';
+                parentContainer.appendChild(movesContainer);
+                console.log('Created moves container');
+            } else {
+                console.error('Cannot find suitable parent for moves container');
+                return;
+            }
+        }
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          error: 'User not found'
+        if (!this.moves || this.moves.length === 0) {
+            movesContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">Dance Move</div>
+                    <div class="empty-title">No Dance Moves Found</div>
+                    <div class="empty-description">Create your first dance move to get started</div>
+                    <button class="btn btn-primary" onclick="window.moveManager.showCreateMoveModal()">
+                        Create Move
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        const movesHTML = this.moves.map(move => this.createMoveCard(move)).join('');
+        movesContainer.innerHTML = movesHTML;
+        
+        console.log(`Rendered ${this.moves.length} moves`);
+    }
+
+    // Create move card HTML
+    createMoveCard(move) {
+        const difficultyColors = {
+            'beginner': '#28A745',
+            'intermediate': '#FFC107', 
+            'advanced': '#DC3545',
+            'expert': '#6F42C1'
+        };
+
+        const difficultyColor = difficultyColors[move.difficulty] || '#8A2BE2';
+        const thumbnailUrl = move.thumbnail_url || 'https://via.placeholder.com/300x200?text=No+Video';
+        const created = new Date(move.created_at).toLocaleDateString();
+        const viewCount = move.view_count || 0;
+        const rating = move.rating || 0;
+
+        return `
+            <div class="move-card" data-move-id="${move.id}">
+                <div class="move-thumbnail">
+                    <img src="${thumbnailUrl}" alt="${move.name}" loading="lazy" 
+                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Video'">
+                    <div class="move-overlay">
+                        <button class="btn-icon" onclick="window.moveManager.editMove('${move.id}')" title="Edit Move">
+                            Edit
+                        </button>
+                        <button class="btn-icon" onclick="window.moveManager.deleteMove('${move.id}')" title="Delete Move">
+                            Delete
+                        </button>
+                        <button class="btn-icon" onclick="window.moveManager.toggleMoveSelection('${move.id}')" title="Select Move">
+                            Select
+                        </button>
+                    </div>
+                    ${move.video_url ? `<div class="play-button">Play</div>` : ''}
+                </div>
+                <div class="move-info">
+                    <div class="move-header">
+                        <h3 class="move-title">${move.name}</h3>
+                        <span class="difficulty-badge" style="background-color: ${difficultyColor}; color: white;">
+                            ${move.difficulty}
+                        </span>
+                    </div>
+                    <div class="move-meta">
+                        <span class="dance-style">${move.dance_style}</span>
+                        <span class="section">${move.section}</span>
+                        ${move.subsection ? `<span class="subsection">${move.subsection}</span>` : ''}
+                    </div>
+                    <div class="move-description">${move.description}</div>
+                    <div class="move-stats">
+                        <span class="views">Views: ${viewCount.toLocaleString()}</span>
+                        <span class="rating">Rating: ${rating.toFixed(1)}</span>
+                        <span class="xp">XP: ${move.xp_reward}</span>
+                        <span class="created">Created: ${created}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Update move statistics
+    updateMoveStats() {
+        try {
+            const findElement = (id, altSelectors = []) => {
+                let element = document.getElementById(id);
+                if (!element) {
+                    for (const selector of altSelectors) {
+                        element = document.querySelector(selector);
+                        if (element) break;
+                    }
+                }
+                return element;
+            };
+
+            const totalMovesEl = findElement('totalMoves', ['[data-stat="total"]']);
+            const difficultyBreakdownEl = findElement('difficultyBreakdown', ['[data-stat="difficulty"]']);
+            const totalViewsEl = findElement('totalViews', ['[data-stat="views"]']);
+            const averageRatingEl = findElement('averageRating', ['[data-stat="rating"]']);
+            
+            if (!this.moves || this.moves.length === 0) {
+                if (totalMovesEl) totalMovesEl.textContent = '0';
+                if (difficultyBreakdownEl) difficultyBreakdownEl.textContent = 'No moves';
+                if (totalViewsEl) totalViewsEl.textContent = '0';
+                if (averageRatingEl) averageRatingEl.textContent = '0.0';
+                return;
+            }
+            
+            if (totalMovesEl) {
+                totalMovesEl.textContent = this.moves.length.toLocaleString();
+            }
+            
+            if (difficultyBreakdownEl) {
+                const difficulties = {};
+                this.moves.forEach(move => {
+                    const diff = move.difficulty || 'unknown';
+                    difficulties[diff] = (difficulties[diff] || 0) + 1;
+                });
+                
+                const breakdown = Object.entries(difficulties)
+                    .map(([diff, count]) => `${diff}: ${count}`)
+                    .join(', ');
+                difficultyBreakdownEl.textContent = breakdown;
+            }
+            
+            if (totalViewsEl) {
+                const totalViews = this.moves.reduce((sum, move) => sum + (move.view_count || 0), 0);
+                totalViewsEl.textContent = totalViews.toLocaleString();
+            }
+            
+            if (averageRatingEl) {
+                const ratedMoves = this.moves.filter(move => move.rating && move.rating > 0);
+                if (ratedMoves.length > 0) {
+                    const avgRating = ratedMoves.reduce((sum, move) => sum + move.rating, 0) / ratedMoves.length;
+                    averageRatingEl.textContent = avgRating.toFixed(1);
+                } else {
+                    averageRatingEl.textContent = '0.0';
+                }
+            }
+            
+            console.log('Move statistics updated');
+        } catch (error) {
+            console.error('Error updating move statistics:', error);
+        }
+    }
+
+    // Show create move modal
+    showCreateMoveModal() {
+        this.showMoveModal(null, true);
+    }
+
+    // Edit move
+    editMove(moveId) {
+        const move = this.moves.find(m => m.id === moveId);
+        if (move) {
+            this.showMoveModal(move, false);
+        } else {
+            this.showErrorMessage('Move not found');
+        }
+    }
+
+    // Show move modal
+    showMoveModal(move, isCreateMode) {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-overlay show';
+        modalOverlay.innerHTML = this.createMoveModalHTML(move, isCreateMode);
+        
+        document.body.appendChild(modalOverlay);
+        
+        setTimeout(() => {
+            const firstInput = modalOverlay.querySelector('input, textarea, select');
+            if (firstInput) firstInput.focus();
+        }, 100);
+        
+        this.setupEnhancedMoveModalEvents(modalOverlay, move);
+    }
+
+    // Create move modal HTML
+    createMoveModalHTML(move, isCreateMode) {
+        return `
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>${isCreateMode ? 'Create New Move' : 'Edit Move'}</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <form class="move-form" id="moveForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="moveName">Move Name *</label>
+                                <input type="text" id="moveName" name="name" required 
+                                       value="${move?.name || ''}" placeholder="Enter move name">
+                            </div>
+                            <div class="form-group">
+                                <label for="danceStyle">Dance Style *</label>
+                                <select id="danceStyle" name="dance_style" required>
+                                    <option value="">Select style</option>
+                                    <option value="hip-hop" ${move?.dance_style === 'hip-hop' ? 'selected' : ''}>Hip Hop</option>
+                                    <option value="ballet" ${move?.dance_style === 'ballet' ? 'selected' : ''}>Ballet</option>
+                                    <option value="contemporary" ${move?.dance_style === 'contemporary' ? 'selected' : ''}>Contemporary</option>
+                                    <option value="jazz" ${move?.dance_style === 'jazz' ? 'selected' : ''}>Jazz</option>
+                                    <option value="latin" ${move?.dance_style === 'latin' ? 'selected' : ''}>Latin</option>
+                                    <option value="breakdance" ${move?.dance_style === 'breakdance' ? 'selected' : ''}>Breakdance</option>
+                                    <option value="ballroom" ${move?.dance_style === 'ballroom' ? 'selected' : ''}>Ballroom</option>
+                                    <option value="tap" ${move?.dance_style === 'tap' ? 'selected' : ''}>Tap</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="section">Section *</label>
+                                <input type="text" id="section" name="section" required 
+                                       value="${move?.section || 'Basic Steps'}" placeholder="e.g., Basic Steps">
+                            </div>
+                            <div class="form-group">
+                                <label for="subsection">Subsection</label>
+                                <input type="text" id="subsection" name="subsection" 
+                                       value="${move?.subsection || ''}" placeholder="Optional">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="difficulty">Difficulty *</label>
+                                <select id="difficulty" name="difficulty" required>
+                                    <option value="">Select difficulty</option>
+                                    <option value="beginner" ${move?.difficulty === 'beginner' ? 'selected' : ''}>Beginner</option>
+                                    <option value="intermediate" ${move?.difficulty === 'intermediate' ? 'selected' : ''}>Intermediate</option>
+                                    <option value="advanced" ${move?.difficulty === 'advanced' ? 'selected' : ''}>Advanced</option>
+                                    <option value="expert" ${move?.difficulty === 'expert' ? 'selected' : ''}>Expert</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="xpReward">XP Reward</label>
+                                <input type="number" id="xpReward" name="xp_reward" min="10" max="500" 
+                                       value="${move?.xp_reward || 50}" placeholder="50">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="videoUrl">Video URL</label>
+                            <input type="url" id="videoUrl" name="video_url" 
+                                   value="${move?.video_url || ''}" placeholder="https://youtube.com/watch?v=...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="moveDescription">Description *</label>
+                            <textarea id="moveDescription" name="description" required rows="3" 
+                                      placeholder="Brief description">${move?.description || ''}</textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="detailedInstructions">Detailed Instructions *</label>
+                            <textarea id="detailedInstructions" name="detailed_instructions" required rows="5" 
+                                      placeholder="Step-by-step instructions">${move?.detailed_instructions || ''}</textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="window.moveManager.saveMove(${isCreateMode ? 'null' : `'${move?.id || ''}'`})">
+                        ${isCreateMode ? 'Create Move' : 'Save Changes'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Setup modal events
+    setupEnhancedMoveModalEvents(modal, move) {
+        const form = modal.querySelector('#moveForm');
+        
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveMove(move?.id || null);
+            });
+            
+            const requiredFields = ['moveName', 'moveDescription', 'detailedInstructions', 'danceStyle', 'difficulty'];
+            requiredFields.forEach(fieldId => {
+                const field = modal.querySelector(`#${fieldId}`);
+                if (field) {
+                    field.addEventListener('blur', () => this.validateField(field));
+                    field.addEventListener('input', () => this.clearFieldError(field));
+                }
+            });
+        }
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (confirm('Close without saving? Any changes will be lost.')) {
+                    modal.remove();
+                }
+            }
         });
-      }
-
-      res.json({
-        success: true,
-        data: user,
-        message: 'User retrieved successfully'
-      });
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch user',
-        message: error.message
-      });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.parentNode) {
+                if (confirm('Close without saving? Any changes will be lost.')) {
+                    modal.remove();
+                }
+            }
+        }, { once: true });
     }
-  }
 
-  // PUT /api/admin/users/:id - Update user
-  static async updateUser(req, res) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
+    // Save move
+    async saveMove(moveId) {
+        try {
+            const nameEl = document.getElementById('moveName');
+            const descEl = document.getElementById('moveDescription');
+            const instructionsEl = document.getElementById('detailedInstructions');
+            const styleEl = document.getElementById('danceStyle');
+            const sectionEl = document.getElementById('section');
+            const difficultyEl = document.getElementById('difficulty');
+            const xpEl = document.getElementById('xpReward');
+            const videoEl = document.getElementById('videoUrl');
 
-      const { data: updatedUser, error } = await supabase
-        .from('user_profiles')
-        .update({
-          ...updateData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
+            if (!nameEl || !descEl || !instructionsEl || !styleEl || !difficultyEl) {
+                throw new Error('Form elements not found. Please refresh and try again.');
+            }
 
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        data: updatedUser,
-        message: 'User updated successfully'
-      });
-    } catch (error) {
-      console.error('Error updating user:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update user',
-        message: error.message
-      });
+            const moveData = {
+                name: nameEl.value.trim(),
+                description: descEl.value.trim(),
+                detailed_instructions: instructionsEl.value.trim(),
+                dance_style: styleEl.value,
+                section: sectionEl?.value?.trim() || 'Basic Steps',
+                subsection: document.getElementById('subsection')?.value?.trim() || '',
+                difficulty: difficultyEl.value,
+                xp_reward: parseInt(xpEl?.value) || 50,
+                video_url: videoEl?.value?.trim() || ''
+            };
+            
+            const validationErrors = [];
+            if (!moveData.name) validationErrors.push('Move name is required');
+            if (!moveData.description) validationErrors.push('Description is required');
+            if (!moveData.detailed_instructions) validationErrors.push('Detailed instructions are required');
+            if (!moveData.dance_style) validationErrors.push('Dance style must be selected');
+            if (!moveData.difficulty) validationErrors.push('Difficulty level must be selected');
+            
+            if (validationErrors.length > 0) {
+                throw new Error('Please fix the following:\n• ' + validationErrors.join('\n• '));
+            }
+            
+            console.log('Saving move:', moveId ? 'UPDATE' : 'CREATE', moveData);
+            
+            const saveButton = document.querySelector('.modal-footer .btn-primary');
+            const originalText = saveButton.textContent;
+            saveButton.textContent = 'Saving...';
+            saveButton.disabled = true;
+            
+            try {
+                if (this.api) {
+                    let response;
+                    if (moveId) {
+                        // Update existing move
+                        if (typeof this.api.updateMove === 'function') {
+                            response = await this.api.updateMove(moveId, moveData);
+                        } else if (typeof this.api.request === 'function') {
+                            response = await this.api.request('PUT', `/admin/moves/${moveId}`, moveData);
+                        } else {
+                            throw new Error('API updateMove method not available');
+                        }
+                    } else {
+                        // Create new move
+                        if (typeof this.api.createMove === 'function') {
+                            response = await this.api.createMove(moveData);
+                        } else if (typeof this.api.request === 'function') {
+                            response = await this.api.request('POST', '/admin/moves', moveData);
+                        } else {
+                            throw new Error('API createMove method not available');
+                        }
+                    }
+                    
+                    if (response && response.success) {
+                        console.log('Move saved via API');
+                        
+                        if (moveId) {
+                            const moveIndex = this.moves.findIndex(m => m.id === moveId);
+                            if (moveIndex !== -1) {
+                                this.moves[moveIndex] = { ...this.moves[moveIndex], ...moveData, updated_at: new Date().toISOString() };
+                            }
+                        } else if (response.data) {
+                            this.moves.push(response.data);
+                        }
+                    } else {
+                        throw new Error(response?.error || 'API save failed');
+                    }
+                } else {
+                    console.warn('API not available, saving locally');
+                    
+                    if (moveId) {
+                        const moveIndex = this.moves.findIndex(m => m.id === moveId);
+                        if (moveIndex !== -1) {
+                            this.moves[moveIndex] = { 
+                                ...this.moves[moveIndex], 
+                                ...moveData, 
+                                updated_at: new Date().toISOString() 
+                            };
+                            console.log('Move updated locally');
+                        } else {
+                            throw new Error('Move not found for update');
+                        }
+                    } else {
+                        const newMove = {
+                            id: `move-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            ...moveData,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            view_count: 0,
+                            rating: 0,
+                            rating_count: 0,
+                            is_active: true,
+                            thumbnail_url: moveData.video_url ? this.generateThumbnailUrl(moveData.video_url) : null
+                        };
+                        
+                        this.moves.unshift(newMove);
+                        console.log('New move created locally:', newMove.id);
+                    }
+                    
+                    try {
+                        localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
+                        console.log('Moves saved to localStorage');
+                    } catch (storageError) {
+                        console.warn('Could not save to localStorage:', storageError);
+                    }
+                }
+                
+                const action = moveId ? 'updated' : 'created';
+                this.showSuccessMessage(`Move "${moveData.name}" ${action} successfully!`);
+                
+                const modal = document.querySelector('.modal-overlay');
+                if (modal) {
+                    modal.remove();
+                }
+                
+                await this.refreshMovesDisplay();
+                
+            } finally {
+                if (saveButton) {
+                    saveButton.textContent = originalText;
+                    saveButton.disabled = false;
+                }
+            }
+            
+        } catch (error) {
+            console.error('Failed to save move:', error);
+            this.showErrorMessage('Failed to save move: ' + error.message);
+            
+            const saveButton = document.querySelector('.modal-footer .btn-primary');
+            if (saveButton) {
+                saveButton.disabled = false;
+                if (saveButton.textContent.includes('Saving')) {
+                    saveButton.textContent = saveButton.textContent.replace('Saving...', moveId ? 'Save Changes' : 'Create Move');
+                }
+            }
+        }
     }
-  }
 
-  // DELETE /api/admin/users/:id - Delete user
-  static async deleteUser(req, res) {
-    try {
-      const { id } = req.params;
-
-      const { data: deletedUser, error } = await supabase
-        .from('user_profiles')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        data: deletedUser,
-        message: 'User deleted successfully'
-      });
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete user',
-        message: error.message
-      });
+    // Helper methods
+    async refreshMovesDisplay() {
+        try {
+            this.renderMoves();
+            this.updateMoveStats();
+            if (this.currentFilters && Object.keys(this.currentFilters).length > 0) {
+                this.applyFilters();
+            }
+            console.log('Moves display refreshed');
+        } catch (error) {
+            console.error('Error refreshing moves display:', error);
+        }
     }
-  }
 
-  // GET /api/admin/dance-styles - Get all dance styles
-  static async getAllDanceStyles(req, res) {
-    try {
-      const styles = await DanceStyle.findAll();
-
-      res.json({
-        success: true,
-        data: styles,
-        count: styles.length,
-        message: `Retrieved ${styles.length} dance styles`
-      });
-    } catch (error) {
-      console.error('Error fetching dance styles:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch dance styles',
-        message: error.message
-      });
+    generateThumbnailUrl(videoUrl) {
+        if (!videoUrl) return null;
+        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const match = videoUrl.match(youtubeRegex);
+        if (match && match[1]) {
+            return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
+        }
+        return 'https://via.placeholder.com/300x200?text=Dance+Move';
     }
-  }
 
-  // POST /api/admin/dance-styles - Create dance style
-  static async createDanceStyle(req, res) {
-    try {
-      const styleData = req.body;
-
-      // Validate required fields
-      const requiredFields = ['name', 'description'];
-      const missingFields = requiredFields.filter(field => !styleData[field]);
-
-      if (missingFields.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields',
-          missing_fields: missingFields
-        });
-      }
-
-      const newStyle = await DanceStyle.create(styleData);
-
-      res.status(201).json({
-        success: true,
-        data: newStyle,
-        message: 'Dance style created successfully'
-      });
-    } catch (error) {
-      console.error('Error creating dance style:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create dance style',
-        message: error.message
-      });
+    validateField(field) {
+        const value = field.value.trim();
+        const isRequired = field.hasAttribute('required');
+        
+        if (isRequired && !value) {
+            this.showFieldError(field, 'This field is required');
+            return false;
+        }
+        
+        this.clearFieldError(field);
+        return true;
     }
-  }
 
-  // PUT /api/admin/dance-styles/:id - Update dance style
-  static async updateDanceStyle(req, res) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-
-      const updatedStyle = await DanceStyle.update(id, updateData);
-
-      if (!updatedStyle) {
-        return res.status(404).json({
-          success: false,
-          error: 'Dance style not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: updatedStyle,
-        message: 'Dance style updated successfully'
-      });
-    } catch (error) {
-      console.error('Error updating dance style:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update dance style',
-        message: error.message
-      });
+    showFieldError(field, message) {
+        this.clearFieldError(field);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'field-error';
+        errorDiv.textContent = message;
+        errorDiv.style.color = '#dc3545';
+        errorDiv.style.fontSize = '0.875rem';
+        errorDiv.style.marginTop = '0.25rem';
+        field.style.borderColor = '#dc3545';
+        field.parentNode.appendChild(errorDiv);
     }
-  }
 
-  // DELETE /api/admin/dance-styles/:id - Delete dance style
-  static async deleteDanceStyle(req, res) {
-    try {
-      const { id } = req.params;
-      const deletedStyle = await DanceStyle.delete(id);
-
-      if (!deletedStyle) {
-        return res.status(404).json({
-          success: false,
-          error: 'Dance style not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: deletedStyle,
-        message: 'Dance style deleted successfully'
-      });
-    } catch (error) {
-      console.error('Error deleting dance style:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete dance style',
-        message: error.message
-      });
+    clearFieldError(field) {
+        const existingError = field.parentNode.querySelector('.field-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        field.style.borderColor = '';
     }
-  }
 
-  // GET /api/admin/move-submissions - Get move submissions
-  static async getMoveSubmissions(req, res) {
-    try {
-      const filters = {
-        status: req.query.status,
-        danceStyle: req.query.dance_style,
-        page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 20
-      };
-
-      const submissions = await Submission.findAll(filters);
-
-      res.json({
-        success: true,
-        data: submissions.data,
-        pagination: submissions.pagination,
-        message: `Retrieved ${submissions.data.length} submissions`
-      });
-    } catch (error) {
-      console.error('Error fetching move submissions:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch move submissions',
-        message: error.message
-      });
+    applyFilters() {
+        let filteredMoves = [...this.moves];
+        
+        if (this.currentFilters.search) {
+            const searchTerm = this.currentFilters.search.toLowerCase();
+            filteredMoves = filteredMoves.filter(move => 
+                move.name.toLowerCase().includes(searchTerm) ||
+                move.description.toLowerCase().includes(searchTerm) ||
+                move.dance_style.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        if (this.currentFilters.danceStyle) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.dance_style === this.currentFilters.danceStyle
+            );
+        }
+        
+        if (this.currentFilters.section) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.section === this.currentFilters.section
+            );
+        }
+        
+        if (this.currentFilters.difficulty) {
+            filteredMoves = filteredMoves.filter(move => 
+                move.difficulty === this.currentFilters.difficulty
+            );
+        }
+        
+        const originalMoves = this.moves;
+        this.moves = filteredMoves;
+        this.renderMoves();
+        this.moves = originalMoves;
+        
+        console.log(`Applied filters, showing ${filteredMoves.length} of ${originalMoves.length} moves`);
     }
-  }
 
-  // GET /api/admin/move-submissions/:id - Get specific submission
-  static async getMoveSubmission(req, res) {
-    try {
-      const { id } = req.params;
-      const submission = await Submission.findById(id);
-
-      if (!submission) {
-        return res.status(404).json({
-          success: false,
-          error: 'Submission not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: submission,
-        message: 'Submission retrieved successfully'
-      });
-    } catch (error) {
-      console.error('Error fetching submission:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch submission',
-        message: error.message
-      });
+    async deleteMove(moveId) {
+        const move = this.moves.find(m => m.id === moveId);
+        if (!move) {
+            this.showErrorMessage('Move not found');
+            return;
+        }
+        
+        const confirmed = confirm(`Are you sure you want to delete "${move.name}"?`);
+        if (!confirmed) return;
+        
+        try {
+            if (this.api && typeof this.api.deleteMove === 'function') {
+                const response = await this.api.deleteMove(moveId);
+                if (response && response.success) {
+                    console.log('Move deleted via API');
+                }
+            } else if (this.api && typeof this.api.request === 'function') {
+                const response = await this.api.request('DELETE', `/admin/moves/${moveId}`);
+                if (response && response.success) {
+                    console.log('Move deleted via API');
+                }
+            }
+            
+            this.moves = this.moves.filter(m => m.id !== moveId);
+            this.selectedMoves.delete(moveId);
+            
+            try {
+                localStorage.setItem('dancify_moves', JSON.stringify(this.moves));
+            } catch (storageError) {
+                console.warn('Could not update localStorage:', storageError);
+            }
+            
+            this.showSuccessMessage('Move deleted successfully');
+            this.renderMoves();
+            this.updateMoveStats();
+            
+        } catch (error) {
+            console.error('Failed to delete move:', error);
+            this.showErrorMessage('Failed to delete move: ' + error.message);
+        }
     }
-  }
 
-  // POST /api/admin/move-submissions/:id/review - Review submission
-  static async reviewMoveSubmission(req, res) {
-    try {
-      const { id } = req.params;
-      const reviewData = req.body;
-
-      const reviewedSubmission = await Submission.addReview(id, reviewData);
-
-      res.json({
-        success: true,
-        data: reviewedSubmission,
-        message: 'Submission reviewed successfully'
-      });
-    } catch (error) {
-      console.error('Error reviewing submission:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to review submission',
-        message: error.message
-      });
+    toggleMoveSelection(moveId) {
+        if (this.selectedMoves.has(moveId)) {
+            this.selectedMoves.delete(moveId);
+        } else {
+            this.selectedMoves.add(moveId);
+        }
     }
-  }
 
-  // POST /api/admin/move-submissions/:id/approve - Approve submission
-  static async approveMoveSubmission(req, res) {
-    try {
-      const { id } = req.params;
-      const { feedback } = req.body;
-
-      const approvedSubmission = await Submission.approve(id, feedback);
-
-      res.json({
-        success: true,
-        data: approvedSubmission,
-        message: 'Submission approved successfully'
-      });
-    } catch (error) {
-      console.error('Error approving submission:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to approve submission',
-        message: error.message
-      });
+    async bulkDeleteMoves() {
+        if (this.selectedMoves.size === 0) {
+            this.showErrorMessage('No moves selected for deletion');
+            return;
+        }
+        
+        const confirmed = confirm(`Delete ${this.selectedMoves.size} selected moves?`);
+        if (!confirmed) return;
+        
+        try {
+            const deletePromises = Array.from(this.selectedMoves).map(moveId => this.deleteMove(moveId));
+            await Promise.all(deletePromises);
+            
+            this.selectedMoves.clear();
+            this.showSuccessMessage(`Successfully deleted ${deletePromises.length} moves`);
+            
+        } catch (error) {
+            console.error('Bulk delete failed:', error);
+            this.showErrorMessage('Failed to delete some moves: ' + error.message);
+        }
     }
-  }
 
-  // POST /api/admin/move-submissions/:id/reject - Reject submission
-  static async rejectMoveSubmission(req, res) {
-    try {
-      const { id } = req.params;
-      const { reason, feedback } = req.body;
-
-      if (!reason) {
-        return res.status(400).json({
-          success: false,
-          error: 'Rejection reason is required'
-        });
-      }
-
-      const rejectedSubmission = await Submission.reject(id, reason, feedback);
-
-      res.json({
-        success: true,
-        data: rejectedSubmission,
-        message: 'Submission rejected successfully'
-      });
-    } catch (error) {
-      console.error('Error rejecting submission:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to reject submission',
-        message: error.message
-      });
+    showSuccessMessage(message) {
+        this.showMessage(message, 'success');
     }
-  }
+
+    showErrorMessage(message) {
+        this.showMessage(message, 'error');
+    }
+
+    showMessage(message, type = 'info') {
+        const messageContainer = document.getElementById('messageContainer') || document.body;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${type}`;
+        messageDiv.innerHTML = `
+            <span class="message-text">${message}</span>
+            <button class="message-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        `;
+        
+        messageContainer.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 5000);
+    }
 }
 
-module.exports = AdminController;
+// Initialize the Move Manager when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    if (!window.moveManager) {
+        window.moveManager = new MoveManager();
+        window.moveManager.init();
+        console.log('Move Manager ready');
+    }
+});
+
+// Export for global use
+window.MoveManager = MoveManager;

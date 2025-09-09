@@ -331,27 +331,27 @@ class DancifyAPI {
         return this.request('DELETE', `/admin/moves/${moveId}`);
     }
 
-    // 🎭 Dance style API methods - FIXED to use correct endpoints
+    // 🎭 Dance style API methods - FIXED to use admin endpoints
     async getDanceStyles(filters = {}) {
         const queryParams = new URLSearchParams(filters).toString();
-        const endpoint = queryParams ? `/dance-styles?${queryParams}` : '/dance-styles';
+        const endpoint = queryParams ? `/admin/dance-styles?${queryParams}` : '/admin/dance-styles';
         return this.request('GET', endpoint);
     }
 
     async getDanceStyle(styleId) {
-        return this.request('GET', `/dance-styles/${styleId}`);
+        return this.request('GET', `/admin/dance-styles/${styleId}`);
     }
 
     async createDanceStyle(styleData) {
-        return this.request('POST', '/dance-styles', styleData);
+        return this.request('POST', '/admin/dance-styles', styleData);
     }
 
     async updateDanceStyle(styleId, styleData) {
-        return this.request('PUT', `/dance-styles/${styleId}`, styleData);
+        return this.request('PUT', `/admin/dance-styles/${styleId}`, styleData);
     }
 
     async deleteDanceStyle(styleId) {
-        return this.request('DELETE', `/dance-styles/${styleId}`);
+        return this.request('DELETE', `/admin/dance-styles/${styleId}`);
     }
 
     async getCategories(danceStyle = null) {
