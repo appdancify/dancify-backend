@@ -243,7 +243,7 @@ class DanceStyleManager {
                             ${style.difficulty_level}
                         </div>
                         ${style.is_featured ? '<div class="featured-badge">Featured</div>' : ''}
-                        <div class="origin-badge">${style.cultural_origin || 'Unknown'}</div>
+                        <div class="origin-badge">${style.cultural_origin || style.origin || 'Unknown'}</div>
                     </div>
                     
                     <div class="style-stats">
@@ -381,6 +381,11 @@ class DanceStyleManager {
         this.renderDanceStyles();
     }
 
+    // Show create style modal
+    showCreateStyleModal() {
+        this.showStyleModal(null, true);
+    }
+
     // Edit dance style
     async editStyle(styleId) {
         const style = this.danceStyles.find(s => s.id === styleId);
@@ -389,8 +394,299 @@ class DanceStyleManager {
             return;
         }
         
-        // Show edit modal (implementation needed)
-        this.showSuccessMessage(`Edit functionality for "${style.name}" - modal needed`);
+        this.showStyleModal(style, false);
+    }
+
+    // Show style modal (create or edit)
+    showStyleModal(style, isCreateMode) {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-overlay show';
+        modalOverlay.innerHTML = this.createStyleModalHTML(style, isCreateMode);
+        
+        document.body.appendChild(modalOverlay);
+        
+        // Focus first input after modal appears
+        setTimeout(() => {
+            const firstInput = modalOverlay.querySelector('input, textarea, select');
+            if (firstInput) firstInput.focus();
+        }, 100);
+        
+        this.setupStyleModalEvents(modalOverlay, style, isCreateMode);
+    }
+
+    // Create style modal HTML
+    createStyleModalHTML(style, isCreateMode) {
+        const icons = ['🩰', '🎤', '🤸', '💃', '🌶️', '🎭', '🎺', '💑', '🕺', '💫', '🎪', '🌟'];
+        const colors = ['#FFB6C1', '#FF6B35', '#32CD32', '#FF1493', '#FF4500', '#9370DB', '#FFD700', '#DDA0DD', '#FF69B4', '#00CED1', '#FF8C00', '#DA70D6'];
+        
+        return `
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>${isCreateMode ? 'Create New Dance Style' : 'Edit Dance Style'}</h2>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <form class="style-form" id="styleForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="styleName">Style Name *</label>
+                                <input type="text" id="styleName" name="name" required 
+                                       value="${style?.name || ''}" placeholder="e.g., Hip-Hop">
+                            </div>
+                            <div class="form-group">
+                                <label for="styleOrigin">Cultural Origin</label>
+                                <input type="text" id="styleOrigin" name="origin" 
+                                       value="${style?.origin || style?.cultural_origin || ''}" 
+                                       placeholder="e.g., United States">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="styleDescription">Description *</label>
+                            <textarea id="styleDescription" name="description" required rows="4"
+                                      placeholder="Describe the dance style, its characteristics, and what makes it unique...">${style?.description || ''}</textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="styleDifficulty">Difficulty Level</label>
+                                <select id="styleDifficulty" name="difficulty_level">
+                                    <option value="beginner" ${style?.difficulty_level === 'beginner' ? 'selected' : ''}>Beginner</option>
+                                    <option value="intermediate" ${style?.difficulty_level === 'intermediate' ? 'selected' : ''}>Intermediate</option>
+                                    <option value="advanced" ${style?.difficulty_level === 'advanced' ? 'selected' : ''}>Advanced</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="styleDisplayOrder">Display Order</label>
+                                <input type="number" id="styleDisplayOrder" name="display_order" min="0" max="100"
+                                       value="${style?.display_order || 0}" placeholder="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Icon</label>
+                                <div class="icon-selector">
+                                    ${icons.map(icon => `
+                                        <button type="button" class="icon-option ${style?.icon === icon ? 'selected' : ''}" 
+                                                data-icon="${icon}">${icon}</button>
+                                    `).join('')}
+                                </div>
+                                <input type="hidden" id="styleIcon" name="icon" value="${style?.icon || '💃'}">
+                            </div>
+                            <div class="form-group">
+                                <label>Color</label>
+                                <div class="color-selector">
+                                    ${colors.map(color => `
+                                        <button type="button" class="color-option ${style?.color === color ? 'selected' : ''}" 
+                                                data-color="${color}" style="background-color: ${color}"></button>
+                                    `).join('')}
+                                </div>
+                                <input type="hidden" id="styleColor" name="color" value="${style?.color || '#8A2BE2'}">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="styleEstimatedDuration">Estimated Duration (minutes)</label>
+                                <input type="number" id="styleEstimatedDuration" name="estimated_duration" min="5" max="180"
+                                       value="${style?.estimated_duration || 30}" placeholder="30">
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="styleIsFeatured" name="is_featured" 
+                                           ${style?.is_featured ? 'checked' : ''}>
+                                    Featured Style
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="styleEquipment">Equipment Needed (comma-separated)</label>
+                            <input type="text" id="styleEquipment" name="equipment_needed" 
+                                   value="${style?.equipment_needed?.join(', ') || ''}" 
+                                   placeholder="e.g., None, Comfortable shoes, Dance mat">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="styleMusicGenres">Music Genres (comma-separated)</label>
+                            <input type="text" id="styleMusicGenres" name="music_genres" 
+                                   value="${style?.music_genres?.join(', ') || ''}" 
+                                   placeholder="e.g., Hip-Hop, R&B, Pop">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="styleKeyCharacteristics">Key Characteristics (comma-separated)</label>
+                            <input type="text" id="styleKeyCharacteristics" name="key_characteristics" 
+                                   value="${style?.key_characteristics?.join(', ') || ''}" 
+                                   placeholder="e.g., Sharp movements, Rhythmic, High energy">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="window.danceStyleManager.saveStyleForm('${isCreateMode ? 'create' : 'edit'}', '${style?.id || ''}')">
+                        ${isCreateMode ? 'Create Style' : 'Save Changes'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Setup style modal events
+    setupStyleModalEvents(modal, style, isCreateMode) {
+        const form = modal.querySelector('#styleForm');
+        
+        // Handle form submission
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveStyleForm(isCreateMode ? 'create' : 'edit', style?.id || '');
+            });
+        }
+        
+        // Icon selector
+        const iconOptions = modal.querySelectorAll('.icon-option');
+        const iconInput = modal.querySelector('#styleIcon');
+        
+        iconOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                iconOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                iconInput.value = option.dataset.icon;
+            });
+        });
+        
+        // Color selector
+        const colorOptions = modal.querySelectorAll('.color-option');
+        const colorInput = modal.querySelector('#styleColor');
+        
+        colorOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                colorInput.value = option.dataset.color;
+            });
+        });
+        
+        // Close modal on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (confirm('Close without saving? Any changes will be lost.')) {
+                    modal.remove();
+                }
+            }
+        });
+        
+        // Close modal on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape' && modal.parentNode) {
+                if (confirm('Close without saving? Any changes will be lost.')) {
+                    modal.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    // Save style form
+    async saveStyleForm(mode, styleId) {
+        try {
+            const form = document.getElementById('styleForm');
+            if (!form) throw new Error('Form not found');
+            
+            const formData = new FormData(form);
+            
+            // Process equipment, music genres, and characteristics arrays
+            const equipmentNeeded = formData.get('equipment_needed') 
+                ? formData.get('equipment_needed').split(',').map(item => item.trim()).filter(item => item)
+                : [];
+                
+            const musicGenres = formData.get('music_genres')
+                ? formData.get('music_genres').split(',').map(item => item.trim()).filter(item => item)
+                : [];
+                
+            const keyCharacteristics = formData.get('key_characteristics')
+                ? formData.get('key_characteristics').split(',').map(item => item.trim()).filter(item => item)
+                : [];
+            
+            const styleData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                icon: formData.get('icon'),
+                color: formData.get('color'),
+                origin: formData.get('origin'),
+                cultural_origin: formData.get('origin'), // Map to both fields
+                difficulty_level: formData.get('difficulty_level'),
+                display_order: parseInt(formData.get('display_order')) || 0,
+                is_featured: formData.get('is_featured') === 'on',
+                estimated_duration: parseInt(formData.get('estimated_duration')) || 30,
+                equipment_needed: equipmentNeeded,
+                music_genres: musicGenres,
+                key_characteristics: keyCharacteristics
+            };
+            
+            // Validate required fields
+            if (!styleData.name || !styleData.description) {
+                throw new Error('Name and description are required');
+            }
+            
+            let response;
+            
+            if (mode === 'create') {
+                // Create new style
+                if (this.api && typeof this.api.createDanceStyle === 'function') {
+                    response = await this.api.createDanceStyle(styleData);
+                } else if (this.api && typeof this.api.request === 'function') {
+                    response = await this.api.request('POST', '/admin/dance-styles', styleData);
+                } else {
+                    throw new Error('No API client available');
+                }
+                
+                if (response && response.success) {
+                    this.danceStyles.push(response.data);
+                    this.showSuccessMessage('Dance style created successfully');
+                    console.log('Dance style created:', response.data);
+                } else {
+                    throw new Error(response?.error || 'Failed to create dance style');
+                }
+            } else {
+                // Update existing style
+                if (this.api && typeof this.api.updateDanceStyle === 'function') {
+                    response = await this.api.updateDanceStyle(styleId, styleData);
+                } else if (this.api && typeof this.api.request === 'function') {
+                    response = await this.api.request('PUT', `/admin/dance-styles/${styleId}`, styleData);
+                } else {
+                    throw new Error('No API client available');
+                }
+                
+                if (response && response.success) {
+                    // Update local data
+                    const index = this.danceStyles.findIndex(s => s.id === styleId);
+                    if (index !== -1) {
+                        this.danceStyles[index] = { ...this.danceStyles[index], ...response.data };
+                    }
+                    this.showSuccessMessage('Dance style updated successfully');
+                    console.log('Dance style updated:', response.data);
+                } else {
+                    throw new Error(response?.error || 'Failed to update dance style');
+                }
+            }
+            
+            // Close modal and refresh
+            const modal = document.querySelector('.modal-overlay');
+            if (modal) modal.remove();
+            
+            this.renderDanceStyles();
+            this.updateStyleStats();
+            
+        } catch (error) {
+            console.error('Error saving dance style:', error);
+            this.showErrorMessage('Failed to save dance style: ' + error.message);
+        }
     }
 
     // Delete dance style
@@ -459,63 +755,6 @@ class DanceStyleManager {
             if (checkbox) {
                 checkbox.checked = this.selectedStyles.has(styleId);
             }
-        }
-    }
-
-    // Show create style modal
-    showCreateStyleModal() {
-        // Modal implementation needed
-        this.showSuccessMessage('Create dance style modal - implementation needed');
-    }
-
-    // Save style form
-    async saveStyleForm() {
-        const form = document.getElementById('styleForm');
-        if (!form) return;
-        
-        const formData = new FormData(form);
-        const styleData = {
-            name: formData.get('name'),
-            description: formData.get('description'),
-            icon: formData.get('icon'),
-            color: formData.get('color'),
-            difficulty_level: formData.get('difficulty'),
-            cultural_origin: formData.get('origin'),
-            is_featured: formData.get('featured') === 'on',
-            popularity_score: parseInt(formData.get('popularity')) || 0
-        };
-        
-        try {
-            // Call API to create
-            if (this.api && typeof this.api.createDanceStyle === 'function') {
-                const response = await this.api.createDanceStyle(styleData);
-                if (response && response.success) {
-                    this.danceStyles.push(response.data);
-                    console.log('Dance style created via API');
-                } else {
-                    throw new Error(response?.error || 'Failed to create dance style');
-                }
-            } else if (this.api && typeof this.api.request === 'function') {
-                const response = await this.api.request('POST', '/admin/dance-styles', styleData);
-                if (response && response.success) {
-                    this.danceStyles.push(response.data);
-                    console.log('Dance style created via API');
-                } else {
-                    throw new Error(response?.error || 'Failed to create dance style');
-                }
-            } else {
-                throw new Error('No API client available');
-            }
-            
-            this.showSuccessMessage('Dance style created successfully');
-            const modal = document.getElementById('styleModal');
-            if (modal) modal.style.display = 'none';
-            this.renderDanceStyles();
-            this.updateStyleStats();
-            
-        } catch (error) {
-            console.error('Error creating dance style:', error);
-            this.showErrorMessage('Failed to create dance style: ' + error.message);
         }
     }
 
