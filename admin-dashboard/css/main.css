@@ -1430,3 +1430,21 @@ body {
 .rounded-medium { border-radius: var(--radius-medium); }
 .rounded-large { border-radius: var(--radius-large); }
 .rounded-xl { border-radius: var(--radius-xl); }
+
+/* FORCE SHOW HEADER - DEBUG */
+.section-header {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+}
+
+.header-actions {
+  display: flex !important;
+  visibility: visible !important;
+}
+
+.btn {
+  display: inline-flex !important;
+  visibility: visible !important;
+}
