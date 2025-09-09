@@ -140,7 +140,7 @@ app.get('/api/health', async (req, res) => {
 
 // ADMIN ENDPOINTS - Direct implementation to avoid import issues
 
-// Dance Styles Admin Endpoints
+// Dance Styles Admin Endpoints - SIMPLIFIED
 app.get('/api/admin/dance-styles', async (req, res) => {
   try {
     console.log('🎭 Fetching admin dance styles...');
@@ -243,44 +243,44 @@ app.get('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
+// SIMPLIFIED CREATE ENDPOINT - Only requires 4 essential fields
 app.post('/api/admin/dance-styles', async (req, res) => {
   try {
     console.log('🆕 Creating new dance style:', req.body);
     
-    const {
-      name, description, icon, color, origin, difficulty_level,
-      display_order, is_featured, cultural_origin, music_genres,
-      key_characteristics, estimated_duration, equipment_needed
-    } = req.body;
+    const { name, description, icon, color } = req.body;
 
-    if (!name || !description) {
+    // Validate required fields - only the 4 essential ones
+    if (!name || !description || !icon || !color) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields',
-        required: ['name', 'description']
+        error: 'All fields are required: name, description, icon, and color',
+        required: ['name', 'description', 'icon', 'color']
       });
     }
 
     // Generate slug from name
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
 
+    // Create dance style with minimal required fields and set defaults for others
     const { data, error } = await supabase
       .from('dance_styles')
       .insert([{
         name,
         slug,
         description,
-        icon: icon || '💃',
-        color: color || '#8A2BE2',
-        origin: origin || cultural_origin,
-        difficulty_level: difficulty_level || 'beginner',
-        display_order: display_order || 0,
-        is_featured: is_featured || false,
-        cultural_origin: cultural_origin || origin,
-        music_genres: music_genres || [],
-        key_characteristics: key_characteristics || [],
-        estimated_duration: estimated_duration || 30,
-        equipment_needed: equipment_needed || []
+        icon,
+        color,
+        // Set default values for database fields that aren't in the form
+        difficulty_level: 'beginner',
+        display_order: 0,
+        is_featured: false,
+        is_active: true,
+        cultural_origin: 'Unknown',
+        music_genres: [],
+        key_characteristics: [],
+        estimated_duration: 30,
+        equipment_needed: []
       }])
       .select()
       .single();
@@ -305,24 +305,31 @@ app.post('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
+// SIMPLIFIED UPDATE ENDPOINT - Handles simplified data
 app.put('/api/admin/dance-styles/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { name, description, icon, color } = req.body;
     
     console.log('📝 Updating dance style:', id);
 
-    // If name is being updated, update slug too
-    if (updateData.name) {
-      updateData.slug = updateData.name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
+    // Prepare update data
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    // Only update provided fields
+    if (name) {
+      updateData.name = name;
+      updateData.slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
     }
+    if (description) updateData.description = description;
+    if (icon) updateData.icon = icon;
+    if (color) updateData.color = color;
 
     const { data, error } = await supabase
       .from('dance_styles')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

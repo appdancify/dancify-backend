@@ -1,5 +1,5 @@
 // Dance Style Management System
-// Real API integration without mock data
+// Simplified version with only essential fields
 
 class DanceStyleManager {
     constructor(apiClient) {
@@ -185,32 +185,16 @@ class DanceStyleManager {
         try {
             this.showLoadingState();
             
-            // Use real API call instead of mock data
-            if (this.api && typeof this.api.getDanceStyles === 'function') {
-                console.log('Loading dance styles via API...');
-                
-                const response = await this.api.getDanceStyles(filters);
-                
-                if (response && response.success) {
-                    this.danceStyles = response.data || [];
-                    console.log(`Loaded ${this.danceStyles.length} dance styles via API`);
-                } else {
-                    throw new Error(response?.error || 'Failed to load dance styles from API');
-                }
-            } else if (this.api && typeof this.api.request === 'function') {
-                console.log('Loading dance styles via generic API request...');
-                
-                const response = await this.api.request('GET', '/admin/dance-styles');
-                
-                if (response && response.success) {
-                    this.danceStyles = response.data || [];
-                    console.log(`Loaded ${this.danceStyles.length} dance styles via API`);
-                } else {
-                    throw new Error(response?.error || 'Failed to load dance styles from API');
-                }
-            } else {
-                throw new Error('No API client available');
+            // Use direct fetch to the admin API endpoint
+            const response = await fetch('/api/admin/dance-styles?includeStats=true');
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to fetch dance styles');
             }
+
+            this.danceStyles = result.data || [];
+            console.log(`Loaded ${this.danceStyles.length} dance styles`);
             
             this.renderDanceStyles();
             this.updateStyleStats();
@@ -237,8 +221,8 @@ class DanceStyleManager {
             stylesContainer.innerHTML = `
                 <div class="no-data">
                     <div class="no-data-content">
-                        <div class="no-data-icon">No Dance Styles</div>
-                        <div class="no-data-text">No dance styles found</div>
+                        <div class="no-data-icon">💃</div>
+                        <div class="no-data-text">No Dance Styles Found</div>
                         <div class="no-data-subtitle">Create your first dance style to get started</div>
                         <button class="btn btn-primary" onclick="window.danceStyleManager.showCreateStyleModal()">
                             Create Dance Style
@@ -256,81 +240,46 @@ class DanceStyleManager {
     // Create dance style card
     createStyleCard(style) {
         const isSelected = this.selectedStyles && this.selectedStyles.has(style.id);
-        const popularityPercentage = Math.min(style.popularity_score || 0, 100);
         const moveCount = style.stats?.moveCount || 0;
         const submissionCount = style.stats?.submissionCount || 0;
         const averageRating = style.stats?.averageRating || 0;
         
         return `
-            <div class="style-card ${isSelected ? 'selected' : ''} ${style.is_featured ? 'featured' : ''}" 
-                 data-style-id="${style.id}">
+            <div class="style-card ${isSelected ? 'selected' : ''}" data-style-id="${style.id}">
                 <div class="style-card-header">
-                    <input type="checkbox" class="style-checkbox" 
-                           ${isSelected ? 'checked' : ''} 
-                           onchange="window.danceStyleManager.toggleStyleSelection('${style.id}')">
-                    <div class="style-actions">
-                        <button class="action-btn edit-btn" title="Edit Style" 
-                                onclick="window.danceStyleManager.editStyle('${style.id}')">
-                            Edit
-                        </button>
-                        <button class="action-btn delete-btn" title="Delete Style" 
-                                onclick="window.danceStyleManager.deleteStyle('${style.id}')">
-                            Delete
-                        </button>
+                    <div class="style-icon" style="background-color: ${style.color || '#8A2BE2'}">
+                        ${style.icon || '💃'}
                     </div>
-                </div>
-                
-                <div class="style-content">
-                    <div class="style-icon" style="color: ${style.color}; font-size: 3rem;">
-                        ${style.icon || 'Dance'}
-                    </div>
-                    
                     <div class="style-info">
                         <h3 class="style-name">${style.name}</h3>
                         <p class="style-description">${style.description}</p>
                     </div>
-                    
-                    <div class="style-meta">
-                        <div class="difficulty-badge difficulty-${style.difficulty_level}">
-                            ${style.difficulty_level}
-                        </div>
-                        ${style.is_featured ? '<div class="featured-badge">Featured</div>' : ''}
-                        <div class="origin-badge">${style.cultural_origin || style.origin || 'Unknown'}</div>
-                    </div>
-                    
+                </div>
+                
+                <div class="style-meta">
                     <div class="style-stats">
                         <div class="stat">
-                            <span class="stat-icon">Moves</span>
-                            <span class="stat-label">Moves</span>
                             <span class="stat-value">${moveCount}</span>
+                            <span class="stat-label">Moves</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">Submissions</span>
-                            <span class="stat-label">Submissions</span>
                             <span class="stat-value">${submissionCount}</span>
+                            <span class="stat-label">Submissions</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-icon">Rating</span>
-                            <span class="stat-label">Rating</span>
                             <span class="stat-value">${averageRating.toFixed(1)}</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-icon">Popularity</span>
-                            <span class="stat-label">Popularity</span>
-                            <span class="stat-value">${popularityPercentage}%</span>
+                            <span class="stat-label">Rating</span>
                         </div>
                     </div>
-                    
-                    <div class="music-genres">
-                        ${style.music_genres ? 
-                            style.music_genres.slice(0, 3).map(genre => 
-                                `<span class="genre-tag">${genre}</span>`
-                            ).join('') : ''
-                        }
-                        ${style.music_genres && style.music_genres.length > 3 ? 
-                            `<span class="genre-more">+${style.music_genres.length - 3}</span>` : ''
-                        }
-                    </div>
+                </div>
+                
+                <div class="style-actions">
+                    <button class="btn btn-sm btn-outline" onclick="window.danceStyleManager.editStyle('${style.id}')">
+                        Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="window.danceStyleManager.deleteStyle('${style.id}', '${style.name}')">
+                        Delete
+                    </button>
                 </div>
             </div>
         `;
@@ -449,7 +398,7 @@ class DanceStyleManager {
         this.showStyleModal(style, false);
     }
 
-    // Show style modal (create or edit)
+    // Show style modal (create or edit) - SIMPLIFIED VERSION
     showStyleModal(style, isCreateMode) {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'modal-overlay show';
@@ -466,7 +415,7 @@ class DanceStyleManager {
         this.setupStyleModalEvents(modalOverlay, style, isCreateMode);
     }
 
-    // Create style modal HTML
+    // Create style modal HTML - SIMPLIFIED TO ONLY 4 ESSENTIAL FIELDS
     createStyleModalHTML(style, isCreateMode) {
         const icons = ['🩰', '🎤', '🤸', '💃', '🌶️', '🎭', '🎺', '💑', '🕺', '💫', '🎪', '🌟'];
         const colors = ['#FFB6C1', '#FF6B35', '#32CD32', '#FF1493', '#FF4500', '#9370DB', '#FFD700', '#DDA0DD', '#FF69B4', '#00CED1', '#FF8C00', '#DA70D6'];
@@ -479,18 +428,10 @@ class DanceStyleManager {
                 </div>
                 <div class="modal-body">
                     <form class="style-form" id="styleForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="styleName">Style Name *</label>
-                                <input type="text" id="styleName" name="name" required 
-                                       value="${style?.name || ''}" placeholder="e.g., Hip-Hop">
-                            </div>
-                            <div class="form-group">
-                                <label for="styleOrigin">Cultural Origin</label>
-                                <input type="text" id="styleOrigin" name="origin" 
-                                       value="${style?.origin || style?.cultural_origin || ''}" 
-                                       placeholder="e.g., United States">
-                            </div>
+                        <div class="form-group">
+                            <label for="styleName">Style Name *</label>
+                            <input type="text" id="styleName" name="name" required 
+                                   value="${style?.name || ''}" placeholder="e.g., House, Hip-Hop, Ballet">
                         </div>
                         
                         <div class="form-group">
@@ -499,79 +440,31 @@ class DanceStyleManager {
                                       placeholder="Describe the dance style, its characteristics, and what makes it unique...">${style?.description || ''}</textarea>
                         </div>
                         
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="styleDifficulty">Difficulty Level</label>
-                                <select id="styleDifficulty" name="difficulty_level">
-                                    <option value="beginner" ${style?.difficulty_level === 'beginner' ? 'selected' : ''}>Beginner</option>
-                                    <option value="intermediate" ${style?.difficulty_level === 'intermediate' ? 'selected' : ''}>Intermediate</option>
-                                    <option value="advanced" ${style?.difficulty_level === 'advanced' ? 'selected' : ''}>Advanced</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="styleDisplayOrder">Display Order</label>
-                                <input type="number" id="styleDisplayOrder" name="display_order" min="0" max="100"
-                                       value="${style?.display_order || 0}" placeholder="0">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Icon</label>
-                                <div class="icon-selector">
-                                    ${icons.map(icon => `
-                                        <button type="button" class="icon-option ${style?.icon === icon ? 'selected' : ''}" 
-                                                data-icon="${icon}">${icon}</button>
-                                    `).join('')}
-                                </div>
-                                <input type="hidden" id="styleIcon" name="icon" value="${style?.icon || '💃'}">
-                            </div>
-                            <div class="form-group">
-                                <label>Color</label>
-                                <div class="color-selector">
-                                    ${colors.map(color => `
-                                        <button type="button" class="color-option ${style?.color === color ? 'selected' : ''}" 
-                                                data-color="${color}" style="background-color: ${color}"></button>
-                                    `).join('')}
-                                </div>
-                                <input type="hidden" id="styleColor" name="color" value="${style?.color || '#8A2BE2'}">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="styleEstimatedDuration">Estimated Duration (minutes)</label>
-                                <input type="number" id="styleEstimatedDuration" name="estimated_duration" min="5" max="180"
-                                       value="${style?.estimated_duration || 30}" placeholder="30">
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <input type="checkbox" id="styleIsFeatured" name="is_featured" 
-                                           ${style?.is_featured ? 'checked' : ''}>
-                                    Featured Style
-                                </label>
+                        <div class="form-group">
+                            <label for="styleIcon">Icon *</label>
+                            <input type="hidden" id="styleIcon" name="icon" value="${style?.icon || icons[0]}" required>
+                            <div class="icon-selector">
+                                ${icons.map(icon => `
+                                    <div class="icon-option ${style?.icon === icon ? 'selected' : ''}" 
+                                         data-icon="${icon}" onclick="this.parentNode.parentNode.querySelector('#styleIcon').value='${icon}'; this.parentNode.querySelectorAll('.icon-option').forEach(el => el.classList.remove('selected')); this.classList.add('selected');">
+                                        ${icon}
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label for="styleEquipment">Equipment Needed (comma-separated)</label>
-                            <input type="text" id="styleEquipment" name="equipment_needed" 
-                                   value="${style?.equipment_needed?.join(', ') || ''}" 
-                                   placeholder="e.g., None, Comfortable shoes, Dance mat">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="styleMusicGenres">Music Genres (comma-separated)</label>
-                            <input type="text" id="styleMusicGenres" name="music_genres" 
-                                   value="${style?.music_genres?.join(', ') || ''}" 
-                                   placeholder="e.g., Hip-Hop, R&B, Pop">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="styleKeyCharacteristics">Key Characteristics (comma-separated)</label>
-                            <input type="text" id="styleKeyCharacteristics" name="key_characteristics" 
-                                   value="${style?.key_characteristics?.join(', ') || ''}" 
-                                   placeholder="e.g., Sharp movements, Rhythmic, High energy">
+                            <label for="styleColor">Color *</label>
+                            <input type="hidden" id="styleColor" name="color" value="${style?.color || colors[0]}" required>
+                            <div class="color-selector">
+                                ${colors.map(color => `
+                                    <div class="color-option ${style?.color === color ? 'selected' : ''}" 
+                                         data-color="${color}" 
+                                         style="background-color: ${color};"
+                                         onclick="this.parentNode.parentNode.querySelector('#styleColor').value='${color}'; this.parentNode.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected')); this.classList.add('selected');">
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -599,30 +492,6 @@ class DanceStyleManager {
             });
         }
         
-        // Icon selector
-        const iconOptions = modal.querySelectorAll('.icon-option');
-        const iconInput = modal.querySelector('#styleIcon');
-        
-        iconOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                iconOptions.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                iconInput.value = option.dataset.icon;
-            });
-        });
-        
-        // Color selector
-        const colorOptions = modal.querySelectorAll('.color-option');
-        const colorInput = modal.querySelector('#styleColor');
-        
-        colorOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                colorOptions.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                colorInput.value = option.dataset.color;
-            });
-        });
-        
         // Close modal on overlay click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -644,7 +513,7 @@ class DanceStyleManager {
         document.addEventListener('keydown', handleEscape);
     }
 
-    // Save style form
+    // Save style form - SIMPLIFIED
     async saveStyleForm(mode, styleId) {
         try {
             const form = document.getElementById('styleForm');
@@ -652,138 +521,77 @@ class DanceStyleManager {
             
             const formData = new FormData(form);
             
-            // Process equipment, music genres, and characteristics arrays
-            const equipmentNeeded = formData.get('equipment_needed') 
-                ? formData.get('equipment_needed').split(',').map(item => item.trim()).filter(item => item)
-                : [];
-                
-            const musicGenres = formData.get('music_genres')
-                ? formData.get('music_genres').split(',').map(item => item.trim()).filter(item => item)
-                : [];
-                
-            const keyCharacteristics = formData.get('key_characteristics')
-                ? formData.get('key_characteristics').split(',').map(item => item.trim()).filter(item => item)
-                : [];
-            
             const styleData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 icon: formData.get('icon'),
-                color: formData.get('color'),
-                origin: formData.get('origin'),
-                cultural_origin: formData.get('origin'), // Map to both fields
-                difficulty_level: formData.get('difficulty_level'),
-                display_order: parseInt(formData.get('display_order')) || 0,
-                is_featured: formData.get('is_featured') === 'on',
-                estimated_duration: parseInt(formData.get('estimated_duration')) || 30,
-                equipment_needed: equipmentNeeded,
-                music_genres: musicGenres,
-                key_characteristics: keyCharacteristics
+                color: formData.get('color')
             };
             
             // Validate required fields
-            if (!styleData.name || !styleData.description) {
-                throw new Error('Name and description are required');
+            if (!styleData.name || !styleData.description || !styleData.icon || !styleData.color) {
+                throw new Error('All fields are required');
             }
             
             let response;
             
             if (mode === 'create') {
-                // Create new style
-                if (this.api && typeof this.api.createDanceStyle === 'function') {
-                    response = await this.api.createDanceStyle(styleData);
-                } else if (this.api && typeof this.api.request === 'function') {
-                    response = await this.api.request('POST', '/admin/dance-styles', styleData);
-                } else {
-                    throw new Error('No API client available');
-                }
-                
-                if (response && response.success) {
-                    this.danceStyles.push(response.data);
-                    this.showSuccessMessage('Dance style created successfully');
-                    console.log('Dance style created:', response.data);
-                } else {
-                    throw new Error(response?.error || 'Failed to create dance style');
-                }
+                response = await fetch('/api/admin/dance-styles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(styleData)
+                });
             } else {
-                // Update existing style
-                if (this.api && typeof this.api.updateDanceStyle === 'function') {
-                    response = await this.api.updateDanceStyle(styleId, styleData);
-                } else if (this.api && typeof this.api.request === 'function') {
-                    response = await this.api.request('PUT', `/admin/dance-styles/${styleId}`, styleData);
-                } else {
-                    throw new Error('No API client available');
-                }
-                
-                if (response && response.success) {
-                    // Update local data
-                    const index = this.danceStyles.findIndex(s => s.id === styleId);
-                    if (index !== -1) {
-                        this.danceStyles[index] = { ...this.danceStyles[index], ...response.data };
-                    }
-                    this.showSuccessMessage('Dance style updated successfully');
-                    console.log('Dance style updated:', response.data);
-                } else {
-                    throw new Error(response?.error || 'Failed to update dance style');
-                }
+                response = await fetch(`/api/admin/dance-styles/${styleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(styleData)
+                });
             }
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || `Failed to ${mode} dance style`);
+            }
+            
+            this.showSuccessMessage(`Dance style ${mode === 'create' ? 'created' : 'updated'} successfully!`);
             
             // Close modal and refresh
             const modal = document.querySelector('.modal-overlay');
             if (modal) modal.remove();
             
-            this.renderDanceStyles();
-            this.updateStyleStats();
+            await this.loadDanceStyles();
             
         } catch (error) {
-            console.error('Error saving dance style:', error);
-            this.showErrorMessage('Failed to save dance style: ' + error.message);
+            console.error(`Error ${mode}ing dance style:`, error);
+            this.showErrorMessage(error.message);
         }
     }
 
     // Delete dance style
-    async deleteStyle(styleId) {
-        const style = this.danceStyles.find(s => s.id === styleId);
-        if (!style) {
-            this.showErrorMessage('Dance style not found');
-            return;
-        }
-        
-        if (!confirm(`Are you sure you want to delete "${style.name}"? This action cannot be undone.`)) {
+    async deleteStyle(styleId, styleName) {
+        if (!confirm(`Are you sure you want to delete "${styleName}"? This action cannot be undone.`)) {
             return;
         }
         
         try {
-            // Call API to delete
-            if (this.api && typeof this.api.deleteDanceStyle === 'function') {
-                const response = await this.api.deleteDanceStyle(styleId);
-                if (response && response.success) {
-                    console.log('Dance style deleted via API');
-                } else {
-                    throw new Error(response?.error || 'Failed to delete dance style');
-                }
-            } else if (this.api && typeof this.api.request === 'function') {
-                const response = await this.api.request('DELETE', `/admin/dance-styles/${styleId}`);
-                if (response && response.success) {
-                    console.log('Dance style deleted via API');
-                } else {
-                    throw new Error(response?.error || 'Failed to delete dance style');
-                }
-            } else {
-                throw new Error('No API client available');
+            const response = await fetch(`/api/admin/dance-styles/${styleId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to delete dance style');
             }
             
-            // Remove from local array
-            this.danceStyles = this.danceStyles.filter(s => s.id !== styleId);
-            this.selectedStyles.delete(styleId);
-            
-            this.showSuccessMessage('Dance style deleted successfully');
-            this.renderDanceStyles();
-            this.updateStyleStats();
+            this.showSuccessMessage(`Dance style "${styleName}" deleted successfully!`);
+            await this.loadDanceStyles();
             
         } catch (error) {
             console.error('Error deleting dance style:', error);
-            this.showErrorMessage('Failed to delete dance style: ' + error.message);
+            this.showErrorMessage(error.message);
         }
     }
 
@@ -835,49 +643,9 @@ class DanceStyleManager {
 
     // Show message
     showMessage(message, type = 'info') {
-        const messageContainer = document.getElementById('messageContainer') || document.body;
-        
-        const messageEl = document.createElement('div');
-        messageEl.className = `message message-${type}`;
-        
-        const iconMap = {
-            success: 'Success',
-            error: 'Error',
-            warning: 'Warning',
-            info: 'Info'
-        };
-        
-        messageEl.innerHTML = `
-            <span class="message-icon">${iconMap[type] || iconMap.info}</span>
-            <span class="message-text">${message}</span>
-            <button class="message-close" onclick="this.parentElement.remove()">×</button>
-        `;
-        
-        messageEl.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 500;
-            z-index: 10000;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
-        `;
-        
-        messageContainer.appendChild(messageEl);
-        
-        setTimeout(() => {
-            if (messageEl.parentNode) {
-                messageEl.parentNode.removeChild(messageEl);
-            }
-        }, 5000);
+        console.log(`${type.toUpperCase()}: ${message}`);
+        // Simple alert for now - you can implement toast notifications later
+        alert(message);
     }
 }
 
