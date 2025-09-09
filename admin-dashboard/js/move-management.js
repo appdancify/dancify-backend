@@ -299,65 +299,7 @@ class MoveManager {
 
     // Generate sample moves for development
     generateSampleMoves() {
-        return [
-            {
-                id: 'move-sample-1',
-                name: 'Hip Hop Basic Step',
-                description: 'Foundation move for hip hop dancing with rhythm and style',
-                detailed_instructions: 'Step to the right, bring left foot to meet right, step left, bring right foot to meet left. Add bounce and attitude.',
-                dance_style: 'hip-hop',
-                section: 'Basic Steps',
-                subsection: 'Foundation',
-                difficulty: 'beginner',
-                xp_reward: 25,
-                video_url: 'https://youtube.com/watch?v=example1',
-                thumbnail_url: 'https://img.youtube.com/vi/example1/maxresdefault.jpg',
-                view_count: 1250,
-                rating: 4.5,
-                rating_count: 89,
-                is_active: true,
-                created_at: '2024-01-15T10:00:00Z',
-                updated_at: '2024-01-15T10:00:00Z'
-            },
-            {
-                id: 'move-sample-2',
-                name: 'Pirouette',
-                description: 'Classic ballet turn executed on one foot with grace and control',
-                detailed_instructions: 'Start in fourth position, plié deeply, push off back foot while rising to relevé on supporting leg.',
-                dance_style: 'ballet',
-                section: 'Turns',
-                subsection: 'Single Turns',
-                difficulty: 'intermediate',
-                xp_reward: 75,
-                video_url: 'https://youtube.com/watch?v=example2',
-                thumbnail_url: 'https://img.youtube.com/vi/example2/maxresdefault.jpg',
-                view_count: 890,
-                rating: 4.8,
-                rating_count: 45,
-                is_active: true,
-                created_at: '2024-01-16T14:30:00Z',
-                updated_at: '2024-01-16T14:30:00Z'
-            },
-            {
-                id: 'move-sample-3',
-                name: 'Windmill',
-                description: 'Advanced breakdancing power move requiring core strength',
-                detailed_instructions: 'Start in freeze position, sweep leg around while spinning on back/shoulders.',
-                dance_style: 'breakdance',
-                section: 'Power Moves',
-                subsection: 'Advanced Power',
-                difficulty: 'expert',
-                xp_reward: 150,
-                video_url: 'https://youtube.com/watch?v=example3',
-                thumbnail_url: 'https://img.youtube.com/vi/example3/maxresdefault.jpg',
-                view_count: 2340,
-                rating: 4.9,
-                rating_count: 156,
-                is_active: true,
-                created_at: '2024-01-17T09:15:00Z',
-                updated_at: '2024-01-17T09:15:00Z'
-            }
-        ];
+        return [];
     }
 
     // Render moves grid
