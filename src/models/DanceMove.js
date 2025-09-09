@@ -88,12 +88,38 @@ class DanceMove {
 
   // Update move
   static async update(id, updateData) {
+    // Build update object with only valid database fields
+    const updateFields = {};
+    
+    // Map camelCase fields to snake_case database fields
+    if (updateData.name !== undefined) updateFields.name = updateData.name;
+    if (updateData.videoId !== undefined) updateFields.video_id = updateData.videoId;
+    if (updateData.videoUrl !== undefined) updateFields.video_url = updateData.videoUrl;
+    if (updateData.thumbnailUrl !== undefined) updateFields.thumbnail_url = updateData.thumbnailUrl;
+    if (updateData.description !== undefined) updateFields.description = updateData.description;
+    if (updateData.detailedInstructions !== undefined) updateFields.detailed_instructions = updateData.detailedInstructions;
+    if (updateData.danceStyle !== undefined) updateFields.dance_style = updateData.danceStyle;
+    if (updateData.section !== undefined) updateFields.section = updateData.section;
+    if (updateData.subsection !== undefined) updateFields.subsection = updateData.subsection;
+    if (updateData.difficulty !== undefined) updateFields.difficulty = updateData.difficulty;
+    if (updateData.levelRequired !== undefined) updateFields.level_required = updateData.levelRequired;
+    if (updateData.xpReward !== undefined) updateFields.xp_reward = updateData.xpReward;
+    if (updateData.estimatedDuration !== undefined) updateFields.estimated_duration = updateData.estimatedDuration;
+    if (updateData.equipment !== undefined) updateFields.equipment = updateData.equipment;
+    if (updateData.moveType !== undefined) updateFields.move_type = updateData.moveType;
+    if (updateData.targetRepetitions !== undefined) updateFields.target_repetitions = updateData.targetRepetitions;
+    if (updateData.recordingTimeLimit !== undefined) updateFields.recording_time_limit = updateData.recordingTimeLimit;
+    if (updateData.keyTechniques !== undefined) updateFields.key_techniques = updateData.keyTechniques;
+    if (updateData.prerequisites !== undefined) updateFields.prerequisites = updateData.prerequisites;
+    if (updateData.instructorId !== undefined) updateFields.instructor_id = updateData.instructorId;
+    if (updateData.instructorName !== undefined) updateFields.instructor_name = updateData.instructorName;
+    
+    // Always update the timestamp
+    updateFields.updated_at = new Date().toISOString();
+
     const { data, error } = await supabaseAdmin
       .from('dance_moves')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateFields)
       .eq('id', id)
       .eq('is_active', true)
       .select()

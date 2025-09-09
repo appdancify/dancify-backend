@@ -159,8 +159,8 @@ class AdminController {
     try {
       const moveData = req.body;
 
-      // Validate required fields
-      const requiredFields = ['name', 'description', 'detailedInstructions', 'danceStyle', 'section', 'subsection', 'difficulty'];
+      // Validate required fields (using frontend field names)
+      const requiredFields = ['name', 'description', 'detailed_instructions', 'dance_style', 'section', 'difficulty'];
       const missingFields = requiredFields.filter(field => !moveData[field]);
 
       if (missingFields.length > 0) {
@@ -171,16 +171,39 @@ class AdminController {
         });
       }
 
+      // Map frontend field names to backend field names
+      const mappedMoveData = {
+        name: moveData.name,
+        description: moveData.description,
+        detailedInstructions: moveData.detailed_instructions,
+        danceStyle: moveData.dance_style,
+        section: moveData.section,
+        subsection: moveData.subsection,
+        difficulty: moveData.difficulty,
+        xpReward: moveData.xp_reward || 50,
+        videoUrl: moveData.video_url,
+        levelRequired: moveData.level_required || 1,
+        estimatedDuration: moveData.estimated_duration || 10,
+        equipment: moveData.equipment || [],
+        moveType: moveData.move_type || 'time',
+        targetRepetitions: moveData.target_repetitions,
+        recordingTimeLimit: moveData.recording_time_limit,
+        keyTechniques: moveData.key_techniques || [],
+        prerequisites: moveData.prerequisites || [],
+        instructorId: moveData.instructor_id,
+        instructorName: moveData.instructor_name
+      };
+
       // Extract and validate YouTube video
-      if (moveData.videoUrl) {
-        const videoId = DanceMove.extractYouTubeId(moveData.videoUrl);
+      if (mappedMoveData.videoUrl) {
+        const videoId = DanceMove.extractYouTubeId(mappedMoveData.videoUrl);
         if (videoId) {
-          moveData.videoId = videoId;
-          moveData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
+          mappedMoveData.videoId = videoId;
+          mappedMoveData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
         }
       }
 
-      const newMove = await DanceMove.create(moveData);
+      const newMove = await DanceMove.create(mappedMoveData);
 
       res.status(201).json({
         success: true,
@@ -203,16 +226,44 @@ class AdminController {
       const { id } = req.params;
       const updateData = req.body;
 
+      // Map frontend field names to backend field names
+      const mappedUpdateData = {
+        name: updateData.name,
+        description: updateData.description,
+        detailedInstructions: updateData.detailed_instructions,
+        danceStyle: updateData.dance_style,
+        section: updateData.section,
+        subsection: updateData.subsection,
+        difficulty: updateData.difficulty,
+        xpReward: updateData.xp_reward,
+        videoUrl: updateData.video_url,
+        levelRequired: updateData.level_required,
+        estimatedDuration: updateData.estimated_duration,
+        equipment: updateData.equipment,
+        moveType: updateData.move_type,
+        targetRepetitions: updateData.target_repetitions,
+        recordingTimeLimit: updateData.recording_time_limit,
+        keyTechniques: updateData.key_techniques,
+        prerequisites: updateData.prerequisites,
+        instructorId: updateData.instructor_id,
+        instructorName: updateData.instructor_name
+      };
+
+      // Remove undefined values
+      Object.keys(mappedUpdateData).forEach(key => {
+        if (mappedUpdateData[key] === undefined) delete mappedUpdateData[key];
+      });
+
       // Handle video URL updates
-      if (updateData.videoUrl) {
-        const videoId = DanceMove.extractYouTubeId(updateData.videoUrl);
+      if (mappedUpdateData.videoUrl) {
+        const videoId = DanceMove.extractYouTubeId(mappedUpdateData.videoUrl);
         if (videoId) {
-          updateData.videoId = videoId;
-          updateData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
+          mappedUpdateData.videoId = videoId;
+          mappedUpdateData.thumbnailUrl = DanceMove.generateThumbnailUrl(videoId);
         }
       }
 
-      const updatedMove = await DanceMove.update(id, updateData);
+      const updatedMove = await DanceMove.update(id, mappedUpdateData);
 
       if (!updatedMove) {
         return res.status(404).json({
