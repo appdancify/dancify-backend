@@ -139,6 +139,257 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ADMIN ENDPOINTS - Direct implementation to avoid import issues
+
+// Dance Styles Admin Endpoints
+app.get('/api/admin/dance-styles', async (req, res) => {
+  try {
+    console.log('🎭 Fetching admin dance styles...');
+    
+    const { includeStats = 'true' } = req.query;
+    
+    // Get all dance styles (admin sees all, including inactive)
+    const { data: styles, error } = await supabase
+      .from('dance_styles')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+
+    let stylesWithStats = styles || [];
+
+    // Include stats if requested
+    if (includeStats === 'true' && styles && styles.length > 0) {
+      stylesWithStats = await Promise.all(
+        styles.map(async (style) => {
+          try {
+            // Get move count
+            const { count: moveCount } = await supabase
+              .from('dance_moves')
+              .select('*', { count: 'exact', head: true })
+              .eq('dance_style', style.name)
+              .eq('is_active', true);
+
+            // Get submission count (if submissions table exists)
+            let submissionCount = 0;
+            try {
+              const { count } = await supabase
+                .from('move_submissions')
+                .select('*', { count: 'exact', head: true })
+                .eq('dance_style', style.name);
+              submissionCount = count || 0;
+            } catch (submissionError) {
+              // Submissions table might not exist yet
+              console.log('Submissions table not found, setting count to 0');
+            }
+
+            // Get average rating (if submissions exist)
+            let averageRating = 0;
+            try {
+              const { data: submissions } = await supabase
+                .from('move_submissions')
+                .select('rating')
+                .eq('dance_style', style.name)
+                .not('rating', 'is', null);
+
+              if (submissions && submissions.length > 0) {
+                averageRating = submissions.reduce((sum, sub) => sum + sub.rating, 0) / submissions.length;
+                averageRating = Math.round(averageRating * 10) / 10;
+              }
+            } catch (ratingError) {
+              // Handle case where submissions table doesn't exist
+              console.log('Could not fetch ratings, setting to 0');
+            }
+
+            return {
+              ...style,
+              stats: {
+                moveCount: moveCount || 0,
+                submissionCount,
+                averageRating
+              }
+            };
+          } catch (statsError) {
+            console.error(`Error getting stats for style ${style.name}:`, statsError);
+            return {
+              ...style,
+              stats: {
+                moveCount: 0,
+                submissionCount: 0,
+                averageRating: 0
+              }
+            };
+          }
+        })
+      );
+    }
+
+    console.log(`✅ Found ${stylesWithStats.length} dance styles`);
+    
+    res.json({
+      success: true,
+      data: stylesWithStats,
+      count: stylesWithStats.length,
+      message: `Found ${stylesWithStats.length} dance styles`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching dance styles:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch dance styles',
+      data: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/api/admin/dance-styles', async (req, res) => {
+  try {
+    console.log('🆕 Creating new dance style:', req.body);
+    
+    const {
+      name, description, icon, color, origin, difficulty_level,
+      display_order, is_featured, cultural_origin, music_genres,
+      key_characteristics, estimated_duration, equipment_needed
+    } = req.body;
+
+    if (!name || !description) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['name', 'description']
+      });
+    }
+
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
+
+    const { data, error } = await supabase
+      .from('dance_styles')
+      .insert([{
+        name,
+        slug,
+        description,
+        icon: icon || '💃',
+        color: color || '#8A2BE2',
+        origin: origin || cultural_origin,
+        difficulty_level: difficulty_level || 'beginner',
+        display_order: display_order || 0,
+        is_featured: is_featured || false,
+        cultural_origin: cultural_origin || origin,
+        music_genres: music_genres || [],
+        key_characteristics: key_characteristics || [],
+        estimated_duration: estimated_duration || 30,
+        equipment_needed: equipment_needed || []
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Dance style created successfully:', data.id);
+
+    res.status(201).json({
+      success: true,
+      data: data,
+      message: 'Dance style created successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error creating dance style:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to create dance style',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.put('/api/admin/dance-styles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    console.log('📝 Updating dance style:', id);
+
+    // If name is being updated, update slug too
+    if (updateData.name) {
+      updateData.slug = updateData.name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
+    }
+
+    const { data, error } = await supabase
+      .from('dance_styles')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Dance style not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log('✅ Dance style updated successfully:', id);
+
+    res.json({
+      success: true,
+      data: data,
+      message: 'Dance style updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error updating dance style:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update dance style',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.delete('/api/admin/dance-styles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🗑️ Deleting dance style:', id);
+
+    // Soft delete by setting is_active to false
+    const { error } = await supabase
+      .from('dance_styles')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    console.log('✅ Dance style deleted successfully:', id);
+
+    res.json({
+      success: true,
+      message: 'Dance style deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error deleting dance style:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete dance style',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Dance Moves Admin Endpoints
 app.get('/api/admin/moves', async (req, res) => {
   try {
     console.log('🔍 Fetching admin moves...');
@@ -326,6 +577,7 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
   }
 });
 
+// Dashboard and Analytics Endpoints
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
     console.log('📊 Fetching dashboard data...');
@@ -333,7 +585,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
     const [movesResult, stylesResult, submissionsResult] = await Promise.all([
       supabase.from('dance_moves').select('id', { count: 'exact' }).eq('is_active', true),
       supabase.from('dance_styles').select('id', { count: 'exact' }).eq('is_active', true),
-      supabase.from('move_submissions').select('id', { count: 'exact' })
+      supabase.from('move_submissions').select('id', { count: 'exact' }).catch(() => ({ count: 0 }))
     ]);
 
     const { data: recentMoves } = await supabase
@@ -408,7 +660,7 @@ app.get('/api/admin/analytics', async (req, res) => {
   }
 });
 
-// Load only the working routers (NOT admin router)
+// Load public API routers
 try {
   const movesRouter = require('./src/routes/moves');
   app.use('/api/moves', movesRouter);
@@ -433,8 +685,8 @@ try {
   console.error('❌ Error loading submissions router:', error);
 }
 
-// DO NOT LOAD ADMIN ROUTER - it has browser code that breaks the server
-console.log('⚠️ Admin router skipped due to browser code in server file');
+// Admin endpoints are implemented directly above to avoid router import issues
+console.log('✅ Admin endpoints implemented directly in server.js');
 
 // Static routes
 app.get('/admin', (req, res) => {
@@ -455,7 +707,7 @@ app.get('/', (req, res) => {
     status: 'running',
     admin_dashboard: '/admin',
     environment: process.env.NODE_ENV || 'development',
-    note: 'Admin endpoints implemented directly due to router issues'
+    note: 'Admin endpoints implemented directly in server.js'
   });
 });
 
@@ -467,7 +719,8 @@ app.get('/api', (req, res) => {
       health: '/api/health',
       moves: '/api/moves',
       admin: '/api/admin',
-      submissions: '/api/submissions'
+      submissions: '/api/submissions',
+      'dance-styles': '/api/dance-styles'
     }
   });
 });
@@ -514,5 +767,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
-  console.log(`✅ Server started successfully without problematic admin router`);
+  console.log(`✅ Server started successfully with admin endpoints`);
 });
