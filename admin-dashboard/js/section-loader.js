@@ -124,7 +124,20 @@ class DancifySectionLoader {
 
     async performSectionLoad(sectionName) {
         const config = this.sectionConfig[sectionName];
-        await this.loadSectionHTML(sectionName, config.htmlFile);
+        
+        try {
+            // Try to load HTML file first
+            await this.loadSectionHTML(sectionName, config.htmlFile);
+        } catch (htmlError) {
+            console.warn(`⚠️ HTML loading failed for ${sectionName}, using fallback content`);
+            // Use fallback content for dance-style-management
+            if (sectionName === 'dance-style-management') {
+                this.createDanceStyleManagementFallback(sectionName);
+            } else {
+                throw htmlError;
+            }
+        }
+        
         await this.initializeSectionFunctionality(sectionName);
         this.activateSection(sectionName);
         this.loadedSections.add(sectionName);
@@ -133,13 +146,86 @@ class DancifySectionLoader {
         return true;
     }
 
+    // Fallback content for dance style management
+    createDanceStyleManagementFallback(sectionName) {
+        console.log(`📝 Creating fallback content for ${sectionName}`);
+        
+        this.removeDuplicateSections(sectionName);
+        
+        let sectionElement = document.getElementById(sectionName);
+        if (!sectionElement) {
+            sectionElement = document.createElement('section');
+            sectionElement.id = sectionName;
+            sectionElement.className = 'content-section';
+            
+            const contentContainer = document.querySelector('.content-container');
+            if (contentContainer) {
+                contentContainer.appendChild(sectionElement);
+            }
+        }
+        
+        sectionElement.innerHTML = `
+            <!-- Section Header -->
+            <div class="section-header">
+                <div class="header-content">
+                    <h1>🎭 Dance Style Management</h1>
+                    <p>Manage dance styles, categories, and hierarchical organization</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="refreshStylesBtn">
+                        🔄 Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="window.danceStyleManager?.showCreateStyleModal()">
+                        ➕ Create Dance Style
+                    </button>
+                </div>
+            </div>
+
+            <!-- Management Controls -->
+            <div class="management-controls">
+                <div class="search-section">
+                    <input type="text" id="styleSearch" placeholder="🔍 Search dance styles..." class="form-control">
+                </div>
+                <div class="quick-stats">
+                    <div class="quick-stat">
+                        <span class="stat-number" id="totalStyles">0</span>
+                        <span class="stat-label">Styles</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="stat-number" id="totalCategories">0</span>
+                        <span class="stat-label">Featured</span>
+                    </div>
+                    <div class="quick-stat">
+                        <span class="stat-number" id="totalMoves">0</span>
+                        <span class="stat-label">Total Moves</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dance Styles Container -->
+            <div class="styles-container">
+                <div id="danceStylesGrid" class="styles-grid">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Loading dance styles...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Container -->
+            <div id="messageContainer" class="message-container"></div>
+        `;
+        
+        console.log(`📄 Fallback content created for ${sectionName}`);
+    }
+
     async loadSectionHTML(sectionName, htmlFile) {
         try {
             console.log(`📄 Loading HTML: ${htmlFile}`);
             
             const response = await fetch(htmlFile);
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             const html = await response.text();
