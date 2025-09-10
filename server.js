@@ -138,16 +138,15 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ADMIN ENDPOINTS - Direct implementation to avoid import issues
+// ADMIN ENDPOINTS
 
-// Dance Styles Admin Endpoints - FIXED FOR ACTUAL DATABASE SCHEMA
+// Dance Styles Admin Endpoints
 app.get('/api/admin/dance-styles', async (req, res) => {
   try {
-    console.log('🎭 Fetching admin dance styles...');
+    console.log('Fetching admin dance styles...');
     
     const { includeStats = 'true' } = req.query;
     
-    // Get all dance styles (admin sees all, including inactive)
     const { data: styles, error } = await supabase
       .from('dance_styles')
       .select('*')
@@ -157,19 +156,16 @@ app.get('/api/admin/dance-styles', async (req, res) => {
 
     let stylesWithStats = styles || [];
 
-    // Include stats if requested
     if (includeStats === 'true' && styles && styles.length > 0) {
       stylesWithStats = await Promise.all(
         styles.map(async (style) => {
           try {
-            // Get move count
             const { count: moveCount } = await supabase
               .from('dance_moves')
               .select('*', { count: 'exact', head: true })
               .eq('dance_style', style.name)
               .eq('is_active', true);
 
-            // Get submission count (if submissions table exists)
             let submissionCount = 0;
             try {
               const { count } = await supabase
@@ -181,7 +177,6 @@ app.get('/api/admin/dance-styles', async (req, res) => {
               console.log('Submissions table not found, setting count to 0');
             }
 
-            // Get average rating (if submissions exist)
             let averageRating = 0;
             try {
               const { data: submissions } = await supabase
@@ -221,7 +216,7 @@ app.get('/api/admin/dance-styles', async (req, res) => {
       );
     }
 
-    console.log(`✅ Found ${stylesWithStats.length} dance styles`);
+    console.log(`Found ${stylesWithStats.length} dance styles`);
     
     res.json({
       success: true,
@@ -231,7 +226,7 @@ app.get('/api/admin/dance-styles', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error fetching dance styles:', error);
+    console.error('Error fetching dance styles:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch dance styles',
@@ -241,14 +236,12 @@ app.get('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
-// FIXED CREATE ENDPOINT - Only uses columns that exist in database
 app.post('/api/admin/dance-styles', async (req, res) => {
   try {
-    console.log('🆕 Creating new dance style:', req.body);
+    console.log('Creating new dance style:', req.body);
     
     const { name, description, icon, color } = req.body;
 
-    // Validate required fields - only the 4 essential ones
     if (!name || !description || !icon || !color) {
       return res.status(400).json({
         success: false,
@@ -257,7 +250,6 @@ app.post('/api/admin/dance-styles', async (req, res) => {
       });
     }
 
-    // Create dance style with ONLY the fields that exist in the database
     const { data, error } = await supabase
       .from('dance_styles')
       .insert([{
@@ -265,16 +257,13 @@ app.post('/api/admin/dance-styles', async (req, res) => {
         description,
         icon,
         color
-        // Only insert fields that actually exist in the database schema
-        // Removed: slug, origin, difficulty_level, display_order, is_featured, 
-        // cultural_origin, music_genres, key_characteristics, estimated_duration, equipment_needed
       }])
       .select()
       .single();
 
     if (error) throw error;
 
-    console.log('✅ Dance style created successfully:', data.id);
+    console.log('Dance style created successfully:', data.id);
 
     res.status(201).json({
       success: true,
@@ -283,7 +272,7 @@ app.post('/api/admin/dance-styles', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error creating dance style:', error);
+    console.error('Error creating dance style:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to create dance style',
@@ -292,24 +281,20 @@ app.post('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
-// FIXED UPDATE ENDPOINT - Only updates fields that exist
 app.put('/api/admin/dance-styles/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, icon, color } = req.body;
     
-    console.log('📝 Updating dance style:', id);
+    console.log('Updating dance style:', id);
 
-    // Prepare update data with only fields that exist in database
     const updateData = {};
 
-    // Only update provided fields that exist in the database
     if (name) updateData.name = name;
     if (description) updateData.description = description;
     if (icon) updateData.icon = icon;
     if (color) updateData.color = color;
 
-    // Add updated_at if it exists in schema
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -329,7 +314,7 @@ app.put('/api/admin/dance-styles/:id', async (req, res) => {
       });
     }
 
-    console.log('✅ Dance style updated successfully:', id);
+    console.log('Dance style updated successfully:', id);
 
     res.json({
       success: true,
@@ -338,7 +323,7 @@ app.put('/api/admin/dance-styles/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error updating dance style:', error);
+    console.error('Error updating dance style:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update dance style',
@@ -351,9 +336,8 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log('🗑️ Deleting dance style:', id);
+    console.log('Deleting dance style:', id);
 
-    // Try soft delete first (if is_active column exists)
     const { error: softDeleteError } = await supabase
       .from('dance_styles')
       .update({
@@ -362,7 +346,6 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
       })
       .eq('id', id);
 
-    // If soft delete fails (column doesn't exist), do hard delete
     if (softDeleteError) {
       console.log('Soft delete failed, attempting hard delete:', softDeleteError.message);
       
@@ -374,7 +357,7 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
       if (hardDeleteError) throw hardDeleteError;
     }
 
-    console.log('✅ Dance style deleted successfully:', id);
+    console.log('Dance style deleted successfully:', id);
 
     res.json({
       success: true,
@@ -382,7 +365,7 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error deleting dance style:', error);
+    console.error('Error deleting dance style:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to delete dance style',
@@ -391,10 +374,10 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
   }
 });
 
-// Dance Moves Admin Endpoints - FIXED TO REMOVE SLUG
+// Dance Moves Admin Endpoints
 app.get('/api/admin/moves', async (req, res) => {
   try {
-    console.log('🔍 Fetching admin moves...');
+    console.log('Fetching admin moves...');
     
     const { data, error } = await supabase
       .from('dance_moves')
@@ -404,7 +387,7 @@ app.get('/api/admin/moves', async (req, res) => {
 
     if (error) throw error;
 
-    console.log(`✅ Found ${data?.length || 0} moves`);
+    console.log(`Found ${data?.length || 0} moves`);
     
     res.json({
       success: true,
@@ -414,7 +397,7 @@ app.get('/api/admin/moves', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error fetching moves:', error);
+    console.error('Error fetching moves:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch dance moves',
@@ -424,17 +407,14 @@ app.get('/api/admin/moves', async (req, res) => {
   }
 });
 
-// FIXED MOVE CREATION - REMOVED SLUG FIELD
+// COMPLETELY FIXED MOVE CREATION - NO SLUG FIELD
 app.post('/api/admin/moves', async (req, res) => {
   try {
-    console.log('🆕 Creating new move:', req.body);
+    console.log('Creating new move:', req.body);
     
     const {
       name, video_url, description, detailed_instructions, dance_style,
-      section, subsection, difficulty, level_required, xp_reward,
-      estimated_duration, equipment, move_type, target_repetitions,
-      recording_time_limit, key_techniques, prerequisites,
-      instructor_id, instructor_name
+      section, subsection, difficulty, xp_reward
     } = req.body;
 
     if (!name || !description || !detailed_instructions || !dance_style || !section || !difficulty) {
@@ -445,43 +425,42 @@ app.post('/api/admin/moves', async (req, res) => {
       });
     }
 
+    // Extract YouTube video ID if URL provided
     const videoId = video_url ? extractYouTubeId(video_url) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
-    // Create move with only fields that exist in the database - NO SLUG
+    // Insert data with ONLY fields that exist in database
+    const insertData = {
+      name,
+      description,
+      detailed_instructions,
+      dance_style,
+      section,
+      difficulty,
+      xp_reward: xp_reward || 50,
+      is_active: true
+    };
+
+    // Add optional fields only if they have values
+    if (video_url) insertData.video_url = video_url;
+    if (videoId) insertData.video_id = videoId;
+    if (thumbnailUrl) insertData.thumbnail_url = thumbnailUrl;
+    if (subsection) insertData.subsection = subsection;
+
+    console.log('About to insert move data:', insertData);
+
     const { data, error } = await supabase
       .from('dance_moves')
-      .insert([{
-        name,
-        video_id: videoId,
-        video_url,
-        thumbnail_url: thumbnailUrl,
-        description,
-        detailed_instructions,
-        dance_style,
-        section,
-        subsection,
-        difficulty,
-        level_required: level_required || 1,
-        xp_reward: xp_reward || 50,
-        estimated_duration: estimated_duration || 10,
-        equipment: equipment || [],
-        move_type: move_type || 'time',
-        target_repetitions,
-        recording_time_limit,
-        key_techniques: key_techniques || [],
-        prerequisites: prerequisites || [],
-        instructor_id,
-        instructor_name,
-        is_active: true
-        // REMOVED: slug field that doesn't exist in database
-      }])
+      .insert([insertData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
 
-    console.log('✅ Move created successfully:', data.id);
+    console.log('Move created successfully:', data.id);
 
     res.status(201).json({
       success: true,
@@ -490,7 +469,7 @@ app.post('/api/admin/moves', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error creating move:', error);
+    console.error('Error creating move:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to create move',
@@ -504,7 +483,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
     
-    console.log('📝 Updating move:', id);
+    console.log('Updating move:', id);
 
     if (updateData.video_url) {
       const videoId = extractYouTubeId(updateData.video_url);
@@ -532,7 +511,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       });
     }
 
-    console.log('✅ Move updated successfully:', id);
+    console.log('Move updated successfully:', id);
 
     res.json({
       success: true,
@@ -541,7 +520,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error updating move:', error);
+    console.error('Error updating move:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update move',
@@ -554,7 +533,7 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log('🗑️ Deleting move:', id);
+    console.log('Deleting move:', id);
 
     const { error } = await supabase
       .from('dance_moves')
@@ -566,7 +545,7 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
 
     if (error) throw error;
 
-    console.log('✅ Move deleted successfully:', id);
+    console.log('Move deleted successfully:', id);
 
     res.json({
       success: true,
@@ -574,7 +553,7 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error deleting move:', error);
+    console.error('Error deleting move:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to delete move',
@@ -586,12 +565,11 @@ app.delete('/api/admin/moves/:id', async (req, res) => {
 // Dashboard and Analytics Endpoints
 app.get('/api/admin/dashboard', async (req, res) => {
   try {
-    console.log('📊 Fetching dashboard data...');
+    console.log('Fetching dashboard data...');
 
-    const [movesResult, stylesResult, submissionsResult] = await Promise.all([
+    const [movesResult, stylesResult] = await Promise.all([
       supabase.from('dance_moves').select('id', { count: 'exact' }).eq('is_active', true),
-      supabase.from('dance_styles').select('id', { count: 'exact' }),
-      supabase.from('move_submissions').select('id', { count: 'exact' }).catch(() => ({ count: 0 }))
+      supabase.from('dance_styles').select('id', { count: 'exact' })
     ]);
 
     const { data: recentMoves } = await supabase
@@ -607,14 +585,14 @@ app.get('/api/admin/dashboard', async (req, res) => {
         stats: {
           totalMoves: movesResult.count || 0,
           totalStyles: stylesResult.count || 0,
-          totalSubmissions: submissionsResult.count || 0
+          totalSubmissions: 0
         },
         recentMoves: recentMoves || []
       },
       message: 'Dashboard data retrieved successfully'
     });
   } catch (error) {
-    console.error('❌ Error fetching dashboard data:', error);
+    console.error('Error fetching dashboard data:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch dashboard data',
@@ -625,7 +603,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
 
 app.get('/api/admin/analytics', async (req, res) => {
   try {
-    console.log('📈 Fetching analytics data...');
+    console.log('Fetching analytics data...');
 
     const { data: styleStats } = await supabase
       .from('dance_moves')
@@ -657,7 +635,7 @@ app.get('/api/admin/analytics', async (req, res) => {
       message: 'Analytics data retrieved successfully'
     });
   } catch (error) {
-    console.error('❌ Error fetching analytics:', error);
+    console.error('Error fetching analytics:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch analytics data',
@@ -670,29 +648,26 @@ app.get('/api/admin/analytics', async (req, res) => {
 try {
   const movesRouter = require('./src/routes/moves');
   app.use('/api/moves', movesRouter);
-  console.log('✅ Moves router loaded');
+  console.log('Moves router loaded');
 } catch (error) {
-  console.error('❌ Error loading moves router:', error);
+  console.error('Error loading moves router:', error);
 }
 
 try {
   const danceStylesRouter = require('./src/routes/DanceStyles.js');
   app.use('/api/dance-styles', danceStylesRouter);
-  console.log('✅ Dance styles router loaded');
+  console.log('Dance styles router loaded');
 } catch (error) {
-  console.error('❌ Error loading dance styles router:', error);
+  console.error('Error loading dance styles router:', error);
 }
 
 try {
   const submissionsRouter = require('./src/routes/submissions');
   app.use('/api/submissions', submissionsRouter);
-  console.log('✅ Submissions router loaded');
+  console.log('Submissions router loaded');
 } catch (error) {
-  console.error('❌ Error loading submissions router:', error);
+  console.error('Error loading submissions router:', error);
 }
-
-// Admin endpoints are implemented directly above to avoid router import issues
-console.log('✅ Admin endpoints implemented directly in server.js');
 
 // Static routes
 app.get('/admin', (req, res) => {
@@ -712,8 +687,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     status: 'running',
     admin_dashboard: '/admin',
-    environment: process.env.NODE_ENV || 'development',
-    note: 'Admin endpoints implemented directly in server.js'
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -769,9 +743,9 @@ function extractYouTubeId(url) {
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
-  console.log(`✅ Server started successfully with admin endpoints`);
+  console.log(`Server started successfully with admin endpoints`);
 });
