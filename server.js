@@ -655,6 +655,32 @@ app.put('/api/admin/moves/:id', async (req, res) => {
 
     console.log('Processed update data:', updateData);
 
+    // Try updating with a minimal test first to isolate the issue
+    console.log('Testing minimal update first...');
+    const { data: testData, error: testError } = await supabase
+      .from('dance_moves')
+      .update({
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select();
+
+    if (testError) {
+      console.error('Even minimal update failed:', testError);
+      throw testError;
+    }
+
+    if (!testData || testData.length === 0) {
+      console.log('Minimal update failed - move ID constraint issue');
+      return res.status(404).json({
+        success: false,
+        error: 'Move ID constraint error',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log('Minimal update succeeded, trying full update...');
+
     // Update the move (without is_active filter in WHERE clause)
     const { data, error } = await supabase
       .from('dance_moves')
