@@ -635,12 +635,25 @@ app.put('/api/admin/moves/:id', async (req, res) => {
 
     console.log('Found existing move:', existingMove);
 
-    // Process video URL if provided
+    // Process video URL if provided and clean up data
     if (updateData.video_url) {
+      // Fix YouTube Studio URLs
+      if (updateData.video_url.includes('studio.youtube.com')) {
+        const videoId = updateData.video_url.match(/video\/([a-zA-Z0-9_-]{11})/)?.[1];
+        updateData.video_url = videoId ? `https://www.youtube.com/watch?v=${videoId}` : updateData.video_url;
+      }
+      
       const videoId = extractYouTubeId(updateData.video_url);
       updateData.video_id = videoId;
       updateData.thumbnail_url = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
     }
+
+    // Clean up empty strings that might cause constraint issues
+    if (updateData.subsection === '') {
+      updateData.subsection = null;
+    }
+
+    console.log('Processed update data:', updateData);
 
     // Update the move (without is_active filter in WHERE clause)
     const { data, error } = await supabase
@@ -653,7 +666,8 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       .select(); // Removed .single() to prevent "Cannot coerce" error
 
     if (error) {
-      console.error('Update error:', error);
+      console.error('Supabase update error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
     
