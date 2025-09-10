@@ -625,6 +625,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
 
     if (checkError || !existingMove) {
       console.log('Move not found in database:', id);
+      console.log('Check error:', checkError);
       return res.status(404).json({
         success: false,
         error: 'Move not found',
