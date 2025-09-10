@@ -607,21 +607,41 @@ app.post('/api/admin/moves', async (req, res) => {
   }
 });
 
-// FIXED: Move Update Endpoint - Removed .single() to prevent "Cannot coerce the result to a single JSON object" error
+// FINAL FIX: Move Update Endpoint - Addresses 404 error with better debugging
 app.put('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
     
     console.log('Updating move:', id);
+    console.log('Update data:', updateData);
 
+    // First, check if the move exists (regardless of is_active status)
+    const { data: existingMove, error: checkError } = await supabase
+      .from('dance_moves')
+      .select('id, name, is_active')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existingMove) {
+      console.log('Move not found in database:', id);
+      return res.status(404).json({
+        success: false,
+        error: 'Move not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log('Found existing move:', existingMove);
+
+    // Process video URL if provided
     if (updateData.video_url) {
       const videoId = extractYouTubeId(updateData.video_url);
       updateData.video_id = videoId;
       updateData.thumbnail_url = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
     }
 
-    // CRITICAL FIX: Remove .single() to prevent "Cannot coerce the result to a single JSON object" error
+    // Update the move (without is_active filter in WHERE clause)
     const { data, error } = await supabase
       .from('dance_moves')
       .update({
@@ -629,15 +649,19 @@ app.put('/api/admin/moves/:id', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select(); // Removed .single() here
+      .select(); // Removed .single() to prevent "Cannot coerce" error
 
-    if (error) throw error;
+    if (error) {
+      console.error('Update error:', error);
+      throw error;
+    }
     
     // Check if any rows were updated
     if (!data || data.length === 0) {
+      console.log('No rows updated for move:', id);
       return res.status(404).json({
         success: false,
-        error: 'Move not found',
+        error: 'Move could not be updated',
         timestamp: new Date().toISOString()
       });
     }
@@ -646,6 +670,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
     const updatedMove = data[0];
 
     console.log('Move updated successfully:', id);
+    console.log('Updated move data:', updatedMove);
 
     res.json({
       success: true,
