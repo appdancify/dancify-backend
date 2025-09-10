@@ -1,59 +1,64 @@
 // Move Management System with Dynamic Dance Style Loading
 class MoveManager {
-    constructor(apiClient) {
-        this.api = apiClient;
+    constructor() {
         this.moves = [];
-        this.danceStyles = []; // Add this to store available dance styles
-        this.isLoading = false;
+        this.danceStyles = []; // Store loaded dance styles
+        this.selectedMoves = new Set();
+        this.currentPage = 1;
+        this.movesPerPage = 12;
+        this.totalPages = 1;
+        this.currentFilters = {};
+        this.isInitialized = false;
         
         console.log('MoveManager initialized');
     }
 
-    // Initialize move management
+    // Initialize the move management system
     async init() {
         try {
             console.log('Initializing Move Management...');
             
-            // Check if API client is available
-            if (!this.api) {
-                console.log('No API client available, using localStorage fallback');
-                this.initializeAPI();
-            }
+            // Wait for DOM to be ready
+            await this.waitForDOMReady();
             
             // Load dance styles first, then moves
             await this.loadDanceStyles();
             await this.loadMoves();
+            
+            // Setup event listeners
             this.setupEventListeners();
             
+            // Initial render
+            this.renderMoves();
+            this.updateMoveStats();
+            
+            this.isInitialized = true;
             console.log('Move Management initialized successfully');
         } catch (error) {
             console.error('Failed to initialize Move Management:', error);
+            this.showErrorMessage('Failed to initialize move management: ' + error.message);
         }
     }
 
-    // Initialize API fallback
-    initializeAPI() {
-        this.api = {
-            request: async (method, endpoint, data) => {
-                console.log(`API ${method} ${endpoint}`, data);
-                
-                // Simulate API responses for localStorage fallback
-                if (endpoint.includes('/admin/moves')) {
-                    if (method === 'GET') {
-                        const moves = JSON.parse(localStorage.getItem('dancify_moves') || '[]');
-                        return { success: true, data: moves };
-                    } else if (method === 'POST') {
-                        const moves = JSON.parse(localStorage.getItem('dancify_moves') || '[]');
-                        const newMove = { ...data, id: Date.now().toString() };
-                        moves.push(newMove);
-                        localStorage.setItem('dancify_moves', JSON.stringify(moves));
-                        return { success: true, data: newMove };
-                    }
-                }
-                
-                return { success: false, error: 'API not available' };
+    // Wait for DOM to be ready
+    async waitForDOMReady(maxWait = 5000) {
+        const startTime = Date.now();
+        let foundElements = 0;
+        
+        while (foundElements < 1 && (Date.now() - startTime) < maxWait) {
+            const requiredElements = ['movesGrid', 'createMoveBtn', 'moveSearchInput'];
+            foundElements = requiredElements.filter(id => document.getElementById(id) !== null).length;
+            
+            if (foundElements >= 1) {
+                console.log(`Found ${foundElements}/3 required DOM elements`);
+                return true;
             }
-        };
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.log(`Proceeding with DOM readiness (${foundElements}/3 elements found)`);
+        return true;
     }
 
     // Load dance styles from API
@@ -69,7 +74,6 @@ class MoveManager {
                 console.log(`Loaded ${this.danceStyles.length} dance styles`);
             } else {
                 console.error('Failed to load dance styles:', result.error);
-                // Fallback to empty array
                 this.danceStyles = [];
             }
         } catch (error) {
@@ -78,240 +82,181 @@ class MoveManager {
         }
     }
 
-    // Load moves
+    // Load moves from API
     async loadMoves() {
-        if (this.isLoading) return;
-        
-        this.isLoading = true;
-        console.log('Loading moves...');
-        
         try {
-            if (this.api && typeof this.api.request === 'function') {
-                console.log('Loading moves from API...');
-                const response = await this.api.request('GET', '/admin/moves');
-                
-                if (response && response.success) {
-                    this.moves = response.data || [];
-                    console.log(`Loaded ${this.moves.length} moves from API`);
-                } else {
-                    throw new Error(response?.error || 'Failed to load moves from API');
-                }
+            console.log('Loading moves...');
+            
+            const response = await fetch('/api/admin/moves');
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                this.moves = result.data || [];
+                console.log(`Loaded ${this.moves.length} moves`);
             } else {
-                console.log('Loading moves from localStorage...');
-                this.moves = JSON.parse(localStorage.getItem('dancify_moves') || '[]');
-                console.log(`Loaded ${this.moves.length} moves from localStorage`);
+                console.error('Failed to load moves:', result.error);
+                this.moves = [];
             }
-            
-            this.renderMoves();
-            this.updateMoveStats();
-            
         } catch (error) {
-            console.error('Failed to load moves:', error);
+            console.error('Error loading moves:', error);
             this.moves = [];
-            this.renderMoves();
-        } finally {
-            this.isLoading = false;
         }
     }
 
     // Setup event listeners
     setupEventListeners() {
         console.log('Setting up event listeners...');
-
-        // Wait for DOM elements to be available
+        
+        // Remove existing listeners to prevent duplicates
+        this.removeEventListeners();
+        
         setTimeout(() => {
-            this.setupEventListenersAfterDelay();
-        }, 1000);
-    }
-
-    setupEventListenersAfterDelay() {
-        console.log('Attempting to find elements after delay...');
-        
-        // Count available elements for debugging
-        const buttons = document.querySelectorAll('button');
-        const inputs = document.querySelectorAll('input');
-        const selects = document.querySelectorAll('select');
-        
-        console.log(`Found ${buttons.length} buttons, ${inputs.length} inputs, ${selects.length} selects`);
-
-        // Create move button
-        const createBtn = document.getElementById('createMoveBtn') || 
-                         document.querySelector('[onclick*="showCreateMoveModal"]') ||
-                         document.querySelector('button[class*="create"]');
-        
-        if (createBtn) {
-            console.log('Found create button via alternative selector');
-            createBtn.addEventListener('click', () => this.showCreateMoveModal());
-            console.log('Create move button listener added');
-        } else {
-            console.log('Create move button not found');
-        }
-
-        // Refresh button
-        const refreshBtn = document.getElementById('refreshMovesBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadMoves());
-            console.log('Refresh button listener added');
-        } else {
-            console.log('Refresh button not found');
-        }
-
-        // Search input
-        const searchInput = document.getElementById('moveSearch');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    this.filterMoves(e.target.value);
-                }, 300);
-            });
-            console.log('Search input listener added');
-        } else {
-            console.log('Search input not found');
-        }
-
-        // Filter dropdowns
-        ['danceStyleFilter', 'sectionFilter', 'difficultyFilter'].forEach(filterId => {
-            const filter = document.getElementById(filterId);
-            if (filter) {
-                filter.addEventListener('change', () => this.applyFilters());
-                console.log(`${filterId} listener added`);
-            } else {
-                console.log(`${filterId} not found`);
+            // Create move button
+            let createMoveBtn = document.getElementById('createMoveBtn');
+            if (!createMoveBtn) {
+                createMoveBtn = document.querySelector('.btn[onclick*="create"], button[title*="Create"], .header-actions .btn-primary');
             }
-        });
+            
+            if (createMoveBtn) {
+                this.createMoveBtnHandler = (e) => {
+                    e.preventDefault();
+                    this.showCreateMoveModal();
+                };
+                createMoveBtn.addEventListener('click', this.createMoveBtnHandler);
+                console.log('Create move button listener added');
+            }
 
-        // Bulk delete button
-        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-        if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener('click', () => this.bulkDeleteMoves());
-            console.log('Bulk delete button listener added');
-        } else {
-            console.log('Bulk delete button not found');
-        }
+            // Refresh button
+            let refreshBtn = document.getElementById('refreshMovesBtn');
+            if (refreshBtn) {
+                this.refreshBtnHandler = () => this.loadMoves();
+                refreshBtn.addEventListener('click', this.refreshBtnHandler);
+                console.log('Refresh button listener added');
+            }
 
-        console.log('Event listeners setup complete');
+            // Search input
+            let searchInput = document.getElementById('moveSearchInput');
+            if (searchInput) {
+                this.searchInputHandler = (e) => {
+                    this.currentFilters.search = e.target.value.trim();
+                    this.applyFilters();
+                };
+                searchInput.addEventListener('input', this.searchInputHandler);
+                console.log('Search input listener added');
+            }
+
+            console.log('Event listeners setup complete');
+        }, 300);
     }
 
-    // Render moves
-    renderMoves() {
-        let movesContainer = document.getElementById('movesContainer');
-        
-        if (!movesContainer) {
-            console.log('Moves container not found - trying to create one');
-            movesContainer = this.createMovesContainer();
-        }
-        
-        if (!movesContainer) {
-            console.error('Could not create moves container');
-            return;
+    // Remove event listeners to prevent duplicates
+    removeEventListeners() {
+        const createMoveBtn = document.getElementById('createMoveBtn');
+        if (createMoveBtn && this.createMoveBtnHandler) {
+            createMoveBtn.removeEventListener('click', this.createMoveBtnHandler);
         }
 
-        if (this.moves.length === 0) {
+        const refreshBtn = document.getElementById('refreshMovesBtn');
+        if (refreshBtn && this.refreshBtnHandler) {
+            refreshBtn.removeEventListener('click', this.refreshBtnHandler);
+        }
+
+        const searchInput = document.getElementById('moveSearchInput');
+        if (searchInput && this.searchInputHandler) {
+            searchInput.removeEventListener('input', this.searchInputHandler);
+        }
+    }
+
+    // Render moves grid
+    renderMoves() {
+        let movesContainer = document.getElementById('movesGrid');
+        if (!movesContainer) {
+            movesContainer = document.querySelector('.moves-grid, [id*="moves"], .move-container');
+        }
+        
+        if (!movesContainer) {
+            console.warn('Moves container not found - trying to create one');
+            
+            const parentContainer = document.querySelector('.moves-container, .content-section, #move-management');
+            if (parentContainer) {
+                movesContainer = document.createElement('div');
+                movesContainer.id = 'movesGrid';
+                movesContainer.className = 'moves-grid';
+                parentContainer.appendChild(movesContainer);
+                console.log('Created moves container');
+            } else {
+                console.error('Cannot find suitable parent for moves container');
+                return;
+            }
+        }
+
+        if (!this.moves || this.moves.length === 0) {
             movesContainer.innerHTML = `
-                <div class="no-data">
-                    <div class="no-data-content">
-                        <div class="no-data-icon">💃</div>
-                        <div class="no-data-text">No moves found</div>
-                        <div class="no-data-subtitle">Create your first dance move to get started</div>
-                        <button class="btn btn-primary" onclick="window.moveManager.showCreateMoveModal()">
-                            Create Move
-                        </button>
-                    </div>
+                <div class="empty-state">
+                    <div class="empty-icon">💃</div>
+                    <div class="empty-title">No Dance Moves Found</div>
+                    <div class="empty-description">Create your first dance move to get started</div>
+                    <button class="btn btn-primary" onclick="window.moveManager.showCreateMoveModal()">
+                        Create Move
+                    </button>
                 </div>
             `;
             return;
         }
 
-        const moveCards = this.moves.map(move => this.createMoveCard(move)).join('');
-        movesContainer.innerHTML = moveCards;
+        const movesHTML = this.moves.map(move => this.createMoveCard(move)).join('');
+        movesContainer.innerHTML = movesHTML;
         
         console.log(`Rendered ${this.moves.length} moves`);
     }
 
-    // Create moves container if it doesn't exist
-    createMovesContainer() {
-        console.log('Creating moves container');
-        
-        // Try to find a suitable parent container
-        const section = document.getElementById('move-management') || 
-                       document.querySelector('.content-container') ||
-                       document.querySelector('.main-content');
-        
-        if (!section) {
-            console.error('No suitable parent found for moves container');
-            return null;
-        }
-
-        const container = document.createElement('div');
-        container.id = 'movesContainer';
-        container.className = 'moves-grid';
-        container.style.cssText = `
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-            padding: 20px;
-        `;
-        
-        section.appendChild(container);
-        console.log('Created moves container');
-        
-        return container;
-    }
-
-    // Create move card
+    // Create move card HTML
     createMoveCard(move) {
-        const difficulty = move.difficulty || 'beginner';
-        const danceStyle = move.dance_style || move.danceStyle || 'Unknown';
-        
+        const difficultyColors = {
+            'beginner': '#28A745',
+            'intermediate': '#FFC107', 
+            'advanced': '#DC3545',
+            'expert': '#6F42C1'
+        };
+
+        const difficultyColor = difficultyColors[move.difficulty] || '#8A2BE2';
+        const thumbnailUrl = move.thumbnail_url || 'https://via.placeholder.com/300x200?text=No+Video';
+        const created = new Date(move.created_at).toLocaleDateString();
+        const viewCount = move.view_count || 0;
+        const rating = move.rating || 0;
+
         return `
             <div class="move-card" data-move-id="${move.id}">
-                <div class="move-header">
-                    <h3 class="move-name">${move.name}</h3>
-                    <div class="move-badges">
-                        <span class="badge badge-${difficulty}">${difficulty}</span>
-                        <span class="badge badge-style">${danceStyle}</span>
+                <div class="move-thumbnail">
+                    <img src="${thumbnailUrl}" alt="${move.name}" loading="lazy" 
+                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Video'">
+                    <div class="move-overlay">
+                        <button class="btn-icon" onclick="window.moveManager.editMove('${move.id}')" title="Edit Move">
+                            Edit
+                        </button>
+                        <button class="btn-icon" onclick="window.moveManager.deleteMove('${move.id}')" title="Delete Move">
+                            Delete
+                        </button>
                     </div>
+                    ${move.video_url ? `<div class="play-button">▶</div>` : ''}
                 </div>
-                
-                <div class="move-content">
-                    <p class="move-description">${move.description || 'No description'}</p>
-                    
-                    ${move.video_url ? `
-                        <div class="move-video">
-                            <a href="${move.video_url}" target="_blank" class="video-link">
-                                📹 Watch Video
-                            </a>
-                        </div>
-                    ` : ''}
-                    
+                <div class="move-info">
+                    <div class="move-header">
+                        <h3 class="move-title">${move.name}</h3>
+                        <span class="difficulty-badge" style="background-color: ${difficultyColor}; color: white;">
+                            ${move.difficulty}
+                        </span>
+                    </div>
                     <div class="move-meta">
-                        <div class="meta-item">
-                            <span class="meta-label">Section:</span>
-                            <span class="meta-value">${move.section || 'Basic'}</span>
-                        </div>
-                        ${move.subsection ? `
-                            <div class="meta-item">
-                                <span class="meta-label">Subsection:</span>
-                                <span class="meta-value">${move.subsection}</span>
-                            </div>
-                        ` : ''}
-                        <div class="meta-item">
-                            <span class="meta-label">XP Reward:</span>
-                            <span class="meta-value">${move.xp_reward || move.xpReward || 50}</span>
-                        </div>
+                        <span class="dance-style">${move.dance_style}</span>
+                        <span class="section">${move.section}</span>
+                        ${move.subsection ? `<span class="subsection">${move.subsection}</span>` : ''}
                     </div>
-                </div>
-                
-                <div class="move-actions">
-                    <button class="btn btn-sm btn-outline" onclick="window.moveManager.editMove('${move.id}')">
-                        Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="window.moveManager.deleteMove('${move.id}')">
-                        Delete
-                    </button>
+                    <div class="move-description">${move.description}</div>
+                    <div class="move-stats">
+                        <span class="xp">XP: ${move.xp_reward}</span>
+                        <span class="created">Created: ${created}</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -321,36 +266,14 @@ class MoveManager {
     updateMoveStats() {
         try {
             const totalMovesEl = document.getElementById('totalMoves');
-            const activeMoves = this.moves.filter(move => move.is_active !== false);
+            
+            if (!this.moves || this.moves.length === 0) {
+                if (totalMovesEl) totalMovesEl.textContent = '0';
+                return;
+            }
             
             if (totalMovesEl) {
-                totalMovesEl.textContent = activeMoves.length;
-            }
-
-            // Update difficulty breakdown
-            const difficultyBreakdown = activeMoves.reduce((acc, move) => {
-                const difficulty = move.difficulty || 'beginner';
-                acc[difficulty] = (acc[difficulty] || 0) + 1;
-                return acc;
-            }, {});
-
-            // Update dance style breakdown
-            const styleBreakdown = activeMoves.reduce((acc, move) => {
-                const style = move.dance_style || move.danceStyle || 'Unknown';
-                acc[style] = (acc[style] || 0) + 1;
-                return acc;
-            }, {});
-
-            // Update average rating if available
-            const averageRatingEl = document.getElementById('averageRating');
-            if (averageRatingEl) {
-                const ratedMoves = activeMoves.filter(move => move.rating && move.rating > 0);
-                if (ratedMoves.length > 0) {
-                    const avgRating = ratedMoves.reduce((sum, move) => sum + move.rating, 0) / ratedMoves.length;
-                    averageRatingEl.textContent = avgRating.toFixed(1);
-                } else {
-                    averageRatingEl.textContent = '0.0';
-                }
+                totalMovesEl.textContent = this.moves.length.toLocaleString();
             }
             
             console.log('Move statistics updated');
@@ -374,7 +297,7 @@ class MoveManager {
         }
     }
 
-    // Show move modal with DYNAMIC dance style loading
+    // Show move modal
     showMoveModal(move, isCreateMode) {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'modal-overlay show';
@@ -397,16 +320,7 @@ class MoveManager {
             ? this.danceStyles.map(style => 
                 `<option value="${style.name}" ${move?.dance_style === style.name ? 'selected' : ''}>${style.name}</option>`
               ).join('')
-            : `
-                <option value="Hip-Hop" ${move?.dance_style === 'Hip-Hop' ? 'selected' : ''}>Hip-Hop</option>
-                <option value="Ballet" ${move?.dance_style === 'Ballet' ? 'selected' : ''}>Ballet</option>
-                <option value="Contemporary" ${move?.dance_style === 'Contemporary' ? 'selected' : ''}>Contemporary</option>
-                <option value="Jazz" ${move?.dance_style === 'Jazz' ? 'selected' : ''}>Jazz</option>
-                <option value="Latin" ${move?.dance_style === 'Latin' ? 'selected' : ''}>Latin</option>
-                <option value="Breakdance" ${move?.dance_style === 'Breakdance' ? 'selected' : ''}>Breakdance</option>
-                <option value="Ballroom" ${move?.dance_style === 'Ballroom' ? 'selected' : ''}>Ballroom</option>
-                <option value="Tap" ${move?.dance_style === 'Tap' ? 'selected' : ''}>Tap</option>
-              `;
+            : '<option value="">No dance styles available - create some first</option>';
 
         return `
             <div class="modal">
@@ -462,14 +376,14 @@ class MoveManager {
                             <div class="form-group">
                                 <label for="xpReward">XP Reward</label>
                                 <input type="number" id="xpReward" name="xp_reward" min="1" max="1000"
-                                       value="${move?.xp_reward || move?.xpReward || 50}" placeholder="50">
+                                       value="${move?.xp_reward || 50}" placeholder="50">
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label for="videoUrl">Video URL</label>
                             <input type="url" id="videoUrl" name="video_url" 
-                                   value="${move?.video_url || move?.videoUrl || ''}" 
+                                   value="${move?.video_url || ''}" 
                                    placeholder="https://youtube.com/watch?v=...">
                         </div>
                         
@@ -483,7 +397,7 @@ class MoveManager {
                         <div class="form-group">
                             <label for="detailedInstructions">Detailed Instructions *</label>
                             <textarea id="detailedInstructions" name="detailed_instructions" required rows="5"
-                                      placeholder="Step-by-step instructions">${move?.detailed_instructions || move?.detailedInstructions || ''}</textarea>
+                                      placeholder="Step-by-step instructions">${move?.detailed_instructions || ''}</textarea>
                             <div class="error-message" id="instructionsError"></div>
                         </div>
                     </form>
@@ -492,7 +406,7 @@ class MoveManager {
                     <button type="button" class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
                         Cancel
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="window.moveManager.saveMoveForm('${isCreateMode ? 'create' : 'edit'}', '${move?.id || ''}')">
+                    <button type="button" class="btn btn-primary" onclick="window.moveManager.saveMove('${isCreateMode ? 'create' : 'edit'}', '${move?.id || ''}')">
                         ${isCreateMode ? 'Create Move' : 'Save Changes'}
                     </button>
                 </div>
@@ -507,7 +421,7 @@ class MoveManager {
         if (form) {
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.saveMoveForm(isCreateMode ? 'create' : 'edit', move?.id || '');
+                this.saveMove(isCreateMode ? 'create' : 'edit', move?.id || '');
             });
         }
         
@@ -532,8 +446,8 @@ class MoveManager {
         document.addEventListener('keydown', handleEscape);
     }
 
-    // Save move form
-    async saveMoveForm(mode, moveId) {
+    // Save move
+    async saveMove(mode, moveId) {
         try {
             const form = document.getElementById('moveForm');
             if (!form) throw new Error('Form not found');
@@ -577,40 +491,28 @@ class MoveManager {
             let response;
             
             if (mode === 'create') {
-                if (this.api && typeof this.api.request === 'function') {
-                    response = await this.api.request('POST', '/admin/moves', moveData);
-                } else {
-                    // Fallback to direct API call
-                    const fetchResponse = await fetch('/api/admin/moves', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(moveData)
-                    });
-                    response = await fetchResponse.json();
-                    response.success = fetchResponse.ok;
-                }
+                const fetchResponse = await fetch('/api/admin/moves', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(moveData)
+                });
+                response = await fetchResponse.json();
                 
-                if (response && response.success) {
-                    this.moves.push(response.data);
+                if (fetchResponse.ok && response.success) {
+                    this.moves.unshift(response.data);
                     this.showSuccessMessage('Move created successfully');
                 } else {
                     throw new Error(response?.error || 'Failed to create move');
                 }
             } else {
-                if (this.api && typeof this.api.request === 'function') {
-                    response = await this.api.request('PUT', `/admin/moves/${moveId}`, moveData);
-                } else {
-                    // Fallback to direct API call
-                    const fetchResponse = await fetch(`/api/admin/moves/${moveId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(moveData)
-                    });
-                    response = await fetchResponse.json();
-                    response.success = fetchResponse.ok;
-                }
+                const fetchResponse = await fetch(`/api/admin/moves/${moveId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(moveData)
+                });
+                response = await fetchResponse.json();
                 
-                if (response && response.success) {
+                if (fetchResponse.ok && response.success) {
                     const index = this.moves.findIndex(m => m.id === moveId);
                     if (index !== -1) {
                         this.moves[index] = { ...this.moves[index], ...response.data };
@@ -647,26 +549,19 @@ class MoveManager {
         }
         
         try {
-            let response;
+            const response = await fetch(`/api/admin/moves/${moveId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
             
-            if (this.api && typeof this.api.request === 'function') {
-                response = await this.api.request('DELETE', `/admin/moves/${moveId}`);
-            } else {
-                // Fallback to direct API call
-                const fetchResponse = await fetch(`/api/admin/moves/${moveId}`, {
-                    method: 'DELETE'
-                });
-                response = await fetchResponse.json();
-                response.success = fetchResponse.ok;
-            }
-            
-            if (response && response.success) {
+            if (response.ok && result.success) {
                 this.moves = this.moves.filter(m => m.id !== moveId);
+                this.selectedMoves.delete(moveId);
                 this.showSuccessMessage('Move deleted successfully');
                 this.renderMoves();
                 this.updateMoveStats();
             } else {
-                throw new Error(response?.error || 'Failed to delete move');
+                throw new Error(result?.error || 'Failed to delete move');
             }
         } catch (error) {
             console.error('Error deleting move:', error);
@@ -674,48 +569,84 @@ class MoveManager {
         }
     }
 
+    // Apply filters
+    applyFilters() {
+        let filteredMoves = [...this.moves];
+        
+        if (this.currentFilters.search) {
+            const searchTerm = this.currentFilters.search.toLowerCase();
+            filteredMoves = filteredMoves.filter(move => 
+                move.name.toLowerCase().includes(searchTerm) ||
+                move.description.toLowerCase().includes(searchTerm) ||
+                move.dance_style.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        const originalMoves = this.moves;
+        this.moves = filteredMoves;
+        this.renderMoves();
+        this.moves = originalMoves;
+        
+        console.log(`Applied filters, showing ${filteredMoves.length} of ${originalMoves.length} moves`);
+    }
+
     // Show success message
     showSuccessMessage(message) {
-        console.log('SUCCESS:', message);
-        alert(message); // Simple alert for now
+        this.showMessage(message, 'success');
     }
 
     // Show error message
     showErrorMessage(message) {
-        console.error('ERROR:', message);
-        alert('Error: ' + message); // Simple alert for now
+        this.showMessage(message, 'error');
     }
 
-    // Filter and search methods
-    filterMoves(searchTerm) {
-        // Implementation for filtering moves
-        console.log('Filtering moves by:', searchTerm);
-    }
-
-    applyFilters() {
-        // Implementation for applying filters
-        console.log('Applying filters');
-    }
-
-    bulkDeleteMoves() {
-        // Implementation for bulk delete
-        console.log('Bulk delete moves');
+    // Show message
+    showMessage(message, type = 'info') {
+        console.log(`${type.toUpperCase()}: ${message}`);
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${type}`;
+        messageDiv.innerHTML = `
+            <span class="message-text">${message}</span>
+            <button class="message-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        `;
+        
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 5000);
     }
 }
 
-// Initialize when DOM is ready
+// Initialize the Move Manager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Try to get API client from global scope
-    const apiClient = window.dancifyAPIClient || window.api || null;
-    
-    window.moveManager = new MoveManager(apiClient);
-    
-    // Initialize after a short delay to ensure other components are ready
-    setTimeout(() => {
-        if (window.moveManager && typeof window.moveManager.init === 'function') {
-            window.moveManager.init();
-        }
-    }, 500);
+    if (!window.moveManager) {
+        window.moveManager = new MoveManager();
+        window.moveManager.init();
+        console.log('Move Manager ready');
+    }
 });
 
-console.log('Move Manager ready');
+// Export for global use
+window.MoveManager = MoveManager;
