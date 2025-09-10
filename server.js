@@ -407,7 +407,7 @@ app.get('/api/admin/moves', async (req, res) => {
   }
 });
 
-// COMPLETELY FIXED MOVE CREATION - NO SLUG FIELD
+// FIXED MOVE CREATION - WITH SLUG SUPPORT FOR DATABASE TRIGGER
 app.post('/api/admin/moves', async (req, res) => {
   try {
     console.log('Creating new move:', req.body);
@@ -429,7 +429,7 @@ app.post('/api/admin/moves', async (req, res) => {
     const videoId = video_url ? extractYouTubeId(video_url) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
-    // Insert data with ONLY fields that exist in database
+    // Insert data - slug will be generated automatically by database trigger
     const insertData = {
       name,
       description,
