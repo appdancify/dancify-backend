@@ -138,6 +138,130 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// PUBLIC API ENDPOINTS FOR iOS APP
+
+// Get all moves for iOS app
+app.get('/api/moves', async (req, res) => {
+  try {
+    console.log('Fetching moves for iOS app...');
+    
+    // Apply filters from query parameters
+    let query = supabase
+      .from('dance_moves')
+      .select('*')
+      .eq('is_active', true);
+
+    // Add filters if provided
+    if (req.query.dance_style) {
+      query = query.eq('dance_style', req.query.dance_style);
+    }
+    if (req.query.section) {
+      query = query.eq('section', req.query.section);
+    }
+    if (req.query.difficulty) {
+      query = query.eq('difficulty', req.query.difficulty);
+    }
+    if (req.query.min_level) {
+      query = query.gte('level_required', parseInt(req.query.min_level));
+    }
+    if (req.query.max_level) {
+      query = query.lte('level_required', parseInt(req.query.max_level));
+    }
+
+    // Order by dance style, section, level
+    query = query.order('dance_style').order('section').order('level_required');
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    console.log(`Found ${data?.length || 0} moves for iOS app`);
+    
+    res.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      message: `Retrieved ${data?.length || 0} dance moves`
+    });
+  } catch (error) {
+    console.error('Error fetching moves for iOS app:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dance moves',
+      message: error.message
+    });
+  }
+});
+
+// Get specific move for iOS app
+app.get('/api/moves/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Fetching move for iOS app:', id);
+
+    const { data, error } = await supabase
+      .from('dance_moves')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Dance move not found'
+        });
+      }
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      data: data,
+      message: 'Dance move retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching move for iOS app:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dance move',
+      message: error.message
+    });
+  }
+});
+
+// Get dance styles for iOS app
+app.get('/api/dance-styles', async (req, res) => {
+  try {
+    console.log('Fetching dance styles for iOS app...');
+    
+    const { data, error } = await supabase
+      .from('dance_styles')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    console.log(`Found ${data?.length || 0} dance styles for iOS app`);
+    
+    res.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      message: `Retrieved ${data?.length || 0} dance styles`
+    });
+  } catch (error) {
+    console.error('Error fetching dance styles for iOS app:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dance styles',
+      message: error.message
+    });
+  }
+});
+
 // ADMIN ENDPOINTS
 
 // Dance Styles Admin Endpoints
@@ -644,7 +768,8 @@ app.get('/api/admin/analytics', async (req, res) => {
   }
 });
 
-// Load public API routers
+// Load public API routers (commented out since we're using direct endpoints above)
+/*
 try {
   const movesRouter = require('./src/routes/moves');
   app.use('/api/moves', movesRouter);
@@ -660,6 +785,7 @@ try {
 } catch (error) {
   console.error('Error loading dance styles router:', error);
 }
+*/
 
 try {
   const submissionsRouter = require('./src/routes/submissions');
