@@ -405,6 +405,7 @@ app.post('/api/admin/dance-styles', async (req, res) => {
   }
 });
 
+// FIXED: Dance Style Update Endpoint - Removed .single() to prevent "Cannot coerce the result to a single JSON object" error
 app.put('/api/admin/dance-styles/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -421,16 +422,17 @@ app.put('/api/admin/dance-styles/:id', async (req, res) => {
 
     updateData.updated_at = new Date().toISOString();
 
+    // CRITICAL FIX: Remove .single() to prevent "Cannot coerce the result to a single JSON object" error
     const { data, error } = await supabase
       .from('dance_styles')
       .update(updateData)
       .eq('id', id)
-      .select()
-      .single();
+      .select(); // Removed .single() here
 
     if (error) throw error;
     
-    if (!data) {
+    // Check if any rows were updated
+    if (!data || data.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Dance style not found',
@@ -438,11 +440,14 @@ app.put('/api/admin/dance-styles/:id', async (req, res) => {
       });
     }
 
+    // Get the first (and should be only) updated record
+    const updatedStyle = data[0];
+
     console.log('Dance style updated successfully:', id);
 
     res.json({
       success: true,
-      data: data,
+      data: updatedStyle,
       message: 'Dance style updated successfully',
       timestamp: new Date().toISOString()
     });
@@ -602,6 +607,7 @@ app.post('/api/admin/moves', async (req, res) => {
   }
 });
 
+// FIXED: Move Update Endpoint - Removed .single() to prevent "Cannot coerce the result to a single JSON object" error
 app.put('/api/admin/moves/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -615,6 +621,7 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       updateData.thumbnail_url = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
     }
 
+    // CRITICAL FIX: Remove .single() to prevent "Cannot coerce the result to a single JSON object" error
     const { data, error } = await supabase
       .from('dance_moves')
       .update({
@@ -622,12 +629,12 @@ app.put('/api/admin/moves/:id', async (req, res) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-      .single();
+      .select(); // Removed .single() here
 
     if (error) throw error;
     
-    if (!data) {
+    // Check if any rows were updated
+    if (!data || data.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Move not found',
@@ -635,11 +642,14 @@ app.put('/api/admin/moves/:id', async (req, res) => {
       });
     }
 
+    // Get the first (and should be only) updated record
+    const updatedMove = data[0];
+
     console.log('Move updated successfully:', id);
 
     res.json({
       success: true,
-      data: data,
+      data: updatedMove,
       message: 'Move updated successfully',
       timestamp: new Date().toISOString()
     });
