@@ -391,7 +391,7 @@ app.delete('/api/admin/dance-styles/:id', async (req, res) => {
   }
 });
 
-// Dance Moves Admin Endpoints
+// Dance Moves Admin Endpoints - FIXED TO REMOVE SLUG
 app.get('/api/admin/moves', async (req, res) => {
   try {
     console.log('🔍 Fetching admin moves...');
@@ -424,6 +424,7 @@ app.get('/api/admin/moves', async (req, res) => {
   }
 });
 
+// FIXED MOVE CREATION - REMOVED SLUG FIELD
 app.post('/api/admin/moves', async (req, res) => {
   try {
     console.log('🆕 Creating new move:', req.body);
@@ -447,6 +448,7 @@ app.post('/api/admin/moves', async (req, res) => {
     const videoId = video_url ? extractYouTubeId(video_url) : null;
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
+    // Create move with only fields that exist in the database - NO SLUG
     const { data, error } = await supabase
       .from('dance_moves')
       .insert([{
@@ -470,7 +472,9 @@ app.post('/api/admin/moves', async (req, res) => {
         key_techniques: key_techniques || [],
         prerequisites: prerequisites || [],
         instructor_id,
-        instructor_name
+        instructor_name,
+        is_active: true
+        // REMOVED: slug field that doesn't exist in database
       }])
       .select()
       .single();
